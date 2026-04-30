@@ -115,12 +115,10 @@
             </td>
 
             <td style="width: 32%;">
-                <div class="box" style="text-align: center;">
+                <div class="box" style="text-align: center; min-height: 240px;">
                     <div class="badge">QR Code</div>
-                    <div style="margin-top: 8px;">
-                        <img src="{{ $qrDataUri ?? $qrCodeUrl ?? $certificate->qr_code_url }}" alt="QR Code" style="width: 140px; height: 140px;">
-                    </div>
-                    <div class="muted" style="word-break: break-all; font-size: 9pt; margin-top: 10px;">{{ $validationUrl }}</div>
+                    <div style="margin-top: 12px; width: 140px; height: 140px; margin-left: auto; margin-right: auto; border: 1px solid #dbe2ea; border-radius: 12px; background: #ffffff;"></div>
+                    <div class="muted" style="word-break: break-all; font-size: 8pt; margin-top: 16px; line-height: 1.2;">{{ $validationUrl }}</div>
                 </div>
 
                 <div class="box" style="margin-top: 14px;">

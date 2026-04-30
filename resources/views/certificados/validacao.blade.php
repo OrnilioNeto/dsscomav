@@ -2,6 +2,27 @@
 
 @section('title', 'Validar Certificado')
 
+@section('extra_css')
+<style>
+    @media print {
+        nav,
+        footer,
+        .print-hidden,
+        .no-print {
+            display: none !important;
+        }
+
+        body {
+            background: #ffffff !important;
+        }
+
+        .min-h-screen {
+            min-height: auto !important;
+        }
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="max-w-5xl mx-auto px-4 py-10">
     <div class="bg-white p-8 md:p-10 rounded-3xl shadow-2xl">

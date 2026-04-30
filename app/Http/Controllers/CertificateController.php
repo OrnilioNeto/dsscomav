@@ -144,6 +144,15 @@ class CertificateController extends Controller
         $pdf->AddPage();
         $pdf->writeHTML($html, true, false, true, false, '');
 
+        $style = [
+            'border' => false,
+            'padding' => 0,
+            'fgcolor' => [0, 0, 0],
+            'bgcolor' => false,
+        ];
+
+        $pdf->write2DBarcode($certificate->validation_url, 'QRCODE,H', 208, 58, 38, 38, $style, 'N');
+
         return response($pdf->Output('certificado-' . $certificate->codigo_certificado . '.pdf', 'S'))
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="certificado-' . $certificate->codigo_certificado . '.pdf"');
