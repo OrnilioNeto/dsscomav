@@ -67,6 +67,12 @@
                 @endif
             </div>
         @endif
+
+        <div class="mt-5 flex justify-center">
+            <button id="assessment-btn" type="button" class="hidden rounded-lg bg-emerald-600 px-6 py-3 font-bold text-white hover:bg-emerald-700 transition">
+                <i class="fas fa-clipboard-check mr-2"></i>Realizar avaliação
+            </button>
+        </div>
     </div>
 
     <div class="grid md:grid-cols-2 gap-6 mb-8">
@@ -94,7 +100,7 @@
             <ul class="space-y-2 text-gray-700 list-disc list-inside">
                 <li>Assista o vídeo completamente para desbloquear a avaliação.</li>
                 <li><strong>Não é permitido adiantar o vídeo.</strong></li>
-                <li>A avaliação abre automaticamente ao atingir 90% do tempo.</li>
+                <li>A partir de 90% será liberado o botão para realizar a avaliação.</li>
                 <li>Responda corretamente para concluir o treinamento.</li>
             </ul>
         </div>
@@ -104,12 +110,6 @@
         <a href="{{ route('dashboard') }}" class="flex-1 bg-gray-400 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-500 transition text-center">
             <i class="fas fa-arrow-left mr-2"></i>Voltar
         </a>
-
-        @if($progress && $progress->concluido)
-            <button onclick="downloadCertificate({{ $training->id }})" class="flex-1 bg-orange-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-700 transition">
-                <i class="fas fa-certificate mr-2"></i>Baixar Certificado
-            </button>
-        @endif
     </div>
 </div>
 
@@ -161,6 +161,7 @@
 
     let currentProgress = {{ $progress->porcentagem_assistida }};
     let assessmentOpened = {{ $progress->avaliacao_aprovada ? 'true' : 'false' }};
+    let assessmentUnlocked = {{ $progress->porcentagem_assistida >= 90 ? 'true' : 'false' }};
     let lastUpdateTime = 0;
     let lastSafeTime = {{ (int) $progress->tempo_assistido }};
     let assessmentAttempt = {{ (int) ($progress->avaliacao_tentativas ?? 0) }};
@@ -192,8 +193,37 @@
         return tempoAtual <= ultimoTempo;
     }
 
-    function openAssessment() {
+    function unlockAssessmentButton() {
         if (!hasAssessment || assessmentOpened) return;
+
+        assessmentUnlocked = true;
+        const button = document.getElementById('assessment-btn');
+        const status = document.getElementById('assessment-status');
+
+        if (button) {
+            button.classList.remove('hidden');
+        }
+
+        if (status) {
+            status.textContent = 'A avaliação já está liberada. Clique no botão abaixo do vídeo para continuar.';
+        }
+    }
+
+    function setCertificateSuccessMessage() {
+        const status = document.getElementById('assessment-status');
+        const button = document.getElementById('assessment-btn');
+
+        if (status) {
+            status.innerHTML = '<span class="text-green-700 font-semibold">Certificado gerado com sucesso. Você pode acessá-lo na aba de certificados.</span>';
+        }
+
+        if (button) {
+            button.classList.add('hidden');
+        }
+    }
+
+    function openAssessment() {
+        if (!hasAssessment || assessmentOpened || !assessmentUnlocked) return;
         assessmentOpened = true;
         document.getElementById('assessment-modal').classList.remove('hidden');
         document.getElementById('assessment-modal').classList.add('flex');
@@ -224,8 +254,8 @@
                 porcentagem_assistida: currentProgress
             })
         }).then(r => r.json()).then(data => {
-            if (data.show_assessment) {
-                openAssessment();
+            if (data.show_assessment || currentProgress >= 90) {
+                unlockAssessmentButton();
             }
         }).catch(e => console.error(e));
     }
@@ -246,7 +276,8 @@
             document.getElementById('assessment-message').textContent = data.message;
             document.getElementById('assessment-message').className = 'text-sm font-medium text-' + (data.success ? 'green' : 'red') + '-600';
             if (data.success) {
-                setTimeout(() => location.reload(), 1000);
+                setCertificateSuccessMessage();
+                setTimeout(() => closeAssessment(), 900);
                 return;
             }
 
@@ -258,6 +289,11 @@
     }
 
     document.getElementById('assessment-form').addEventListener('submit', handleAssessmentSubmit);
+    document.getElementById('assessment-btn')?.addEventListener('click', openAssessment);
+
+    if (currentProgress >= 90) {
+        unlockAssessmentButton();
+    }
 
     if (trainingType === 'upload') {
         const video = document.getElementById('training-video');
@@ -365,7 +401,7 @@
             }
 
             if (percent >= 90 && hasReallyStartedPlayback) {
-                openAssessment();
+                unlockAssessmentButton();
             }
         });
 
@@ -472,7 +508,7 @@
                                     }
 
                                     if (percent >= 90 && hasReallyStartedPlayback) {
-                                        openAssessment();
+                                        unlockAssessmentButton();
                                     }
                                 }, 1000);
                             }
@@ -530,8 +566,5 @@
         }).catch(e => console.error(e));
     }
 
-    function downloadCertificate(trainingId) {
-        window.location.href = '{{ route('certificados.por-training', $training->id) }}';
-    }
 </script>
 @endsection
