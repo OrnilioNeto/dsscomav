@@ -2,20 +2,20 @@
     body {
         font-family: Helvetica, Arial, sans-serif;
         color: #0f172a;
-        font-size: 11pt;
+        font-size: 10pt;
     }
 
     .page {
-        border: 2px solid #cbd5e1;
-        border-radius: 18px;
-        padding: 18px;
+        border: 1px solid #e6eaf0;
+        border-radius: 12px;
+        padding: 12px;
     }
 
     .header {
         background: #0f172a;
         color: #ffffff;
-        padding: 16px 18px;
-        border-radius: 14px;
+        padding: 10px 12px;
+        border-radius: 10px;
     }
 
     .muted {
@@ -54,8 +54,8 @@
         <table>
             <tr>
                 <td>
-                    <div style="font-size: 9pt; letter-spacing: 2px; text-transform: uppercase; color: #bfdbfe;">Certificado de Conclusão</div>
-                    <div style="font-size: 22pt; font-weight: bold; margin-top: 6px;">{{ $certificate->training->titulo }}</div>
+                    <div style="font-size: 8pt; letter-spacing: 1px; text-transform: uppercase; color: #c7d2fe;">Certificado de Conclusão</div>
+                    <div style="font-size: 18pt; font-weight: 700; margin-top: 4px;">{{ $certificate->training->titulo }}</div>
                 </td>
                 <td style="text-align: right; font-size: 10pt;">
                     <div>Código: <strong>{{ $certificate->codigo_certificado }}</strong></div>
@@ -70,7 +70,7 @@
             <td style="width: 68%; padding-right: 14px;">
                 <div class="box">
                     <div class="badge">Beneficiário</div>
-                    <h2 style="font-size: 22pt; margin: 10px 0 6px 0;">{{ $certificate->user->nome }}</h2>
+                    <h2 style="font-size: 18pt; margin: 6px 0 6px 0; color: #0b1220; font-weight:800;">{{ $certificate->user->nome }}</h2>
 
                     <table style="margin-top: 10px;">
                         <tr>
@@ -117,8 +117,8 @@
             <td style="width: 32%;">
                 <div class="box" style="text-align: center;">
                     <div class="badge">QR Code</div>
-                    <div style="margin-top: 12px;">
-                        <img src="{{ $qrDataUri }}" alt="QR Code" style="width: 180px; height: 180px;">
+                    <div style="margin-top: 8px;">
+                        <img src="{{ $qrDataUri ?? $qrCodeUrl ?? $certificate->qr_code_url }}" alt="QR Code" style="width: 140px; height: 140px;">
                     </div>
                     <div class="muted" style="word-break: break-all; font-size: 9pt; margin-top: 10px;">{{ $validationUrl }}</div>
                 </div>

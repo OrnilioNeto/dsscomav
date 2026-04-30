@@ -121,15 +121,16 @@ class CertificateController extends Controller
     {
         $certificate->loadMissing(['user', 'training']);
 
-        $qrSvg = QrCode::format('svg')
-            ->size(220)
+        // Gerar QR em PNG para compatibilidade com TCPDF ao renderizar o HTML
+        $qrPng = QrCode::format('png')
+            ->size(160)
             ->margin(1)
             ->generate($certificate->validation_url);
 
         $html = view('certificados.pdf', [
             'certificate' => $certificate,
             'validationUrl' => $certificate->validation_url,
-            'qrDataUri' => 'data:image/svg+xml;base64,' . base64_encode($qrSvg),
+            'qrDataUri' => 'data:image/png;base64,' . base64_encode($qrPng),
             'tempoAssistidoFormatado' => gmdate('H:i:s', max(0, (int) $certificate->tempo_assistido_segundos)),
         ])->render();
 
