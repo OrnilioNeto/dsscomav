@@ -294,6 +294,31 @@
                 </div>
             </div>
 
+            <!-- Instructor section -->
+            <div class="section">
+                <div class="section-title">Instrutor</div>
+                <div class="field-row">
+                    <div class="field-label">Nome</div>
+                    <div class="field-value">Ornilio Machado Neto</div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">QUALIFICAÇÃO</div>
+                        <div class="info-value">Tec Segurança do Trabalho</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">RG</div>
+                        <div class="info-value">10827</div>
+                    </div>
+                </div>
+
+                <div class="field-row">
+                    <div class="field-label">REGISTRO</div>
+                    <div class="field-value">Bombeiro Civil</div>
+                </div>
+            </div>
+
             <!-- Completed content section -->
             <div class="section">
                 <div class="section-title">Conteúdo Concluído</div>
