@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Training;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class TrainingPlayerController extends Controller
 {
@@ -25,11 +26,17 @@ class TrainingPlayerController extends Controller
                 'training_id' => $training->id,
             ],
             [
+                'data_inicio' => now(),
                 'tempo_assistido' => 0,
                 'porcentagem_assistida' => 0,
                 'concluido' => false,
+                'avaliacao_tentativas' => 0,
             ]
         );
+
+        if (!$progress->data_inicio) {
+            $progress->update(['data_inicio' => now()]);
+        }
 
         return view('treinamentos.player', compact('training', 'progress'));
     }
@@ -50,18 +57,48 @@ class TrainingPlayerController extends Controller
         $tempoAssistido = max((int) ($request->tempo_assistido ?? $progress->tempo_assistido), (int) $progress->tempo_assistido);
         $porcentagemAssistida = max((int) ($request->porcentagem_assistida ?? $progress->porcentagem_assistida), (int) $progress->porcentagem_assistida);
 
-        $progress->update([
+        $updateData = [
             'tempo_assistido' => $tempoAssistido,
             'porcentagem_assistida' => $porcentagemAssistida,
-        ]);
+        ];
 
-        $showAssessment = $training->hasAssessment() && $progress->porcentagem_assistida >= 90 && !$progress->avaliacao_aprovada;
+        // aceitar timestamps locais do cliente (ISO8601)
+        if ($request->filled('data_inicio_assistencia')) {
+            try {
+                $updateData['data_inicio'] = Carbon::parse($request->data_inicio_assistencia);
+            } catch (\Exception $e) {
+                // ignore parse errors, não sobrescrever
+            }
+        }
 
-        if ($progress->porcentagem_assistida >= 90 && $progress->avaliacao_aprovada && !$progress->concluido) {
-            $progress->update([
-                'concluido' => true,
-                'data_conclusao' => now(),
-            ]);
+        if ($request->filled('data_finalizacao_assistencia')) {
+            try {
+                $updateData['data_conclusao'] = Carbon::parse($request->data_finalizacao_assistencia);
+            } catch (\Exception $e) {
+                // ignore parse errors
+            }
+        }
+
+        $progress->update($updateData);
+
+        $fresh = $progress->fresh();
+        $showAssessment = $training->hasAssessment() && $fresh->porcentagem_assistida >= 90 && !$fresh->avaliacao_aprovada;
+
+        if ($fresh->porcentagem_assistida >= 90 && $fresh->avaliacao_aprovada && !$fresh->concluido) {
+            $conclusionData = ['concluido' => true];
+            if ($request->filled('data_finalizacao_assistencia')) {
+                try {
+                    $conclusionData['data_conclusao'] = Carbon::parse($request->data_finalizacao_assistencia);
+                } catch (\Exception $e) {
+                    $conclusionData['data_conclusao'] = now();
+                }
+            } else {
+                $conclusionData['data_conclusao'] = now();
+            }
+
+            $progress->update($conclusionData);
+
+            $this->issueCertificateIfReady($training, $progress->fresh());
         }
 
         return response()->json([
@@ -98,14 +135,40 @@ class TrainingPlayerController extends Controller
         $isCorrect = (int) $request->answer === (int) $training->avaliacao_resposta_correta;
 
         if (!$isCorrect) {
+            $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
+
+            if ($tentativas >= 2) {
+                $progress->update([
+                    'avaliacao_tentativas' => 0,
+                    'avaliacao_aprovada' => false,
+                    'concluido' => false,
+                    'porcentagem_assistida' => 0,
+                    'tempo_assistido' => 0,
+                    'data_inicio' => now(),
+                    'data_conclusao' => null,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'reset_required' => true,
+                    'message' => 'Resposta incorreta nas duas tentativas. Assista o vídeo novamente para liberar uma nova avaliação.',
+                ], 422);
+            }
+
+            $progress->update([
+                'avaliacao_tentativas' => $tentativas,
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Resposta incorreta. Tente novamente.',
+                'reset_required' => false,
+                'message' => 'Resposta incorreta. Você ainda tem mais uma chance.',
             ], 422);
         }
 
         $progress->update([
             'avaliacao_aprovada' => true,
+            'avaliacao_tentativas' => 0,
         ]);
 
         if ($progress->porcentagem_assistida >= 90 && !$progress->concluido) {
@@ -113,6 +176,8 @@ class TrainingPlayerController extends Controller
                 'concluido' => true,
                 'data_conclusao' => now(),
             ]);
+
+            $this->issueCertificateIfReady($training, $progress->fresh());
         }
 
         return response()->json([
@@ -139,6 +204,17 @@ class TrainingPlayerController extends Controller
             ]);
         }
 
+        $this->issueCertificateIfReady($training, $progress->fresh());
+
         return response()->json(['success' => true, 'message' => 'Treinamento concluído!']);
+    }
+
+    private function issueCertificateIfReady(Training $training, UserProgress $progress): void
+    {
+        if (!$progress->concluido || !$progress->avaliacao_aprovada) {
+            return;
+        }
+
+        app(CertificateController::class)->generateCertificate($training, $progress);
     }
 }

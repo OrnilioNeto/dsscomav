@@ -48,7 +48,7 @@
                     <iframe
                         id="training-video"
                         class="absolute inset-0 h-full w-full"
-                        src="{{ $training->getVideoEmbed() }}"
+                        src="https://www.youtube.com/embed/{{ preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/', $training->url_video, $matches) ? ($matches[1] ?? '') : '' }}?autoplay=0"
                         title="{{ $training->titulo }}"
                         frameborder="0"
                         allow="autoplay; encrypted-media; picture-in-picture"
@@ -157,32 +157,15 @@
     const csrfToken = '{{ csrf_token() }}';
     const hasAssessment = {{ $training->hasAssessment() ? 'true' : 'false' }};
     const trainingType = '{{ $training->tipo_video }}';
-    const registeredDurationSeconds = {{ (int) $training->carga_horaria * 60 }};
+    const durationSeconds = {{ (int) $training->carga_horaria * 60 }};
 
     let currentProgress = {{ $progress->porcentagem_assistida }};
     let assessmentOpened = {{ $progress->avaliacao_aprovada ? 'true' : 'false' }};
     let lastUpdateTime = 0;
     let lastSafeTime = {{ (int) $progress->tempo_assistido }};
-    let assessmentAttempt = {{ (int) ($progress->avaliacao_tentativas ?? 0) }};
 
     let ultimoTempo = lastSafeTime;
-    let watchedSeconds = 0; // SEMPRE começa do 0 - será restaurado quando p play foi realmente acionado
-    let dataInicioLocal = null; // ISO string from client local time
-    let referenceDuration = registeredDurationSeconds; // will be overridden by video.duration when available
     let ultimoEnvio = 0;
-    let playStartedAt = null;
-    let playBaseTime = lastSafeTime;
-    let hasReallyStartedPlayback = false; // flag para evitar contar sem play real
-    let youtubePlayer = null;
-    let youtubeTrackingTimer = null;
-    let youtubeDuration = registeredDurationSeconds;
-
-    // Para upload, zera a UI de progresso até que realmente toque
-    if (trainingType === 'upload') {
-        currentProgress = 0;
-        document.getElementById('progress-percent').textContent = '0%';
-        document.getElementById('progress-bar').style.width = '0%';
-    }
 
     function podeAvancar(tempoAtual) {
         return tempoAtual <= ultimoTempo;
@@ -216,7 +199,7 @@
                 'X-CSRF-TOKEN': csrfToken
             },
             body: JSON.stringify({
-                tempo_assistido: watchedSeconds,
+                tempo_assistido: Math.floor((percent / 100) * durationSeconds),
                 porcentagem_assistida: currentProgress
             })
         }).then(r => r.json()).then(data => {
@@ -241,15 +224,7 @@
         }).then(r => r.json()).then(data => {
             document.getElementById('assessment-message').textContent = data.message;
             document.getElementById('assessment-message').className = 'text-sm font-medium text-' + (data.success ? 'green' : 'red') + '-600';
-            if (data.success) {
-                setTimeout(() => location.reload(), 1000);
-                return;
-            }
-
-            if (data.reset_required) {
-                closeAssessment();
-                setTimeout(() => location.reload(), 1200);
-            }
+            if (data.success) setTimeout(() => location.reload(), 1000);
         }).catch(e => console.error(e));
     }
 
@@ -258,17 +233,11 @@
     if (trainingType === 'upload') {
         const video = document.getElementById('training-video');
         video.controls = false;
+        video.currentTime = ultimoTempo;
 
-        // Aguarda metadata para obter video.duration
-        video.addEventListener('loadedmetadata', () => {
-            const videoDuration = Math.floor(video.duration || registeredDurationSeconds);
-            referenceDuration = Math.max(1, Math.min(videoDuration, registeredDurationSeconds));
-            // Ajusta currentTime para último progresso
-            video.currentTime = Math.min(ultimoTempo, referenceDuration);
-            console.log('[INIT] ultimoTempo=' + ultimoTempo + ', videoDuration=' + video.duration + ', referencia=' + referenceDuration + 's');
-        });
+        console.log('[INIT] ultimoTempo=' + ultimoTempo + ', duracaoVideo=' + durationSeconds + 's');
 
-        // CAMADA 1: RAF LOOP - 60fps, remove avanço fora da reprodução real
+        // CAMADA 1: RAF LOOP - 60fps, REMOVE VIDEO.PAUSED CHECK
         function bloqueiarSeeking() {
             const tempo = video.currentTime;
             if (tempo > ultimoTempo + 0.05) {
@@ -298,28 +267,6 @@
             }
         });
 
-        video.addEventListener('play', function () {
-            hasReallyStartedPlayback = true; // marcar que play foi acionado
-            playStartedAt = Date.now();
-            playBaseTime = Math.max(0, watchedSeconds); // base é o que foi contado até agora
-            if (!dataInicioLocal) {
-                dataInicioLocal = new Date().toISOString();
-                salvarProgresso((watchedSeconds / referenceDuration) * 100);
-            }
-            console.log('[PLAY] watchedSeconds=' + watchedSeconds + ' playBaseTime=' + playBaseTime);
-        });
-
-        video.addEventListener('pause', function () {
-            if (hasReallyStartedPlayback && playStartedAt) {
-                const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
-                watchedSeconds = Math.max(watchedSeconds, Math.min(referenceDuration, Math.floor(playBaseTime + elapsed)));
-                ultimoTempo = Math.max(ultimoTempo, video.currentTime);
-                salvarProgresso((watchedSeconds / referenceDuration) * 100);
-                console.log('[PAUSE] watchedSeconds=' + watchedSeconds);
-            }
-            playStartedAt = null;
-        });
-
         video.addEventListener('timeupdate', function () {
             const tempo = video.currentTime;
 
@@ -329,16 +276,8 @@
                 return;
             }
 
-            // CRÍTICO: NUNCA incrementa watchedSeconds sem play real ter sido acionado
-            if (hasReallyStartedPlayback && playStartedAt && !video.paused) {
-                const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
-                watchedSeconds = Math.max(watchedSeconds, Math.min(referenceDuration, Math.floor(playBaseTime + elapsed)));
-            }
-
             ultimoTempo = Math.max(ultimoTempo, tempo);
-
-            const ref = referenceDuration || Math.max(1, registeredDurationSeconds);
-            const percent = Math.min(100, (watchedSeconds / ref) * 100);
+            const percent = (tempo / video.duration) * 100;
             updateProgress(percent);
 
             const agora = Date.now();
@@ -347,18 +286,14 @@
                 ultimoEnvio = agora;
             }
 
-            if (percent >= 90 && hasReallyStartedPlayback) {
+            if (percent >= 90) {
                 openAssessment();
             }
         });
 
         video.addEventListener('ended', function () {
-            if (!hasReallyStartedPlayback) return; // não fazer nada se nunca começou
-            ultimoTempo = referenceDuration || video.duration;
-            watchedSeconds = referenceDuration || Math.floor(video.duration || registeredDurationSeconds);
-            // marcar conclusão com horário local
-            salvarProgresso(100, true);
-            playStartedAt = null;
+            ultimoTempo = video.duration;
+            salvarProgresso(100);
         });
 
         document.getElementById('play-btn').addEventListener('click', () => video.play());
@@ -377,134 +312,33 @@
             }
         }, 100);
 
-    } else if (trainingType === 'youtube') {
-        function loadYoutubeApi() {
-            if (window.YT && window.YT.Player) {
-                initializeYoutubePlayer();
-                return;
+    } else {
+        let simulatedProgress = currentProgress;
+        setInterval(() => {
+            if (simulatedProgress < 100) {
+                simulatedProgress += Math.random() * 5;
+                updateProgress(Math.min(simulatedProgress, 100));
+                if (simulatedProgress >= 90) openAssessment();
             }
-
-            if (window.__youtubeApiLoading) {
-                return;
-            }
-
-            window.__youtubeApiLoading = true;
-            window.onYouTubeIframeAPIReady = function () {
-                initializeYoutubePlayer();
-            };
-
-            const script = document.createElement('script');
-            script.src = 'https://www.youtube.com/iframe_api';
-            document.head.appendChild(script);
-        }
-
-        function initializeYoutubePlayer() {
-            youtubePlayer = new YT.Player('training-video', {
-                events: {
-                    onReady: function () {
-                        const duration = Math.floor(youtubePlayer.getDuration() || registeredDurationSeconds);
-                        youtubeDuration = Math.max(1, Math.min(duration, registeredDurationSeconds));
-                        const startTime = Math.min(ultimoTempo, youtubeDuration);
-                        youtubePlayer.seekTo(startTime, true);
-                        console.log('[YOUTUBE INIT] duration=' + youtubeDuration + ' start=' + startTime);
-                    },
-                    onStateChange: function (event) {
-                        if (event.data === YT.PlayerState.PLAYING) {
-                            hasReallyStartedPlayback = true;
-                            playStartedAt = Date.now();
-                            playBaseTime = Math.max(0, watchedSeconds);
-                            if (!dataInicioLocal) {
-                                dataInicioLocal = new Date().toISOString();
-                                salvarProgresso((watchedSeconds / youtubeDuration) * 100);
-                            }
-
-                            if (!youtubeTrackingTimer) {
-                                youtubeTrackingTimer = setInterval(() => {
-                                    if (!youtubePlayer || typeof youtubePlayer.getCurrentTime !== 'function') {
-                                        return;
-                                    }
-
-                                    const tempo = youtubePlayer.getCurrentTime();
-
-                                    // NÃO fazer seek blocking no YouTube - deixar ele tocar livremente
-                                    // O YouTube não aceita seekTo para trás durante play
-
-                                    if (hasReallyStartedPlayback && playStartedAt) {
-                                        const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
-                                        watchedSeconds = Math.max(watchedSeconds, Math.min(youtubeDuration, Math.floor(playBaseTime + elapsed)));
-                                    }
-
-                                    ultimoTempo = Math.max(ultimoTempo, tempo);
-
-                                    const percent = Math.min(100, (watchedSeconds / Math.max(1, youtubeDuration)) * 100);
-                                    updateProgress(percent);
-
-                                    const agora = Date.now();
-                                    if (agora - ultimoEnvio > 5000) {
-                                        salvarProgresso(percent);
-                                        ultimoEnvio = agora;
-                                    }
-
-                                    if (percent >= 90 && hasReallyStartedPlayback) {
-                                        openAssessment();
-                                    }
-                                }, 1000);
-                            }
-                        }
-
-                        if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                            if (hasReallyStartedPlayback && playStartedAt && youtubePlayer) {
-                                const tempo = Math.max(0, Math.floor(youtubePlayer.getCurrentTime() || 0));
-                                const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
-                                watchedSeconds = Math.max(watchedSeconds, Math.min(youtubeDuration, Math.floor(playBaseTime + elapsed)));
-                                ultimoTempo = Math.max(ultimoTempo, tempo);
-                                salvarProgresso((watchedSeconds / Math.max(1, youtubeDuration)) * 100);
-                            }
-
-                            playStartedAt = null;
-
-                            if (event.data === YT.PlayerState.ENDED) {
-                                if (!hasReallyStartedPlayback) return;
-                                ultimoTempo = youtubeDuration;
-                                watchedSeconds = youtubeDuration;
-                                salvarProgresso(100, true);
-                                closeAssessment();
-                            }
-
-                            if (youtubeTrackingTimer) {
-                                clearInterval(youtubeTrackingTimer);
-                                youtubeTrackingTimer = null;
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        loadYoutubeApi();
+        }, 2000);
     }
 
     function salvarProgresso(percent) {
-        const payload = {
-            tempo_assistido: watchedSeconds,
-            porcentagem_assistida: Math.floor(percent),
-        };
-
-        if (dataInicioLocal) payload.data_inicio_assistencia = dataInicioLocal;
-        if (percent >= 100) payload.data_finalizacao_assistencia = new Date().toISOString();
-
         fetch(progressUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                tempo_assistido: Math.floor((percent / 100) * durationSeconds),
+                porcentagem_assistida: Math.floor(percent)
+            })
         }).catch(e => console.error(e));
     }
 
     function downloadCertificate(trainingId) {
-        window.location.href = '{{ route('certificados.por-training', $training->id) }}';
+        alert('Certificado liberado para download na próxima etapa do fluxo.');
     }
 </script>
 @endsection

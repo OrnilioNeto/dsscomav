@@ -32,6 +32,10 @@ COPY database ./database
 COPY resources ./resources
 COPY routes ./routes
 
+RUN mkdir -p /opt/database-files \
+    && cp -R database/migrations /opt/database-files/ \
+    && cp -R database/seeders /opt/database-files/
+
 RUN composer require tecnickcom/tcpdf:^6.7 simplesoftwareio/simple-qrcode:^4.2 --no-interaction --with-all-dependencies \
     && php artisan config:clear
 

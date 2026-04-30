@@ -3,36 +3,48 @@
 namespace App\Http\Controllers;
 
 use App\Models\Certificate;
-use App\Models\UserProgress;
 use App\Models\Training;
+use App\Models\UserProgress;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use TCPDF;
 
 class CertificateController extends Controller
 {
+    public function downloadForTraining($trainingId)
+    {
+        $user = auth()->user();
+        $training = Training::findOrFail($trainingId);
+
+        $progress = UserProgress::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->firstOrFail();
+
+        if (!$progress->concluido || !$progress->avaliacao_aprovada) {
+            abort(403, 'O certificado só fica disponível após assistir todo o conteúdo e responder corretamente a avaliação.');
+        }
+
+        $certificate = $this->generateCertificate($training, $progress);
+
+        return $this->streamPdf($certificate);
+    }
+
     public function downloadCertificate($id)
     {
         $user = auth()->user();
-        $certificate = Certificate::findOrFail($id);
+        $certificate = Certificate::with(['user', 'training'])->findOrFail($id);
 
         if ($certificate->user_id !== $user->id && !$user->isAdmin()) {
             abort(403);
         }
 
-        $filePath = storage_path('certificates/' . $certificate->caminho_arquivo);
-
-        if (!file_exists($filePath)) {
-            return response()->json(['error' => 'Certificado não encontrado'], 404);
-        }
-
-        return response()->download($filePath);
+        return $this->streamPdf($certificate);
     }
 
     public function validateCertificate($codigo)
     {
-        $certificate = Certificate::where('codigo_certificado', $codigo)->first();
+        $certificate = Certificate::with(['user', 'training'])->where('codigo_certificado', $codigo)->first();
 
         if (!$certificate) {
             return view('certificados.validacao', [
@@ -52,6 +64,8 @@ class CertificateController extends Controller
         return view('certificados.validacao', [
             'valido' => true,
             'certificate' => $certificate,
+            'validationUrl' => $certificate->validation_url,
+            'qrCodeUrl' => $certificate->qr_code_url,
         ]);
     }
 
@@ -69,110 +83,69 @@ class CertificateController extends Controller
             return $existing;
         }
 
-        // Gerar código único
-        $codigo = strtoupper(
-            substr(md5($user->id . $training->id . time()), 0, 12)
-        );
+        do {
+            $codigo = strtoupper(Str::random(12));
+        } while (Certificate::where('codigo_certificado', $codigo)->exists());
 
-        // Gerar PDF do certificado
-        $pdfPath = $this->generateCertificatePDF($user, $training, $codigo);
-
-        // Gerar QR Code
-        $qrCodePath = storage_path('certificates/qr_' . $codigo . '.png');
-        QrCode::format('png')
-            ->size(300)
-            ->generate(url('/validar/' . $codigo), $qrCodePath);
+        $dataInicio = $progress->data_inicio ?? $progress->created_at ?? now();
+        $dataFinalizacao = $progress->data_conclusao ?? now();
 
         // Salvar certificado no banco
-        $certificate = Certificate::create([
+        return Certificate::create([
             'user_id' => $user->id,
             'training_id' => $training->id,
             'codigo_certificado' => $codigo,
             'data_emissao' => now(),
-            'caminho_arquivo' => basename($pdfPath),
+            'data_inicio_assistencia' => $dataInicio,
+            'data_finalizacao_assistencia' => $dataFinalizacao,
+            'tempo_assistido_segundos' => (int) $progress->tempo_assistido,
+            'porcentagem_assistida' => (int) $progress->porcentagem_assistida,
+            'caminho_arquivo' => null,
             'valido' => true,
         ]);
-
-        return $certificate;
     }
 
-    private function generateCertificatePDF($user, $training, $codigo)
+    private function buildViewData(Certificate $certificate): array
     {
-        $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        $certificate->loadMissing(['user', 'training']);
+
+        return [
+            'certificate' => $certificate,
+            'validationUrl' => $certificate->validation_url,
+            'qrCodeUrl' => $certificate->qr_code_url,
+            'tempoAssistidoFormatado' => gmdate('H:i:s', max(0, (int) $certificate->tempo_assistido_segundos)),
+        ];
+    }
+
+    private function streamPdf(Certificate $certificate)
+    {
+        $certificate->loadMissing(['user', 'training']);
+
+        $qrSvg = QrCode::format('svg')
+            ->size(220)
+            ->margin(1)
+            ->generate($certificate->validation_url);
+
+        $html = view('certificados.pdf_new', [
+            'certificate' => $certificate,
+            'validationUrl' => $certificate->validation_url,
+            'qrDataUri' => 'data:image/svg+xml;base64,' . base64_encode($qrSvg),
+            'tempoAssistidoFormatado' => gmdate('H:i:s', max(0, (int) $certificate->tempo_assistido_segundos)),
+        ])->render();
+
+        $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator('Plataforma DSS');
         $pdf->SetAuthor('Plataforma DSS');
-        $pdf->SetTitle('Certificado - ' . $user->nome);
+        $pdf->SetTitle('Certificado - ' . $certificate->user->nome);
         $pdf->SetSubject('Certificado de Conclusão');
-
+        $pdf->SetMargins(10, 10, 10);
+        $pdf->SetAutoPageBreak(true, 10);
         $pdf->AddPage();
+        $pdf->writeHTML($html, true, false, true, false, '');
 
-        // Cores
-        $primaryColor = [0, 51, 102]; // Azul escuro
-        $accentColor = [240, 120, 20]; // Laranja
-
-        // Cabeçalho
-        $pdf->SetFillColor($primaryColor[0], $primaryColor[1], $primaryColor[2]);
-        $pdf->Rect(0, 0, 210, 40, 'F');
-
-        // Logo/Título
-        $pdf->SetFont('helvetica', 'B', 28);
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->SetXY(10, 10);
-        $pdf->Cell(0, 20, 'CERTIFICADO', 0, 1, 'C');
-
-        $pdf->SetFont('helvetica', '', 12);
-        $pdf->SetXY(10, 28);
-        $pdf->Cell(0, 10, 'de Conclusão de Treinamento', 0, 1, 'C');
-
-        // Corpo do certificado
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetXY(10, 60);
-        $pdf->SetFont('helvetica', '', 11);
-        $pdf->MultiCell(0, 8, 'Certificamos que', 0, 'C');
-
-        $pdf->SetFont('helvetica', 'B', 18);
-        $pdf->SetXY(10, 75);
-        $pdf->Cell(0, 12, strtoupper($user->nome), 0, 1, 'C');
-
-        $pdf->SetFont('helvetica', '', 11);
-        $pdf->SetXY(10, 92);
-        $pdf->MultiCell(0, 8, 'Concluiu com êxito o seguinte treinamento:', 0, 'C');
-
-        $pdf->SetFont('helvetica', 'B', 14);
-        $pdf->SetFillColor(240, 120, 20);
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->SetXY(10, 110);
-        $pdf->Cell(0, 15, $training->titulo, 0, 1, 'C', true);
-
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->SetFont('helvetica', '', 10);
-
-        $pdf->SetXY(10, 130);
-        $pdf->MultiCell(0, 8, 'Carga horária: ' . $training->carga_horaria . ' minutos | Data de emissão: ' . now()->format('d/m/Y'), 0, 'C');
-
-        // QR Code
-        $qrCodePath = storage_path('certificates/qr_' . $codigo . '.png');
-        if (file_exists($qrCodePath)) {
-            $pdf->Image($qrCodePath, 80, 150, 50, 50);
-        }
-
-        // Código do certificado
-        $pdf->SetFont('helvetica', '', 9);
-        $pdf->SetXY(10, 205);
-        $pdf->Cell(0, 5, 'Código: ' . $codigo, 0, 1, 'C');
-
-        // Rodapé
-        $pdf->SetFont('helvetica', '', 8);
-        $pdf->SetTextColor(100, 100, 100);
-        $pdf->SetXY(10, 215);
-        $pdf->Cell(0, 5, 'Este certificado é válido e consultável em: ' . url('/validar/' . $codigo), 0, 1, 'C');
-
-        $fileName = 'cert_' . $user->id . '_' . $training->id . '_' . time() . '.pdf';
-        $pdfPath = storage_path('certificates/' . $fileName);
-
-        $pdf->Output($pdfPath, 'F');
-
-        return $pdfPath;
+        return response($pdf->Output('certificado-' . $certificate->codigo_certificado . '.pdf', 'S'))
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="certificado-' . $certificate->codigo_certificado . '.pdf"');
     }
 
     public function myCertificates()
@@ -180,7 +153,7 @@ class CertificateController extends Controller
         $user = auth()->user();
         $certificates = Certificate::where('user_id', $user->id)
             ->where('valido', true)
-            ->with('training')
+            ->with(['training', 'user'])
             ->paginate(10);
 
         return view('certificados.meus_certificados', compact('certificates'));

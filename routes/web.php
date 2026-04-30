@@ -40,6 +40,7 @@ Route::middleware('auth')->group(function () {
 
     // Certificados do usuário
     Route::get('/meus-certificados', [CertificateController::class, 'myCertificates'])->name('certificados.meus');
+    Route::get('/treinamentos/{id}/certificado', [CertificateController::class, 'downloadForTraining'])->name('certificados.por-training');
     Route::get('/certificados/{id}/download', [CertificateController::class, 'downloadCertificate'])->name('certificados.download');
 
     // Rotas do Admin e Super Admin

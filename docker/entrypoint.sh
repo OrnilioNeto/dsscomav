@@ -18,8 +18,23 @@ mkdir -p /var/www/app/storage/framework/cache
 mkdir -p /var/www/app/storage/framework/sessions
 mkdir -p /var/www/app/storage/framework/views
 mkdir -p /var/www/app/storage/logs
+mkdir -p /var/www/app/database/migrations
+mkdir -p /var/www/app/database/seeders
+
+if [ -d /opt/database-files/migrations ]; then
+    cp -R /opt/database-files/migrations/. /var/www/app/database/migrations/
+fi
+
+if [ -d /opt/database-files/seeders ]; then
+    cp -R /opt/database-files/seeders/. /var/www/app/database/seeders/
+fi
 
 php artisan key:generate --force
-php artisan migrate --seed --force
+php artisan migrate --force
+
+ROLE_COUNT=$(sqlite3 /var/www/app/database/database.sqlite "select count(*) from roles;" 2>/dev/null || echo 0)
+if [ "$ROLE_COUNT" = "0" ]; then
+    php artisan db:seed --force
+fi
 
 exec "$@"

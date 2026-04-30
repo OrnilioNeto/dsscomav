@@ -11,7 +11,9 @@ class TrainingSeeder extends Seeder
     public function run(): void
     {
         // DSS para Motoristas
-        Training::create([
+        Training::updateOrCreate([
+            'titulo' => 'DSS - Segurança na Condução',
+        ], [
             'titulo' => 'DSS - Segurança na Condução',
             'descricao' => 'Diálogo Semanal de Segurança sobre práticas seguras de condução',
             'tipo' => 'dss',
@@ -28,7 +30,9 @@ class TrainingSeeder extends Seeder
         ]);
 
         // Treinamento para Funcionários
-        Training::create([
+        Training::updateOrCreate([
+            'titulo' => 'Treinamento - Normas de Segurança',
+        ], [
             'titulo' => 'Treinamento - Normas de Segurança',
             'descricao' => 'Conhecimento obrigatório sobre normas de segurança da empresa',
             'tipo' => 'treinamento',
@@ -45,7 +49,9 @@ class TrainingSeeder extends Seeder
         ]);
 
         // DSS para Terceirizados
-        Training::create([
+        Training::updateOrCreate([
+            'titulo' => 'DSS - Segurança no Trabalho',
+        ], [
             'titulo' => 'DSS - Segurança no Trabalho',
             'descricao' => 'Orientações de segurança para colaboradores terceirizados',
             'tipo' => 'dss',
@@ -62,7 +68,9 @@ class TrainingSeeder extends Seeder
         ]);
 
         // Treinamento para Todos
-        Training::create([
+        Training::updateOrCreate([
+            'titulo' => 'Treinamento - Combate ao Incêndio',
+        ], [
             'titulo' => 'Treinamento - Combate ao Incêndio',
             'descricao' => 'Treinamento geral de combate ao incêndio para todos os colaboradores',
             'tipo' => 'treinamento',
@@ -79,7 +87,9 @@ class TrainingSeeder extends Seeder
         ]);
 
         // Outro exemplo DSS
-        Training::create([
+        Training::updateOrCreate([
+            'titulo' => 'DSS - Primeiros Socorros',
+        ], [
             'titulo' => 'DSS - Primeiros Socorros',
             'descricao' => 'Diálogo semanal sobre primeiros socorros básicos',
             'tipo' => 'dss',

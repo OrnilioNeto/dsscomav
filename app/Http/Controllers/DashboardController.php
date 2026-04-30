@@ -87,8 +87,28 @@ class DashboardController extends Controller
 
         $treinamentosCompletos = $progresso->where('concluido', true)->count();
 
+        // Separar em categorias
+        $treinamentosConcluidos = [];
+        $treinamentosPendentes = [];
+        $treinamentosNaoIniciados = [];
+
+        foreach ($treinamentosDisponíveis as $training) {
+            $userProgress = $progresso->where('training_id', $training->id)->first();
+            
+            if (!$userProgress) {
+                $treinamentosNaoIniciados[] = $training;
+            } elseif ($userProgress->concluido) {
+                $treinamentosConcluidos[] = $training;
+            } else {
+                $treinamentosPendentes[] = $training;
+            }
+        }
+
         return view('dashboard.usuario', [
             'treinamentosDisponíveis' => $treinamentosDisponíveis,
+            'treinamentosConcluidos' => $treinamentosConcluidos,
+            'treinamentosPendentes' => $treinamentosPendentes,
+            'treinamentosNaoIniciados' => $treinamentosNaoIniciados,
             'progresso' => $progresso,
             'certificados' => $certificados,
             'tempoTotal' => $tempoFormatado,

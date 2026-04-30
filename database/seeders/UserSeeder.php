@@ -17,10 +17,11 @@ class UserSeeder extends Seeder
         $usuarioRole = Role::where('nome', 'usuario')->first();
 
         // Super Administrador
-        User::create([
+        User::updateOrCreate([
+            'email' => 'superadmin@dss.com',
+        ], [
             'nome' => 'Super Administrador',
             'cpf' => '00000000000',
-            'email' => 'superadmin@dss.com',
             'password' => Hash::make('admin123'),
             'telefone' => '(11) 98765-4321',
             'data_nascimento' => '1990-01-01',
@@ -32,10 +33,11 @@ class UserSeeder extends Seeder
         ]);
 
         // Administrador
-        User::create([
+        User::updateOrCreate([
+            'email' => 'admin@dss.com',
+        ], [
             'nome' => 'Administrador',
             'cpf' => '11111111111',
-            'email' => 'admin@dss.com',
             'password' => Hash::make('admin123'),
             'telefone' => '(11) 98765-4322',
             'data_nascimento' => '1991-01-01',
@@ -47,10 +49,11 @@ class UserSeeder extends Seeder
         ]);
 
         // Motorista exemplo
-        User::create([
+        User::updateOrCreate([
+            'email' => 'joao@dss.com',
+        ], [
             'nome' => 'João da Silva - Motorista',
             'cpf' => '22222222222',
-            'email' => 'joao@dss.com',
             'password' => Hash::make('senha123'),
             'telefone' => '(11) 98765-4323',
             'data_nascimento' => '1985-05-15',
@@ -63,10 +66,11 @@ class UserSeeder extends Seeder
         ]);
 
         // Funcionário exemplo
-        User::create([
+        User::updateOrCreate([
+            'email' => 'maria@dss.com',
+        ], [
             'nome' => 'Maria Santos - Funcionária',
             'cpf' => '33333333333',
-            'email' => 'maria@dss.com',
             'password' => Hash::make('senha123'),
             'telefone' => '(11) 98765-4324',
             'data_nascimento' => '1988-07-20',
@@ -78,10 +82,11 @@ class UserSeeder extends Seeder
         ]);
 
         // Terceirizado exemplo
-        User::create([
+        User::updateOrCreate([
+            'email' => 'pedro@dss.com',
+        ], [
             'nome' => 'Pedro Costa - Terceirizado',
             'cpf' => '44444444444',
-            'email' => 'pedro@dss.com',
             'password' => Hash::make('senha123'),
             'telefone' => '(11) 98765-4325',
             'data_nascimento' => '1992-03-10',

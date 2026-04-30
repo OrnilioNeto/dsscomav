@@ -14,13 +14,21 @@ class Certificate extends Model
         'training_id',
         'codigo_certificado',
         'data_emissao',
+        'data_inicio_assistencia',
+        'data_finalizacao_assistencia',
+        'tempo_assistido_segundos',
+        'porcentagem_assistida',
         'caminho_arquivo',
         'valido',
     ];
 
     protected $casts = [
         'data_emissao' => 'datetime',
+        'data_inicio_assistencia' => 'datetime',
+        'data_finalizacao_assistencia' => 'datetime',
         'valido' => 'boolean',
+        'tempo_assistido_segundos' => 'integer',
+        'porcentagem_assistida' => 'integer',
     ];
 
     // Relacionamentos
@@ -32,6 +40,16 @@ class Certificate extends Model
     public function training()
     {
         return $this->belongsTo(Training::class);
+    }
+
+    public function getValidationUrlAttribute(): string
+    {
+        return route('validar.certificado', $this->codigo_certificado);
+    }
+
+    public function getQrCodeUrlAttribute(): string
+    {
+        return 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' . urlencode($this->validation_url);
     }
 
     // Métodos auxiliares

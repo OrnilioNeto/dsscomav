@@ -21,6 +21,9 @@
                         <p><strong>Tipo:</strong> {{ ucfirst($cert->training->tipo) }}</p>
                         <p><strong>Carga Horária:</strong> {{ $cert->training->carga_horaria }} minutos</p>
                         <p><strong>Emitido em:</strong> {{ $cert->data_emissao->format('d/m/Y') }}</p>
+                        <p><strong>Iniciado em:</strong> {{ optional($cert->data_inicio_assistencia)->format('d/m/Y H:i') }}</p>
+                        <p><strong>Finalizado em:</strong> {{ optional($cert->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</p>
+                        <p><strong>Tempo assistido:</strong> {{ gmdate('H:i:s', max(0, (int) $cert->tempo_assistido_segundos)) }}</p>
                         <p><strong>Código:</strong> <code class="bg-gray-100 px-2 py-1 rounded">{{ $cert->codigo_certificado }}</code></p>
                     </div>
 

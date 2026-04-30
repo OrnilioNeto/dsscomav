@@ -84,7 +84,7 @@ class Training extends Model
         if ($this->tipo_video === 'youtube') {
             preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/', $this->url_video, $matches);
             $videoId = $matches[1] ?? '';
-            return "https://www.youtube.com/embed/{$videoId}";
+            return "https://www.youtube.com/embed/{$videoId}?enablejsapi=1&playsinline=1";
         } elseif ($this->tipo_video === 'vimeo') {
             preg_match('/vimeo\.com\/(\d+)/', $this->url_video, $matches);
             $videoId = $matches[1] ?? '';

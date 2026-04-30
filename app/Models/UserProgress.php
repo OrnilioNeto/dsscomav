@@ -14,17 +14,21 @@ class UserProgress extends Model
     protected $fillable = [
         'user_id',
         'training_id',
+        'data_inicio',
         'tempo_assistido',
         'data_conclusao',
         'concluido',
         'porcentagem_assistida',
         'avaliacao_aprovada',
+        'avaliacao_tentativas',
     ];
 
     protected $casts = [
+        'data_inicio' => 'datetime',
         'data_conclusao' => 'datetime',
         'concluido' => 'boolean',
         'avaliacao_aprovada' => 'boolean',
+        'avaliacao_tentativas' => 'integer',
         'porcentagem_assistida' => 'integer',
     ];
 

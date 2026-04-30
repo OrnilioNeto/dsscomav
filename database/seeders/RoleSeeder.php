@@ -10,19 +10,19 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        Role::create([
-            'nome' => 'super_admin',
-            'descricao' => 'Super Administrador - Acesso total ao sistema',
-        ]);
+        Role::updateOrCreate(
+            ['nome' => 'super_admin'],
+            ['descricao' => 'Super Administrador - Acesso total ao sistema']
+        );
 
-        Role::create([
-            'nome' => 'admin',
-            'descricao' => 'Administrador - Gestão de usuários, treinamentos e certificados',
-        ]);
+        Role::updateOrCreate(
+            ['nome' => 'admin'],
+            ['descricao' => 'Administrador - Gestão de usuários, treinamentos e certificados']
+        );
 
-        Role::create([
-            'nome' => 'usuario',
-            'descricao' => 'Usuário - Acesso a treinamentos conforme seu tipo',
-        ]);
+        Role::updateOrCreate(
+            ['nome' => 'usuario'],
+            ['descricao' => 'Usuário - Acesso a treinamentos conforme seu tipo']
+        );
     }
 }
