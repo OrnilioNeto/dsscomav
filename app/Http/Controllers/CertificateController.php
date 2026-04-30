@@ -9,10 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use TCPDF;
-use BaconQrCode\Renderer\Image\ImageRenderer;
-use BaconQrCode\Renderer\Image\RendererStyle\RendererStyle;
-use BaconQrCode\Renderer\Image\GdImageBackEnd;
-use BaconQrCode\Writer;
 
 class CertificateController extends Controller
 {
@@ -125,10 +121,11 @@ class CertificateController extends Controller
     {
         $certificate->loadMissing(['user', 'training']);
 
-        // Gerar QR usando BaconQrCode com backend GD (não requer imagick)
-        $renderer = new ImageRenderer(new RendererStyle(160), new GdImageBackEnd());
-        $writer = new Writer($renderer);
-        $qrPng = $writer->writeString($certificate->validation_url);
+        // Gerar QR em SVG (compatível e sem exigir imagick)
+        $qrSvg = QrCode::format('svg')
+            ->size(160)
+            ->margin(1)
+            ->generate($certificate->validation_url);
 
         $html = view('certificados.pdf', [
             'certificate' => $certificate,
