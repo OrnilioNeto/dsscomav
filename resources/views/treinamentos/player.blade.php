@@ -176,6 +176,10 @@
     let youtubePlayer = null;
     let youtubeTrackingTimer = null;
     let youtubeDuration = registeredDurationSeconds;
+    
+    // Constantes de bloqueio (conforme prompt)
+    const AVANÇO_MÁXIMO_UX = 2; // segundos - limiar cliente (UX)
+    const AVANÇO_MÁXIMO_SERVIDOR = 10; // segundos - validado no servidor
 
     // Para upload, zera a UI de progresso até que realmente toque
     if (trainingType === 'upload') {
@@ -268,35 +272,38 @@
             console.log('[INIT] ultimoTempo=' + ultimoTempo + ', videoDuration=' + video.duration + ', referencia=' + referenceDuration + 's');
         });
 
-        // CAMADA 1: RAF LOOP - 60fps, remove avanço fora da reprodução real
-        function bloqueiarSeeking() {
-            const tempo = video.currentTime;
-            if (tempo > ultimoTempo + 0.05) {
-                video.currentTime = ultimoTempo;
-                console.log('RAF: bloqueado em ' + tempo.toFixed(2));
-            }
-            requestAnimationFrame(bloqueiarSeeking);
-        }
-        bloqueiarSeeking();
+        // CAMADA 1: RAF LOOP removido - causing loop oscillation
+        // Bloqueio agora feito via seeking event + timeupdate
 
-        // CAMADA 2: BLOQUEAR TECLADO - todas as keys que avançam vídeo
+        // CAMADA 2: BLOQUEAR TECLADO - TODAS as keys que avançam vídeo
         document.addEventListener('keydown', (e) => {
             if (['ArrowRight', 'ArrowLeft', ' ', 'j', 'l', 'k'].includes(e.key)) {
-                console.log('TECLADO BLOQUEADO: ' + e.key);
                 e.preventDefault();
                 e.stopPropagation();
                 return false;
             }
         }, true);
 
-        // CAMADA 3: SEEKING EVENT - detecta clique na barra
+        // Também bloquear wheel (scroll)
+        video.addEventListener('wheel', (e) => {
+            e.preventDefault();
+        }, false);
+
+        // CAMADA 3: SEEKING EVENT - detecta clique na barra - BLOQUEIO PRINCIPAL
+        let blockSeeking = false;
         video.addEventListener('seeking', function () {
             const tempo = video.currentTime;
-            if (!podeAvancar(tempo)) {
+            
+            // Bloqueia qualquer tentativa de avanço além de ultimoTempo
+            if (tempo > ultimoTempo + 0.01) {
+                blockSeeking = true;
                 video.currentTime = ultimoTempo;
-                console.log('SEEKING: bloqueado de ' + tempo.toFixed(2) + ' para ' + ultimoTempo.toFixed(2));
+                console.log('SEEKING BLK: tentou ' + tempo.toFixed(2) + ' -> revert para ' + ultimoTempo.toFixed(2));
+                
+                // Desbloqueia após 500ms para permitir play normal depois
+                setTimeout(() => { blockSeeking = false; }, 500);
             }
-        });
+        }, false);
 
         video.addEventListener('play', function () {
             hasReallyStartedPlayback = true; // marcar que play foi acionado
@@ -323,9 +330,15 @@
         video.addEventListener('timeupdate', function () {
             const tempo = video.currentTime;
 
-            if (!podeAvancar(tempo)) {
+            // Se está em processo de bloqueio, ignora tudo
+            if (blockSeeking) {
+                return;
+            }
+
+            // FALLBACK: Se por algum motivo chegou além de ultimoTempo, reverte
+            if (tempo > ultimoTempo + 0.01) {
                 video.currentTime = ultimoTempo;
-                console.log('TIMEUPDATE: bloqueado de ' + tempo.toFixed(2));
+                console.log('TIMEUPDATE BLK: tentou ' + tempo.toFixed(2) + ' -> revert para ' + ultimoTempo.toFixed(2));
                 return;
             }
 
@@ -335,7 +348,11 @@
                 watchedSeconds = Math.max(watchedSeconds, Math.min(referenceDuration, Math.floor(playBaseTime + elapsed)));
             }
 
+            const tempoAntes = ultimoTempo;
             ultimoTempo = Math.max(ultimoTempo, tempo);
+            if (ultimoTempo > tempoAntes) {
+                console.log('UPDATE: ultimoTempo ' + tempoAntes.toFixed(2) + ' -> ' + ultimoTempo.toFixed(2));
+            }
 
             const ref = referenceDuration || Math.max(1, registeredDurationSeconds);
             const percent = Math.min(100, (watchedSeconds / ref) * 100);
@@ -369,15 +386,10 @@
 
         video.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // CAMADA 4: FALLBACK - a cada 100ms verifica e bloqueia
-        setInterval(() => {
-            if (video.currentTime > ultimoTempo + 0.1) {
-                video.currentTime = ultimoTempo;
-                console.log('FALLBACK: bloqueado em ' + video.currentTime.toFixed(2));
-            }
-        }, 100);
-
     } else if (trainingType === 'youtube') {
+        let youtubeBlockSeeking = false;
+        let youtubeLastTempo = 0; // rastreia o último tempo conhecido
+        
         function loadYoutubeApi() {
             if (window.YT && window.YT.Player) {
                 initializeYoutubePlayer();
@@ -406,6 +418,7 @@
                         youtubeDuration = Math.max(1, Math.min(duration, registeredDurationSeconds));
                         const startTime = Math.min(ultimoTempo, youtubeDuration);
                         youtubePlayer.seekTo(startTime, true);
+                        youtubeLastTempo = startTime;
                         console.log('[YOUTUBE INIT] duration=' + youtubeDuration + ' start=' + startTime);
                     },
                     onStateChange: function (event) {
@@ -413,6 +426,7 @@
                             hasReallyStartedPlayback = true;
                             playStartedAt = Date.now();
                             playBaseTime = Math.max(0, watchedSeconds);
+                            youtubeBlockSeeking = false;
                             if (!dataInicioLocal) {
                                 dataInicioLocal = new Date().toISOString();
                                 salvarProgresso((watchedSeconds / youtubeDuration) * 100);
@@ -425,16 +439,28 @@
                                     }
 
                                     const tempo = youtubePlayer.getCurrentTime();
+                                    const deltaTempo = tempo - youtubeLastTempo; // quanto avançou desde última leitura
 
-                                    // NÃO fazer seek blocking no YouTube - deixar ele tocar livremente
-                                    // O YouTube não aceita seekTo para trás durante play
+                                    // Se fez um PULO grande (> 2s em uma leitura), bloqueia UMA VEZ
+                                    if (deltaTempo > AVANÇO_MÁXIMO_UX && !youtubeBlockSeeking) {
+                                        youtubeBlockSeeking = true;
+                                        const maxPermitido = youtubeLastTempo + AVANÇO_MÁXIMO_UX;
+                                        youtubePlayer.seekTo(maxPermitido, true);
+                                        youtubeLastTempo = maxPermitido;
+                                        console.log('[YOUTUBE] BLOQUEADO: tentou pulo de ' + tempo.toFixed(2) + ' (Δ=' + deltaTempo.toFixed(2) + 's) -> revert para ' + maxPermitido.toFixed(2));
+                                        
+                                        setTimeout(() => { youtubeBlockSeeking = false; }, 1000);
+                                        return;
+                                    }
 
+                                    // Playback normal: atualiza referências
                                     if (hasReallyStartedPlayback && playStartedAt) {
                                         const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
                                         watchedSeconds = Math.max(watchedSeconds, Math.min(youtubeDuration, Math.floor(playBaseTime + elapsed)));
                                     }
 
                                     ultimoTempo = Math.max(ultimoTempo, tempo);
+                                    youtubeLastTempo = tempo; // sempre atualiza lastTempo
 
                                     const percent = Math.min(100, (watchedSeconds / Math.max(1, youtubeDuration)) * 100);
                                     updateProgress(percent);
@@ -458,6 +484,7 @@
                                 const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
                                 watchedSeconds = Math.max(watchedSeconds, Math.min(youtubeDuration, Math.floor(playBaseTime + elapsed)));
                                 ultimoTempo = Math.max(ultimoTempo, tempo);
+                                youtubeLastTempo = tempo;
                                 salvarProgresso((watchedSeconds / Math.max(1, youtubeDuration)) * 100);
                             }
 

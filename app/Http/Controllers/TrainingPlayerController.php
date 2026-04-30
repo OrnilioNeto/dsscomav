@@ -50,15 +50,42 @@ class TrainingPlayerController extends Controller
             return response()->json(['error' => 'Acesso negado'], 403);
         }
 
+        // Validar payload
+        $tempoCliente = $request->input('tempo_assistido');
+        $porcentagem = $request->input('porcentagem_assistida');
+
+        if ($tempoCliente === null || $porcentagem === null) {
+            return response()->json(['error' => 'Campos obrigatórios faltando'], 400);
+        }
+
+        $tempoCliente = (int) $tempoCliente;
+        if ($tempoCliente < 0) {
+            return response()->json(['error' => 'Tempo não pode ser negativo'], 400);
+        }
+
+        // Obter duração do treinamento (em segundos)
+        $duracao = (int) $training->carga_horaria * 60;
+
+        // Capear tempo à duração máxima
+        $tempoCliente = min($tempoCliente, $duracao);
+
+        // Obter progresso anterior
         $progress = UserProgress::where('user_id', $user->id)
             ->where('training_id', $training->id)
             ->firstOrFail();
 
-        $tempoAssistido = max((int) ($request->tempo_assistido ?? $progress->tempo_assistido), (int) $progress->tempo_assistido);
-        $porcentagemAssistida = max((int) ($request->porcentagem_assistida ?? $progress->porcentagem_assistida), (int) $progress->porcentagem_assistida);
+        $tempoAnterior = (int) $progress->tempo_assistido;
+
+        // REGRA DE BLOQUEIO: máximo avanço de 10 segundos por requisição
+        $avancoPermitido = 10;
+        if ($tempoCliente > $tempoAnterior && ($tempoCliente - $tempoAnterior) > $avancoPermitido) {
+            $tempoCliente = $tempoAnterior + $avancoPermitido;
+        }
+
+        $porcentagemAssistida = max((int) $porcentagem, (int) $progress->porcentagem_assistida);
 
         $updateData = [
-            'tempo_assistido' => $tempoAssistido,
+            'tempo_assistido' => $tempoCliente,
             'porcentagem_assistida' => $porcentagemAssistida,
         ];
 
@@ -104,6 +131,9 @@ class TrainingPlayerController extends Controller
         return response()->json([
             'progress' => $progress->fresh(),
             'show_assessment' => $showAssessment,
+            'status' => 'sucesso',
+            'tempo' => $tempoCliente,
+            'duracao' => $duracao,
         ]);
     }
 
