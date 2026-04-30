@@ -130,7 +130,7 @@ class CertificateController extends Controller
         $html = view('certificados.pdf', [
             'certificate' => $certificate,
             'validationUrl' => $certificate->validation_url,
-            'qrDataUri' => 'data:image/png;base64,' . base64_encode($qrPng),
+            'qrDataUri' => 'data:image/svg+xml;base64,' . base64_encode($qrSvg),
             'tempoAssistidoFormatado' => gmdate('H:i:s', max(0, (int) $certificate->tempo_assistido_segundos)),
         ])->render();
 
