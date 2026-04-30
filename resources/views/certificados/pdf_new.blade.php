@@ -25,23 +25,27 @@
 
     body {
         color: #333;
-        font-size: 10pt;
+        font-size: 9pt;
     }
 
     .certificate-container {
         width: 100%;
-        height: 100vh;
         background: #ffffff;
-        padding: 30px 40px;
+        padding: 18px 20px;
         display: flex;
         flex-direction: column;
+        gap: 12px;
     }
 
     .certificate-header {
-        text-align: center;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #999;
+        text-align: left;
+        margin-bottom: 6px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #e6e6e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
     }
 
     .header-label {
@@ -53,42 +57,38 @@
     }
 
     .header-title {
-        font-size: 28pt;
-        font-weight: bold;
+        font-size: 20pt;
+        font-weight: 700;
         color: #1a1a1a;
-        margin-bottom: 2px;
+        margin-bottom: 0;
     }
 
     .code-date {
-        font-size: 8.5pt;
+        font-size: 8pt;
         color: #666;
-        margin-top: 8px;
         display: flex;
-        justify-content: space-between;
-        max-width: 300px;
-        margin-left: auto;
-        margin-right: auto;
-        gap: 40px;
+        flex-direction: column;
+        text-align: right;
+        gap: 4px;
     }
 
     .certificate-content {
         display: flex;
-        gap: 30px;
-        flex: 1;
+        gap: 18px;
+        align-items: flex-start;
     }
 
     .left-column {
-        flex: 1.2;
+        flex: 1.1;
     }
 
     .right-column {
-        flex: 0.8;
+        flex: 0.6;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: center;
-        border-left: 1px solid #ddd;
-        padding-left: 20px;
+        padding-left: 12px;
     }
 
     .section {
@@ -96,20 +96,18 @@
     }
 
     .section-title {
-        font-size: 8.5pt;
-        font-weight: bold;
+        font-size: 8pt;
+        font-weight: 700;
         color: #1a1a1a;
         text-transform: uppercase;
         letter-spacing: 1px;
-        margin-bottom: 10px;
-        padding-bottom: 5px;
-        border-bottom: 1px solid #ddd;
+        margin-bottom: 8px;
     }
 
     .field-row {
         display: flex;
-        margin-bottom: 7px;
-        font-size: 9.5pt;
+        margin-bottom: 6px;
+        font-size: 9pt;
     }
 
     .field-label {
@@ -125,17 +123,47 @@
     }
 
     .beneficiary-name {
-        font-size: 14pt;
-        font-weight: bold;
+        font-size: 12pt;
+        font-weight: 700;
         color: #1a1a1a;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
 
     .info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .small-cards {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
         gap: 8px;
-        margin-bottom: 12px;
+        margin-top: 8px;
+    }
+
+    .info-box {
+        padding: 8px 10px;
+        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        background: #fcfcfc;
+        text-align: center;
+        font-size: 9pt;
+    }
+
+    .info-box .label {
+        display: block;
+        font-size: 7.5pt;
+        color: #666;
+        font-weight: 700;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+    }
+
+    .info-box .value {
+        font-weight: 700;
+        color: #1a1a1a;
     }
 
     .info-item {
@@ -170,10 +198,10 @@
     }
 
     .qr-container {
-        background: #f5f5f5;
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 12px;
+        background: transparent;
+        padding: 6px;
+        border-radius: 6px;
+        margin-bottom: 10px;
     }
 
     .qr-label {
@@ -186,10 +214,11 @@
     }
 
     .qr-code {
-        width: 140px;
-        height: 140px;
+        width: 120px;
+        height: 120px;
         display: block;
         margin: 0 auto;
+        border-radius: 8px;
     }
 
     .qr-url {
@@ -325,25 +354,22 @@
                 <div class="training-title">{{ $certificate->training->titulo }}</div>
                 <div class="training-desc">{{ $certificate->training->descricao }}</div>
 
-                <div class="info-grid" style="margin-top: 10px;">
-                    <div class="info-item">
-                        <div class="info-label">CARGA HORÁRIA</div>
-                        <div class="info-value">{{ $certificate->training->carga_horaria }} min</div>
+                <div class="small-cards">
+                    <div class="info-box">
+                        <span class="label">Carga Horária</span>
+                        <span class="value">{{ $certificate->training->carga_horaria }} min</span>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">TEMPO ASSISTIDO</div>
-                        <div class="info-value">{{ gmdate('H:i:s', (int)$certificate->tempo_assistido_segundos) }}</div>
+                    <div class="info-box">
+                        <span class="label">Tempo Assistido</span>
+                        <span class="value">{{ gmdate('H:i:s', (int)$certificate->tempo_assistido_segundos) }}</span>
                     </div>
-                </div>
-
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">INÍCIO</div>
-                        <div class="info-value">{{ $certificate->data_inicio_assistencia->format('d/m/Y H:i') }}</div>
+                    <div class="info-box">
+                        <span class="label">Início</span>
+                        <span class="value">{{ $certificate->data_inicio_assistencia->format('d/m/Y H:i') }}</span>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">FINALIZAÇÃO</div>
-                        <div class="info-value">{{ $certificate->data_finalizacao_assistencia->format('d/m/Y H:i') }}</div>
+                    <div class="info-box">
+                        <span class="label">Finalização</span>
+                        <span class="value">{{ $certificate->data_finalizacao_assistencia->format('d/m/Y H:i') }}</span>
                     </div>
                 </div>
             </div>
