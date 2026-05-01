@@ -7,7 +7,6 @@ use App\Models\Training;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use TCPDF;
 
 class CertificateController extends Controller
@@ -121,16 +120,16 @@ class CertificateController extends Controller
     {
         $certificate->loadMissing(['user', 'training']);
 
-        // Gerar QR em SVG (compatível e sem exigir imagick)
-        $qrSvg = QrCode::format('svg')
-            ->size(160)
-            ->margin(1)
-            ->generate($certificate->validation_url);
+        $qrDataUri = null;
+        $qrBinary = @file_get_contents($certificate->qr_code_url);
+        if ($qrBinary !== false) {
+            $qrDataUri = 'data:image/png;base64,' . base64_encode($qrBinary);
+        }
 
         $html = view('certificados.pdf', [
             'certificate' => $certificate,
             'validationUrl' => $certificate->validation_url,
-            'qrDataUri' => 'data:image/svg+xml;base64,' . base64_encode($qrSvg),
+            'qrDataUri' => $qrDataUri,
             'tempoAssistidoFormatado' => gmdate('H:i:s', max(0, (int) $certificate->tempo_assistido_segundos)),
         ])->render();
 
@@ -143,15 +142,6 @@ class CertificateController extends Controller
         $pdf->SetAutoPageBreak(true, 10);
         $pdf->AddPage();
         $pdf->writeHTML($html, true, false, true, false, '');
-
-        $style = [
-            'border' => false,
-            'padding' => 0,
-            'fgcolor' => [0, 0, 0],
-            'bgcolor' => false,
-        ];
-
-        $pdf->write2DBarcode($certificate->validation_url, 'QRCODE,H', 208, 58, 38, 38, $style, 'N');
 
         return response($pdf->Output('certificado-' . $certificate->codigo_certificado . '.pdf', 'S'))
             ->header('Content-Type', 'application/pdf')

@@ -57,16 +57,12 @@
                                 <p class="text-lg font-semibold">{{ $certificate->user->empresa ?? 'Não informada' }}</p>
                             </div>
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Cargo</p>
-                                <p class="text-lg font-semibold">{{ $certificate->user->cargo ?? 'Não informado' }}</p>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo de usuário</p>
+                                <p class="text-lg font-semibold">{{ ucfirst($certificate->user->tipo_usuario ?? 'Não informado') }}</p>
                             </div>
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Telefone</p>
                                 <p class="text-lg font-semibold">{{ $certificate->user->telefone ?? 'Não informado' }}</p>
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo de usuário</p>
-                                <p class="text-lg font-semibold">{{ $certificate->user->tipo_usuario ?? 'Não informado' }}</p>
                             </div>
                         </div>
                     </div>

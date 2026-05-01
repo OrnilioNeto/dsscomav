@@ -131,6 +131,9 @@
                         <p class="font-semibold text-green-900">{{ $cert->training->titulo }}</p>
                         <p class="text-sm text-gray-600">Emitido: {{ $cert->data_emissao->format('d/m/Y') }}</p>
                         <p class="text-xs text-gray-600 mt-2 font-mono">{{ $cert->codigo_certificado }}</p>
+                        <a href="{{ route('certificados.download', $cert->id) }}" class="inline-block mt-3 text-sm font-semibold text-green-800 hover:text-green-900 hover:underline">
+                            <i class="fas fa-download mr-1"></i>Baixar certificado
+                        </a>
                     </div>
                 @endforeach
             </div>

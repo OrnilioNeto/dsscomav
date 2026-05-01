@@ -55,6 +55,9 @@
                             <a href="{{ route('usuarios.show', $usuario) }}" class="text-blue-600 hover:text-blue-900">
                                 <i class="fas fa-eye mr-1"></i>Ver
                             </a>
+                            <a href="{{ route('certificados.gerencial', ['cpf' => $usuario->cpf]) }}" class="text-green-600 hover:text-green-900">
+                                <i class="fas fa-certificate mr-1"></i>Certificados
+                            </a>
                             <a href="{{ route('usuarios.edit', $usuario) }}" class="text-orange-600 hover:text-orange-900">
                                 <i class="fas fa-edit mr-1"></i>Editar
                             </a>

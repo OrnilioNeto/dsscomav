@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CertificateManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\TrainingPlayerController;
@@ -50,5 +51,12 @@ Route::middleware('auth')->group(function () {
 
         // Treinamentos
         Route::resource('treinamentos', TrainingController::class);
+
+        // Certificados e Relatórios Gerenciais
+        Route::get('/certificados-gerencial', [CertificateManagementController::class, 'index'])->name('certificados.gerencial');
+        Route::get('/relatorios/treinamentos', [CertificateManagementController::class, 'relatorioTreinamentos'])->name('relatorios.treinamentos');
+        Route::get('/relatorios/usuarios', [CertificateManagementController::class, 'relatorioUsuarios'])->name('relatorios.usuarios');
+        Route::get('/relatorios/auditoria', [CertificateManagementController::class, 'relatorioAuditoria'])->name('relatorios.auditoria');
+        Route::get('/certificados/exportar', [CertificateManagementController::class, 'exportarCertificados'])->name('certificados.exportar');
     });
 });

@@ -53,6 +53,8 @@ class DashboardController extends Controller
 
     private function dashboardAdmin()
     {
+        $user = auth()->user();
+        
         $totalUsuarios = User::where('role_id', '<>', 1)->count();
         $totalTreinamentos = Training::count();
         $usuariosAtivos = User::where('status', 'ativo')->count();
@@ -61,6 +63,14 @@ class DashboardController extends Controller
         $treinamentosRecentes = Training::orderBy('created_at', 'desc')->take(5)->get();
         $usuariosRecentes = User::where('role_id', '<>', 1)->orderBy('created_at', 'desc')->take(5)->get();
 
+        // Se o admin participa de treinamentos, carregar dados de treinamentos disponíveis
+        $treinamentosDisponíveis = [];
+        if ($user->participa_treinamentos) {
+            $treinamentosDisponíveis = Training::where('status', 'ativo')
+                ->get()
+                ->filter(fn($t) => $user->canAccessTraining($t));
+        }
+
         return view('dashboard.admin', [
             'totalUsuarios' => $totalUsuarios,
             'totalTreinamentos' => $totalTreinamentos,
@@ -68,6 +78,7 @@ class DashboardController extends Controller
             'certificadosEmitidos' => $certificadosEmitidos,
             'treinamentosRecentes' => $treinamentosRecentes,
             'usuariosRecentes' => $usuariosRecentes,
+            'treinamentosDisponíveis' => $treinamentosDisponíveis,
         ]);
     }
 

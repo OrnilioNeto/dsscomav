@@ -21,6 +21,7 @@ class User extends Authenticatable
         'tipo_usuario',
         'status',
         'role_id',
+        'participa_treinamentos',
         'cnh',
         'categoria_cnh',
         'validade_cnh',

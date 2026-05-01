@@ -63,8 +63,8 @@
                             <p class="text-lg font-semibold text-gray-800">{{ $certificate->user->empresa ?? 'Não informada' }}</p>
                         </div>
                         <div>
-                            <p class="text-gray-600 text-sm font-semibold">Cargo</p>
-                            <p class="text-lg font-semibold text-gray-800">{{ $certificate->user->cargo ?? 'Não informado' }}</p>
+                            <p class="text-gray-600 text-sm font-semibold">Tipo de usuário</p>
+                            <p class="text-lg font-semibold text-gray-800">{{ ucfirst($certificate->user->tipo_usuario ?? 'Não informado') }}</p>
                         </div>
                     </div>
 

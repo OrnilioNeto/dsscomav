@@ -77,7 +77,14 @@ class UserController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $usuario->update($request->all());
+        $data = $request->all();
+        
+        // Se é um admin, permitir marcar participação em treinamentos
+        if ($usuario->isAdmin()) {
+            $data['participa_treinamentos'] = $request->has('participa_treinamentos');
+        }
+
+        $usuario->update($data);
 
         return redirect()->route('usuarios.show', $usuario)->with('success', 'Usuário atualizado!');
     }

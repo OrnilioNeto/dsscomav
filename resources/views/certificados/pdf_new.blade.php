@@ -312,14 +312,9 @@
                         <div class="info-value">{{ $certificate->user->empresa ?? 'Não informada' }}</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">CARGO</div>
-                        <div class="info-value">{{ $certificate->user->cargo ?? 'Não informado' }}</div>
+                        <div class="info-label">TIPO DE USUÁRIO</div>
+                        <div class="info-value">{{ ucfirst($certificate->user->tipo_usuario ?? 'Não informado') }}</div>
                     </div>
-                </div>
-
-                <div class="field-row">
-                    <div class="field-label">TIPO DE USUÁRIO</div>
-                    <div class="field-value">{{ $certificate->user->tipo_usuario }}</div>
                 </div>
             </div>
 
