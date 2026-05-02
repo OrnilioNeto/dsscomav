@@ -25,11 +25,21 @@
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 text-slate-900">
     <div class="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
         <div class="w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.15)]">
-            <div class="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-800 px-8 py-6 text-white">
+            <div style="background: linear-gradient(90deg,#153B2E 0%, #0F2B22 100%);" class="px-8 py-6 text-white">
                 <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <div>
-                        <p class="text-xs uppercase tracking-[0.35em] text-blue-200">Certificado de Conclusão</p>
-                        <h1 class="mt-2 text-3xl font-bold md:text-4xl">{{ $certificate->training->titulo }}</h1>
+                        @php
+                            $logoAssetPath = file_exists(public_path('images/logo-comav-transportes.png'))
+                                ? 'images/logo-comav-transportes.png'
+                                : 'imagens/logo-comav-transportes.png';
+                        @endphp
+                        <div class="flex items-center gap-4">
+                            <img src="{{ asset($logoAssetPath) }}" alt="Logo" style="height:42px;">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.35em]" style="color: rgba(255,255,255,0.85);">Certificado de Conclusão</p>
+                                <h1 class="mt-2 text-3xl font-bold md:text-4xl">{{ $certificate->training->titulo }}</h1>
+                            </div>
+                        </div>
                     </div>
                     <div class="text-sm text-blue-100">
                         <p>Código: <span class="font-mono font-semibold">{{ $certificate->codigo_certificado }}</span></p>

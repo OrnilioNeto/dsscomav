@@ -38,7 +38,15 @@
             @endif
         </div>
 
-        @if($valido && $certificate)
+            @if($valido && $certificate)
+            @php
+                $logoAssetPath = file_exists(public_path('images/logo-comav-transportes.png'))
+                    ? 'images/logo-comav-transportes.png'
+                    : 'imagens/logo-comav-transportes.png';
+            @endphp
+            <div class="flex items-center justify-center mb-6">
+                <img src="{{ asset($logoAssetPath) }}" alt="Logo" style="height:48px; margin-right:12px;">
+            </div>
             <div class="grid lg:grid-cols-[1.3fr_0.7fr] gap-6">
                 <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200 space-y-5">
                     <div class="grid md:grid-cols-2 gap-4">

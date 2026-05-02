@@ -3,11 +3,16 @@
 @section('title', 'Login - Plataforma DSS')
 
 @section('content')
-<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-blue-700">
+<div class="min-h-screen flex items-center justify-center" style="background: linear-gradient(135deg,var(--primary) 0%, var(--primary-700) 100%);">
     <div class="w-full max-w-md">
         <div class="bg-white rounded-lg shadow-2xl p-8">
             <div class="text-center mb-8">
-                <i class="fas fa-graduation-cap text-4xl text-blue-900 mb-4"></i>
+                @php
+                    $logoAssetPath = file_exists(public_path('images/logo-comav-transportes.png'))
+                        ? 'images/logo-comav-transportes.png'
+                        : 'imagens/logo-comav-transportes.png';
+                @endphp
+                <img src="{{ asset($logoAssetPath) }}" alt="Logo" class="mx-auto mb-4" style="height:54px;">
                 <h1 class="text-3xl font-bold text-gray-800">Plataforma DSS</h1>
                 <p class="text-gray-600 mt-2">Treinamento Corporativo</p>
             </div>

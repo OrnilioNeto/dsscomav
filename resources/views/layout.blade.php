@@ -8,38 +8,57 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        :root{
+            --primary: #153B2E; /* dark green from logo */
+            --primary-700: #0F2B22; /* darker */
+            --accent: #F28C2B; /* orange accent from logo */
+            --bg-start: #FFF8F1;
+            --bg-end: #FFFFFF;
+        }
+
+        .site-nav{ background: var(--primary); color: white; }
+        .site-footer{ background: var(--primary); color: white; }
+        .site-link-hover:hover{ color: var(--accent) !important; }
+        .brand-text{ color: white; }
+    </style>
     @yield('extra_css')
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50" style="--primary: #153B2E; --primary-700:#0F2B22; --accent:#F28C2B;">
     @if(Auth::check())
-        <nav class="bg-blue-900 text-white shadow-lg">
+        <nav class="site-nav shadow-lg">
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex justify-between items-center h-16">
                     <div class="flex items-center">
-                        <i class="fas fa-graduation-cap text-2xl mr-3"></i>
-                        <span class="font-bold text-lg">Plataforma DSS</span>
+                        @php
+                            $logoAssetPath = file_exists(public_path('images/logo-comav-transportes.png'))
+                                ? 'images/logo-comav-transportes.png'
+                                : 'imagens/logo-comav-transportes.png';
+                        @endphp
+                        <img src="{{ asset($logoAssetPath) }}" alt="logo" width="36" class="mr-3">
+                        <span class="font-bold text-lg brand-text">Plataforma DSS</span>
                     </div>
                     
                     <div class="flex items-center space-x-6">
                         @if(Auth::user()->isAdmin())
-                            <a href="{{ route('usuarios.index') }}" class="hover:text-blue-200">
+                            <a href="{{ route('usuarios.index') }}" class="site-link-hover">
                                 <i class="fas fa-users mr-1"></i> Usuários
                             </a>
-                            <a href="{{ route('treinamentos.index') }}" class="hover:text-blue-200">
+                                <a href="{{ route('treinamentos.index') }}" class="site-link-hover">
                                 <i class="fas fa-video mr-1"></i> Treinamentos
                             </a>
                         @endif
                         
-                        <a href="{{ route('dashboard') }}" class="hover:text-blue-200">
+                        <a href="{{ route('dashboard') }}" class="site-link-hover">
                             <i class="fas fa-home mr-1"></i> Dashboard
                         </a>
                         
-                        <a href="{{ route('certificados.meus') }}" class="hover:text-blue-200">
+                        <a href="{{ route('certificados.meus') }}" class="site-link-hover">
                             <i class="fas fa-certificate mr-1"></i> Certificados
                         </a>
 
                         <div class="relative group">
-                            <button class="flex items-center hover:text-blue-200">
+                                <button class="flex items-center site-link-hover">
                                 <i class="fas fa-user-circle text-xl"></i>
                                 <span class="ml-2">{{ Auth::user()->nome }}</span>
                             </button>
@@ -94,7 +113,7 @@
         @yield('content')
     </div>
 
-    <footer class="bg-blue-900 text-white mt-16 py-8">
+            <footer class="site-footer mt-16 py-8">
         <div class="max-w-7xl mx-auto px-4 text-center">
             <p>&copy; 2024 Plataforma DSS. Todos os direitos reservados.</p>
         </div>

@@ -12,7 +12,7 @@
     }
 
     .header {
-        background: #0f172a;
+        background: #153B2E;
         color: #ffffff;
         padding: 8px 10px;
         border-radius: 10px;
@@ -26,8 +26,8 @@
         display: inline-block;
         padding: 3px 8px;
         border-radius: 999px;
-        background: #ecfeff;
-        color: #155e75;
+        background: #FFF4E6;
+        color: #F28C2B;
         font-weight: bold;
         font-size: 8pt;
     }
@@ -59,7 +59,9 @@
                             <!-- LOGO -->
                             <td style="width: 60px; vertical-align: middle;">
                                 @php
-                                    $logoPath = public_path('images/logo-comav.png');
+                                    $logoPath = file_exists(public_path('images/logo-comav-transportes.png'))
+                                        ? public_path('images/logo-comav-transportes.png')
+                                        : public_path('imagens/logo-comav-transportes.png');
                                     $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
                                 @endphp
 

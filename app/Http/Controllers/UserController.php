@@ -31,6 +31,8 @@ class UserController extends Controller
             'password' => 'required|string|min:8',
             'telefone' => 'nullable|string',
             'tipo_usuario' => 'required|in:motorista,funcionario,terceirizado',
+            'empresa' => 'nullable|string|max:255',
+            'cargo' => 'nullable|string|max:255',
             'role_id' => 'required|exists:roles,id',
         ]);
 
@@ -70,6 +72,8 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email,' . $id,
             'telefone' => 'nullable|string',
             'tipo_usuario' => 'required|in:motorista,funcionario,terceirizado',
+            'empresa' => 'nullable|string|max:255',
+            'cargo' => 'nullable|string|max:255',
             'status' => 'required|in:ativo,inativo',
         ]);
 
