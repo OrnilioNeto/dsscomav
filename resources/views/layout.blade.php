@@ -30,12 +30,7 @@
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex justify-between items-center h-16">
                     <div class="flex items-center">
-                        @php
-                            $logoAssetPath = file_exists(public_path('images/logo-comav-transportes.png'))
-                                ? 'images/logo-comav-transportes.png'
-                                : 'imagens/logo-comav-transportes.png';
-                        @endphp
-                        <img src="{{ asset($logoAssetPath) }}" alt="logo" width="36" class="mr-3">
+                        <img src="{{ asset('images/logo-comav-transportes.png') }}" alt="logo" width="36" class="mr-3">
                         <span class="font-bold text-lg brand-text">Plataforma DSS</span>
                     </div>
                     

@@ -7,12 +7,7 @@
     <div class="w-full max-w-md">
         <div class="bg-white rounded-lg shadow-2xl p-8">
             <div class="text-center mb-8">
-                @php
-                    $logoAssetPath = file_exists(public_path('images/logo-comav-transportes.png'))
-                        ? 'images/logo-comav-transportes.png'
-                        : 'imagens/logo-comav-transportes.png';
-                @endphp
-                <img src="{{ asset($logoAssetPath) }}" alt="Logo" class="mx-auto mb-4" style="height:54px;">
+                <img src="{{ asset('images/logo-comav-transportes.png') }}" alt="Logo" class="mx-auto mb-4" style="height:54px;">
                 <h1 class="text-3xl font-bold text-gray-800">Plataforma DSS</h1>
                 <p class="text-gray-600 mt-2">Treinamento Corporativo</p>
             </div>

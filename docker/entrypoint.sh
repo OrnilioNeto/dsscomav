@@ -20,6 +20,7 @@ mkdir -p /var/www/app/storage/framework/views
 mkdir -p /var/www/app/storage/logs
 mkdir -p /var/www/app/database/migrations
 mkdir -p /var/www/app/database/seeders
+mkdir -p /var/www/app/public/images
 
 if [ -d /opt/database-files/migrations ]; then
     cp -R /opt/database-files/migrations/. /var/www/app/database/migrations/
@@ -27,6 +28,11 @@ fi
 
 if [ -d /opt/database-files/seeders ]; then
     cp -R /opt/database-files/seeders/. /var/www/app/database/seeders/
+fi
+
+# Copy logo files if they exist in the mounted volume
+if [ -f /var/www/app/public/images-source/logo-comav-transportes.png ]; then
+    cp /var/www/app/public/images-source/logo-comav-transportes.png /var/www/app/public/images/
 fi
 
 php artisan key:generate --force
