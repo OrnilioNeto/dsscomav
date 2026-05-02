@@ -6,7 +6,7 @@
 <div class="text-white py-20" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-700) 100%);">
     <div class="max-w-7xl mx-auto px-4 text-center">
         <img src="{{ asset('images/logo-comav-transportes.png') }}" alt="Logo COMAV" class="mx-auto mb-6" style="height:72px;">
-        <h1 class="text-5xl font-bold mb-4">Plataforma DSS</h1>
+        <h1 class="text-5xl font-bold mb-4">Previa Segurança</h1>
         <p class="text-xl mb-8" style="color: rgba(255,255,255,0.9);">Sistema de Treinamento Corporativo - Diálogo Semanal de Segurança</p>
         
         @if(Auth::check())

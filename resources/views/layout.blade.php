@@ -110,7 +110,7 @@
 
             <footer class="site-footer mt-16 py-8">
         <div class="max-w-7xl mx-auto px-4 text-center">
-            <p>&copy; 2024 Plataforma DSS. Todos os direitos reservados.</p>
+            <p>&copy; 2026 64 Bits Soluções. Todos os direitos reservados.</p>
         </div>
     </footer>
 
