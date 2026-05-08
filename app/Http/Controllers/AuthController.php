@@ -32,12 +32,20 @@ class AuthController extends Controller
         // Remove máscara do CPF
         $cpf = preg_replace('/\D/', '', $request->cpf);
 
-        if (Auth::attempt(['cpf' => $cpf, 'password' => $request->password])) {
-            $request->session()->regenerate();
-            return redirect()->intended('dashboard');
+        try {
+            if (Auth::attempt(['cpf' => $cpf, 'password' => $request->password])) {
+                $request->session()->regenerate();
+                return redirect()->route('dashboard');
+            }
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()
+                ->withInput()
+                ->with('error', 'Não foi possível processar o login agora. Verifique o log do servidor.');
         }
 
-        return redirect('login')->with('error', 'CPF ou senha inválidos')->withInput();
+        return back()->withInput()->with('error', 'CPF ou senha inválidos');
     }
 
     public function logout(Request $request)

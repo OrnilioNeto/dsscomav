@@ -14,12 +14,25 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->isSuperAdmin()) {
-            return $this->dashboardSuperAdmin();
-        } elseif ($user->isAdmin()) {
-            return $this->dashboardAdmin();
-        } else {
+        if (! $user) {
+            return redirect()->route('login');
+        }
+
+        try {
+            if ($user->isSuperAdmin()) {
+                return $this->dashboardSuperAdmin();
+            }
+
+            if ($user->isAdmin()) {
+                return $this->dashboardAdmin();
+            }
+
             return $this->dashboardUser();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->route('login')
+                ->with('error', 'Não foi possível carregar o painel após o login. Verifique o log do servidor.');
         }
     }
 
