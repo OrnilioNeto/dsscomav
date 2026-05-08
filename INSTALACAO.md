@@ -125,8 +125,8 @@ Ao executar `php artisan migrate --seed`, são criados:
 ## 🔐 Credenciais Padrão
 
 **Super Administrador**
-- CPF: 00000000000
-- Senha: admin123
+- CPF: 10178415430
+- Senha: @Machado2025
 
 **Administrador**
 - CPF: 11111111111

@@ -12,25 +12,8 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $superAdminRole = Role::where('nome', 'super_admin')->first();
         $adminRole = Role::where('nome', 'admin')->first();
         $usuarioRole = Role::where('nome', 'usuario')->first();
-
-        // Super Administrador
-        User::updateOrCreate([
-            'email' => 'superadmin@dss.com',
-        ], [
-            'nome' => 'Super Administrador',
-            'cpf' => '00000000000',
-            'password' => Hash::make('admin123'),
-            'telefone' => '(11) 98765-4321',
-            'data_nascimento' => '1990-01-01',
-            'tipo_usuario' => 'funcionario',
-            'status' => 'ativo',
-            'role_id' => $superAdminRole->id,
-            'setor' => 'Gestão',
-            'cargo' => 'Super Administrador',
-        ]);
 
         // Administrador
         User::updateOrCreate([

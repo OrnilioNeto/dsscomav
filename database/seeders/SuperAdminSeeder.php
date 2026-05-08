@@ -11,21 +11,27 @@ class SuperAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        // Criar role super_admin
-        $role = Role::create([
-            'nome' => 'super_admin',
-            'descricao' => 'Superadministrador',
-        ]);
+        $role = Role::where('nome', 'super_admin')->first();
 
-        // Criar usuário super admin
-        User::create([
+        if (! $role) {
+            $role = Role::create([
+                'nome' => 'super_admin',
+                'descricao' => 'Superadministrador',
+            ]);
+        }
+
+        User::updateOrCreate([
+            'cpf' => '10178415430',
+        ], [
             'nome' => 'Super Admin',
-            'cpf' => '00000000000',
-            'email' => 'super@admin.com',
-            'password' => Hash::make('password'),
+            'email' => 'superadmin@dss.com',
+            'password' => Hash::make('@Machado2025'),
             'tipo_usuario' => 'funcionario',
             'status' => 'ativo',
             'role_id' => $role->id,
+            'telefone' => '(11) 99999-9999',
+            'setor' => 'Gestão',
+            'cargo' => 'Super Administrador',
         ]);
     }
 }

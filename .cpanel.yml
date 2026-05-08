@@ -47,6 +47,9 @@ deployment:
     # 9. MIGRAÇÕES SEGURAS (NUNCA QUEBRA DEPLOY)
     - $PHP_BIN artisan migrate --force || true
 
+    # 9.1. SEEDS IDempotentes PARA GARANTIR USUÁRIOS BASE
+    - $PHP_BIN artisan db:seed --force || true
+
     # 10. CACHE DE PRODUÇÃO
     - $PHP_BIN artisan config:cache || true
     - $PHP_BIN artisan route:cache || true
