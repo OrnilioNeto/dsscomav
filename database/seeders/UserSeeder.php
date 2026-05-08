@@ -29,6 +29,7 @@ class UserSeeder extends Seeder
             'role_id' => $adminRole->id,
             'setor' => 'TI',
             'cargo' => 'Administrador',
+            'empresa' => 'DSS Soluções',
         ]);
 
         // Motorista exemplo
@@ -46,6 +47,7 @@ class UserSeeder extends Seeder
             'cnh' => '1234567890',
             'categoria_cnh' => 'D',
             'validade_cnh' => now()->addYears(2),
+            'empresa' => 'DSS Soluções',
         ]);
 
         // Funcionário exemplo
@@ -62,6 +64,7 @@ class UserSeeder extends Seeder
             'role_id' => $usuarioRole->id,
             'setor' => 'Operacional',
             'cargo' => 'Analista',
+            'empresa' => 'DSS Soluções',
         ]);
 
         // Terceirizado exemplo

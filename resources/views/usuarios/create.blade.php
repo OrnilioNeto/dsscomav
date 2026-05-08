@@ -70,6 +70,18 @@
                 </div>
             </div>
 
+            <div class="grid md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Empresa</label>
+                    <input type="text" name="empresa" value="{{ old('empresa') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Responsável</label>
+                    <input type="text" name="responsavel" value="{{ old('responsavel') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                </div>
+            </div>
+
             <!-- Campos específicos para Motorista -->
             <div id="motorista-fields" class="space-y-4 hidden border-t pt-4">
                 <h3 class="text-lg font-bold text-gray-800">Dados do Motorista</h3>
@@ -104,20 +116,7 @@
                 </div>
             </div>
 
-            <!-- Campos específicos para Terceirizado -->
-            <div id="terceirizado-fields" class="space-y-4 hidden border-t pt-4">
-                <h3 class="text-lg font-bold text-gray-800">Dados do Terceirizado</h3>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Empresa</label>
-                        <input type="text" name="empresa" value="{{ old('empresa') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Responsável</label>
-                        <input type="text" name="responsavel" value="{{ old('responsavel') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                </div>
-            </div>
+
 
             <div class="pt-4">
                 <div class="flex flex-col md:flex-row md:space-x-4 space-y-3 md:space-y-0">
@@ -137,14 +136,11 @@
 document.querySelector('select[name="tipo_usuario"]').addEventListener('change', function() {
     document.getElementById('motorista-fields').classList.add('hidden');
     document.getElementById('funcionario-fields').classList.add('hidden');
-    document.getElementById('terceirizado-fields').classList.add('hidden');
     
     if (this.value === 'motorista') {
         document.getElementById('motorista-fields').classList.remove('hidden');
     } else if (this.value === 'funcionario') {
         document.getElementById('funcionario-fields').classList.remove('hidden');
-    } else if (this.value === 'terceirizado') {
-        document.getElementById('terceirizado-fields').classList.remove('hidden');
     }
 });
 
