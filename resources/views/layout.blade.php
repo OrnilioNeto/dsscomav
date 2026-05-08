@@ -257,6 +257,42 @@
             // also run immediately in case DOM already loaded
             setTimeout(onResize, 50);
         })();
+
+        // Substitui hora de emissão do servidor pela hora local do cliente
+        (function(){
+            function formatarHoraLocal(dataString){
+                // dataString vem do servidor no formato 'd/m/Y H:i'
+                // Precisamos pegar apenas a hora local do navegador
+                const agora = new Date();
+                const dia = String(agora.getDate()).padStart(2, '0');
+                const mes = String(agora.getMonth() + 1).padStart(2, '0');
+                const ano = agora.getFullYear();
+                const horas = String(agora.getHours()).padStart(2, '0');
+                const minutos = String(agora.getMinutes()).padStart(2, '0');
+                
+                return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+            }
+
+            function atualizarHoras(){
+                // Atualiza todos os elementos com id começando com 'horaEmissao'
+                const elementos = document.querySelectorAll('[id^="horaEmissao"]');
+                elementos.forEach(el => {
+                    el.textContent = formatarHoraLocal(el.textContent);
+                });
+
+                // Também atualiza elementos com class 'horaEmissao'
+                document.querySelectorAll('.horaEmissao').forEach(el => {
+                    el.textContent = formatarHoraLocal(el.textContent);
+                });
+            }
+
+            // Aguarda o DOM estar pronto
+            if(document.readyState === 'loading'){
+                document.addEventListener('DOMContentLoaded', atualizarHoras);
+            } else {
+                atualizarHoras();
+            }
+        })();
     </script>
     @yield('extra_js')
 </body>
