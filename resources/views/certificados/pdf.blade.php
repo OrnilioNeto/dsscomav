@@ -2,20 +2,21 @@
     body {
         font-family: Helvetica, Arial, sans-serif;
         color: #0f172a;
-        font-size: 9pt;
+        font-size: 8.8pt;
     }
 
     .page {
         border: 1px solid #e6eaf0;
-        border-radius: 12px;
-        padding: 8px;
+        border-radius: 8px;
+        padding: 6px;
     }
 
     .header {
-        background: #153B2E;
-        color: #ffffff;
-        padding: 8px 10px;
-        border-radius: 10px;
+        /* compact header for PDF */
+        background: transparent;
+        color: #0f172a;
+        padding: 6px 6px;
+        border-radius: 6px;
     }
 
     .muted {
@@ -44,8 +45,16 @@
     .box {
         border: 1px solid #e2e8f0;
         border-radius: 12px;
-        padding: 9px;
+        padding: 8px;
         background: #f8fafc;
+    }
+
+    .label {
+        font-size: 7.5pt;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+        color: #64748b;
+        font-weight: 700;
     }
 </style>
 
@@ -53,49 +62,31 @@
     <div class="header">
         <table>
             <tr>
-                <td>
-                    <table>
-                        <tr>
-                            <!-- LOGO -->
-                            <td style="width: 60px; vertical-align: middle;">
-                                @php
-                                    $logoPath = file_exists(public_path('images/logo-comav-transportes.png'))
-                                        ? public_path('images/logo-comav-transportes.png')
-                                        : public_path('imagens/logo-comav-transportes.png');
-                                    $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
-                                @endphp
+                <td style="text-align: center;">
+                    @php
+                        $logoPath = file_exists(public_path('images/logo-comav-transportes.png'))
+                            ? public_path('images/logo-comav-transportes.png')
+                            : public_path('imagens/logo-comav-transportes.png');
+                        $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
+                    @endphp
 
-                                @if($logoBase64)
-                                    <img src="{{ $logoBase64 }}" width="50">
-                                @endif
-                            </td>
+                    @if($logoBase64)
+                        <img src="{{ $logoBase64 }}" width="42" style="display:block; margin:0 auto;">
+                    @endif
 
-                            <!-- TEXTO -->
-                            <td style="vertical-align: middle;">
-                                <div style="font-size: 8pt; letter-spacing: 1px; text-transform: uppercase; color: #090909;">
-                                    Certificado de Conclusão
-                                </div>
-                                <div style="font-size: 16pt; font-weight: 700; margin-top: 2px;">
-                                    {{ $certificate->training->titulo }}
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-                <td style="text-align: right; font-size: 9pt;">
-                    <div>Código: <strong>{{ $certificate->codigo_certificado }}</strong></div>
-                    <div>Emissão: {{ $certificate->data_emissao->format('d/m/Y H:i') }}</div>
+                    <div style="font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; color: #0b1220; margin-top:6px;">Certificado de Conclusão</div>
+                    <div style="font-size: 15pt; font-weight: 800; margin-top: 3px; color: #0b1220;">{{ $certificate->training->titulo }}</div>
                 </td>
             </tr>
         </table>
     </div>
 
-    <table style="margin-top: 10px;">
+    <table style="margin-top: 8px;">
         <tr>
             <td style="width: 70%; padding-right: 10px;">
                 <div class="box">
                     <div class="badge">Beneficiário</div>
-                    <h2 style="font-size: 16pt; margin: 4px 0 5px 0; color: #0b1220; font-weight: 800;">{{ $certificate->user->nome }}</h2>
+                    <h2 style="font-size: 15pt; margin: 4px 0 5px 0; color: #0b1220; font-weight: 800;">{{ $certificate->user->nome }}</h2>
 
                     <table style="margin-top: 6px;">
                         <tr>
@@ -111,13 +102,12 @@
                         </tr>
                     </table>
 
-                    <div style="margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+                    <div style="margin-top: 7px; border-top: 1px solid #e2e8f0; padding-top: 7px;">
                         <div class="badge">Conteúdo concluído</div>
-                        <div style="font-size: 14pt; font-weight: bold; margin-top: 5px;">{{ $certificate->training->titulo }}</div>
-                        <div class="muted" style="margin-top: 2px; font-size: 8pt; line-height: 1.25;">{{ $certificate->training->descricao }}</div>
+                        <div class="muted" style="margin-top: 4px; font-size: 8pt; line-height: 1.25;">{{ $certificate->training->descricao }}</div>
                     </div>
 
-                    <table style="margin-top: 9px;">
+                    <table style="margin-top: 8px;">
                         <tr>
                             <td style="width: 25%;"><strong>Carga horária:</strong><br>{{ $certificate->training->carga_horaria }} min</td>
                             <td style="width: 25%;"><strong>Início do Treinamento:</strong><br>{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</td>
@@ -126,12 +116,7 @@
                         </tr>
                     </table>
 
-                    <div style="margin-top: 9px;">
-                        <strong>Código de validação:</strong>
-                        <div style="margin-top: 4px; padding: 6px 8px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; font-family: monospace; font-size: 10pt;">{{ $certificate->codigo_certificado }}</div>
-                    </div>
-
-                    <div style="margin-top: 9px;">
+                    <div style="margin-top: 8px;">
                         <strong>Instrutor:</strong>
                         <div style="margin-top: 4px; font-size: 8pt;" class="muted">Ornilio Machado Neto, Tec Seguranca do trabalho, RG - 10827, Bombeiro Civil</div>
                     </div>
@@ -139,24 +124,24 @@
             </td>
 
             <td style="width: 32%;">
-                <div class="box" style="text-align: center; min-height: 200px;">
+                <div class="box" style="text-align: center; min-height: 150px;">
 
                 <div class="badge">QR Code</div>
 
                 <div style="
                     margin-top: 6px;
-                    width: 140px;
-                    height: 140px;
+                    width: 120px;
+                    height: 120px;
                     margin-left: auto;
                     margin-right: auto;
                     border: 1px solid #dbe2ea;
-                    border-radius: 10px;
+                    border-radius: 8px;
                     background: #ffffff;
-                    padding: 5px;
+                    padding: 4px;
                     box-sizing: border-box;
                 ">
                     @if(!empty($qrDataUri))
-                        <img src="{{ $qrDataUri }}" width="130" height="130" style="display:block;">
+                        <img src="{{ $qrDataUri }}" width="110" height="110" style="display:block;">
                     @else
                         <div class="muted" style="font-size: 8pt; margin-top: 50px;">QR indisponível</div>
                     @endif
@@ -173,11 +158,11 @@
 
             </div>
 
-                <div class="box" style="margin-top: 10px;">
+                <div class="box" style="margin-top: 8px;">
                     <div style="font-weight: bold; margin-bottom: 6px;">Resumo de auditoria</div>
                     <div><strong>Válido:</strong> Sim</div>
+                    <div><strong>Código:</strong> <span style="font-family: monospace;">{{ $certificate->codigo_certificado }}</span></div>
                     <div><strong>Emitido em:</strong> {{ $certificate->data_emissao->format('d/m/Y H:i') }}</div>
-                    <div><strong>Concluído em:</strong> {{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</div>
                 </div>
             </td>
         </tr>

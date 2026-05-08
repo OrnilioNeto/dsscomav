@@ -272,13 +272,20 @@
 
 <div class="certificate-container">
     <!-- Header with title and code -->
-    <div class="certificate-header">
-        <div class="header-label">Certificado de Conclusão</div>
-        <div class="header-title">Treinamento - {{ $certificate->training->titulo }}</div>
-        <div class="code-date">
-            <span>Código: {{ $certificate->codigo_certificado }}</span>
-            <span>Emitido em: {{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
-        </div>
+    <div class="certificate-header" style="text-align:center;">
+        @php
+            $logoPath = file_exists(public_path('images/logo-comav-transportes.png'))
+                ? public_path('images/logo-comav-transportes.png')
+                : public_path('imagens/logo-comav-transportes.png');
+            $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
+        @endphp
+
+        @if($logoBase64)
+            <img src="{{ $logoBase64 }}" alt="logo" style="width:72px; display:block; margin:0 auto 6px;" />
+        @endif
+        <div class="header-label" style="color:#111;">Certificado de Conclusão</div>
+        <div class="header-title" style="font-size:22pt; font-weight:800; margin-top:4px;">Treinamento - {{ $certificate->training->titulo }}</div>
+        <div style="margin-top:6px; font-size:9pt;">Código: {{ $certificate->codigo_certificado }} &nbsp;&nbsp;|&nbsp;&nbsp; Emitido em: {{ $certificate->data_emissao->format('d/m/Y H:i') }}</div>
     </div>
 
     <!-- Main content -->

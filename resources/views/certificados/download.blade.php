@@ -25,16 +25,16 @@
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 text-slate-900">
     <div class="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10">
         <div class="w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.15)]">
-            <div style="background: linear-gradient(90deg,#153B2E 0%, #0F2B22 100%);" class="px-8 py-6 text-white">
+            <div style="background: linear-gradient(90deg,#153B2E 0%, #0F2B22 100%);" class="px-6 py-4 text-white">
                 <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <div>
-                        <div class="flex items-center gap-4">
-                            <x-logo alt="Logo" height="42px" />
-                            <div>
-                                <p class="text-xs uppercase tracking-[0.35em]" style="color: rgba(255,255,255,0.85);">Certificado de Conclusão</p>
-                                <h1 class="mt-2 text-3xl font-bold md:text-4xl">{{ $certificate->training->titulo }}</h1>
-                            </div>
-                        </div>
+                        <div class="flex flex-col items-center w-full">
+                                    <x-logo alt="Logo" height="64px" />
+                                    <div class="text-center w-full">
+                                        <p class="text-xs uppercase tracking-[0.35em]" style="color: rgba(255,255,255,0.95);">Certificado de Conclusão</p>
+                                        <h1 class="mt-2 text-4xl md:text-5xl font-extrabold">{{ $certificate->training->titulo }}</h1>
+                                    </div>
+                                </div>
                     </div>
                     <div class="text-sm text-blue-100">
                         <p>Código: <span class="font-mono font-semibold">{{ $certificate->codigo_certificado }}</span></p>
@@ -43,7 +43,7 @@
                 </div>
             </div>
 
-            <div class="grid gap-0 lg:grid-cols-[1.55fr_0.85fr]">
+            <div class="grid gap-0 lg:grid-cols-[1.6fr_0.9fr]">
                 <div class="p-8 md:p-10">
                     <div class="mb-8">
                         <p class="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Beneficiário</p>
@@ -78,21 +78,21 @@
                         <p class="mt-3 text-slate-600">{{ $certificate->training->descricao }}</p>
 
                         <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                            <div class="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Carga horária</p>
-                                <p class="mt-2 text-lg font-bold">{{ $certificate->training->carga_horaria }} min</p>
+                                <p class="mt-1 text-lg font-bold">{{ $certificate->training->carga_horaria }} min</p>
                             </div>
-                            <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                            <div class="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Início do Treinamento</p>
-                                <p class="mt-2 text-lg font-bold">{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</p>
+                                <p class="mt-1 text-lg font-bold">{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</p>
                             </div>
-                            <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                            <div class="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fim do Treinamento</p>
-                                <p class="mt-2 text-lg font-bold">{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</p>
+                                <p class="mt-1 text-lg font-bold">{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</p>
                             </div>
-                            <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+                            <div class="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tempo assistido</p>
-                                <p class="mt-2 text-lg font-bold">{{ $tempoAssistidoFormatado }}</p>
+                                <p class="mt-1 text-lg font-bold">{{ $tempoAssistidoFormatado }}</p>
                             </div>
                         </div>
                     </div>
@@ -102,8 +102,8 @@
                     <div class="flex h-full flex-col items-center justify-between gap-6">
                         <div class="text-center">
                             <p class="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-700">Validação</p>
-                            <div class="mx-auto mt-5 rounded-3xl bg-white p-4 shadow-lg ring-1 ring-emerald-100">
-                                <img src="{{ $qrCodeUrl }}" alt="QR Code de validação" class="h-56 w-56">
+                            <div class="mx-auto mt-4 rounded-3xl bg-white p-3 shadow-lg ring-1 ring-emerald-100">
+                                <img src="{{ $qrCodeUrl }}" alt="QR Code de validação" class="h-48 w-48">
                             </div>
                             <p class="mt-4 text-sm text-slate-600 break-all">{{ $validationUrl }}</p>
                         </div>
