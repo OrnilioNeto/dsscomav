@@ -25,12 +25,18 @@
     @yield('extra_css')
 </head>
 <body class="bg-gray-50" style="--primary: #153B2E; --primary-700:#0F2B22; --accent:#F28C2B;">
+    @php
+        $assetPrefix = trim((string) config('app.asset_prefix', ''), '/');
+        $logoUrl = $assetPrefix !== ''
+            ? asset($assetPrefix . '/images/logo-comav-transportes.png')
+            : asset('images/logo-comav-transportes.png');
+    @endphp
     @if(Auth::check())
         <nav class="site-nav shadow-lg">
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex justify-between items-center h-16">
                     <div class="flex items-center">
-                        <img src="{{ site_asset('images/logo-comav-transportes.png') }}" alt="logo" width="36" class="mr-3">
+                        <img src="{{ $logoUrl }}" alt="logo" width="36" class="mr-3">
                         <span class="font-bold text-lg brand-text">Plataforma DSS</span>
                     </div>
                     
