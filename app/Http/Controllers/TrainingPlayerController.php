@@ -26,7 +26,7 @@ class TrainingPlayerController extends Controller
                 'training_id' => $training->id,
             ],
             [
-                'data_inicio' => now(),
+                'data_inicio' => now(config('app.timezone')),
                 'tempo_assistido' => 0,
                 'porcentagem_assistida' => 0,
                 'concluido' => false,
@@ -35,7 +35,7 @@ class TrainingPlayerController extends Controller
         );
 
         if (!$progress->data_inicio) {
-            $progress->update(['data_inicio' => now()]);
+            $progress->update(['data_inicio' => now(config('app.timezone'))]);
         }
 
         return view('treinamentos.player', compact('training', 'progress'));
@@ -89,21 +89,8 @@ class TrainingPlayerController extends Controller
             'porcentagem_assistida' => $porcentagemAssistida,
         ];
 
-        // aceitar timestamps locais do cliente (ISO8601)
-        if ($request->filled('data_inicio_assistencia')) {
-            try {
-                $updateData['data_inicio'] = Carbon::parse($request->data_inicio_assistencia);
-            } catch (\Exception $e) {
-                // ignore parse errors, não sobrescrever
-            }
-        }
-
-        if ($request->filled('data_finalizacao_assistencia')) {
-            try {
-                $updateData['data_conclusao'] = Carbon::parse($request->data_finalizacao_assistencia);
-            } catch (\Exception $e) {
-                // ignore parse errors
-            }
+        if (!$progress->data_inicio) {
+            $updateData['data_inicio'] = now(config('app.timezone'));
         }
 
         $progress->update($updateData);
@@ -113,15 +100,7 @@ class TrainingPlayerController extends Controller
 
         if ($fresh->porcentagem_assistida >= 90 && $fresh->avaliacao_aprovada && !$fresh->concluido) {
             $conclusionData = ['concluido' => true];
-            if ($request->filled('data_finalizacao_assistencia')) {
-                try {
-                    $conclusionData['data_conclusao'] = Carbon::parse($request->data_finalizacao_assistencia);
-                } catch (\Exception $e) {
-                    $conclusionData['data_conclusao'] = now();
-                }
-            } else {
-                $conclusionData['data_conclusao'] = now();
-            }
+            $conclusionData['data_conclusao'] = now(config('app.timezone'));
 
             $progress->update($conclusionData);
 
@@ -174,7 +153,7 @@ class TrainingPlayerController extends Controller
                     'concluido' => false,
                     'porcentagem_assistida' => 0,
                     'tempo_assistido' => 0,
-                    'data_inicio' => now(),
+                    'data_inicio' => now(config('app.timezone')),
                     'data_conclusao' => null,
                 ]);
 
@@ -204,7 +183,7 @@ class TrainingPlayerController extends Controller
         if ($progress->porcentagem_assistida >= 90 && !$progress->concluido) {
             $progress->update([
                 'concluido' => true,
-                'data_conclusao' => now(),
+                'data_conclusao' => now(config('app.timezone')),
             ]);
 
             $this->issueCertificateIfReady($training, $progress->fresh());
@@ -230,7 +209,7 @@ class TrainingPlayerController extends Controller
             $progress->update([
                 'concluido' => true,
                 'porcentagem_assistida' => 100,
-                'data_conclusao' => now(),
+                'data_conclusao' => now(config('app.timezone')),
             ]);
         }
 
