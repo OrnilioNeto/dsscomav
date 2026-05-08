@@ -21,3 +21,4 @@ Thumbs.db
 *.swo
 *~
 .phpunit.result.cache
+bootstrap/cache/*.php
