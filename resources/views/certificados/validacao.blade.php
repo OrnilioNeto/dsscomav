@@ -87,12 +87,12 @@
                             <p class="text-lg font-bold text-gray-800">{{ strtoupper($certificate->training->tipo) }}</p>
                         </div>
                         <div>
-                            <p class="text-gray-600 text-sm font-semibold">Início da Assitência</p>
-                            <p class="text-lg font-bold text-gray-800">{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</p>
+                            <p class="text-gray-600 text-sm font-semibold">Início do Treinamento</p>
+                            <p class="text-lg font-bold text-gray-800" id="horaInicioVal">{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</p>
                         </div>
                         <div>
-                            <p class="text-gray-600 text-sm font-semibold">Finalização</p>
-                            <p class="text-lg font-bold text-gray-800">{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</p>
+                            <p class="text-gray-600 text-sm font-semibold">Fim do Treinamento</p>
+                            <p class="text-lg font-bold text-gray-800" id="horaFimVal">{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm font-semibold">Tempo assistido</p>
@@ -122,7 +122,7 @@
                     <div class="w-full space-y-3 text-sm text-gray-700">
                         <div class="flex justify-between gap-4">
                             <span class="font-semibold">Emitido em</span>
-                            <span>{{ now()->format('d/m/Y H:i') }}</span>
+                            <span id="horaEmissaoValQR">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
                         </div>
                         <div class="flex justify-between gap-4">
                             <span class="font-semibold">Válido</span>

@@ -120,8 +120,8 @@
                     <table style="margin-top: 9px;">
                         <tr>
                             <td style="width: 25%;"><strong>Carga horária:</strong><br>{{ $certificate->training->carga_horaria }} min</td>
-                            <td style="width: 25%;"><strong>Início:</strong><br>{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</td>
-                            <td style="width: 25%;"><strong>Finalização:</strong><br>{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</td>
+                            <td style="width: 25%;"><strong>Início do Treinamento:</strong><br><span id="horaInicioPdf">{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</span></td>
+                            <td style="width: 25%;"><strong>Fim do Treinamento:</strong><br><span id="horaFimPdf">{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</span></td>
                             <td style="width: 25%;"><strong>Tempo assistido:</strong><br>{{ $tempoAssistidoFormatado }}</td>
                         </tr>
                     </table>
@@ -176,8 +176,8 @@
                 <div class="box" style="margin-top: 10px;">
                     <div style="font-weight: bold; margin-bottom: 6px;">Resumo de auditoria</div>
                     <div><strong>Válido:</strong> Sim</div>
-                    <div><strong>Emitido em:</strong> {{ $certificate->data_emissao->format('d/m/Y H:i') }}</div>
-                    <div><strong>Concluído em:</strong> {{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</div>
+                    <div><strong>Emitido em:</strong> <span id="horaEmissaoPdfResumo">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span></div>
+                    <div><strong>Concluído em:</strong> <span id="horaConcluido">{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</span></div>
                 </div>
             </td>
         </tr>
