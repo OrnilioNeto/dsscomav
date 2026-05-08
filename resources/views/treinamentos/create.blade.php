@@ -8,7 +8,7 @@
         <i class="fas fa-plus text-blue-900 mr-3"></i>Criar Novo Treinamento
     </h1>
 
-    <div class="bg-white p-8 rounded-lg shadow-lg">
+    <div class="bg-white p-6 sm:p-8 rounded-lg shadow-lg">
         <form action="{{ route('treinamentos.store') }}" method="POST" class="space-y-6">
             @csrf
 
@@ -126,13 +126,15 @@
                 </div>
             </div>
 
-            <div class="flex space-x-4 pt-4">
-                <button type="submit" class="flex-1 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition">
-                    <i class="fas fa-save mr-2"></i>Criar Treinamento
-                </button>
-                <a href="{{ route('treinamentos.index') }}" class="flex-1 bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-500 transition text-center">
-                    <i class="fas fa-times mr-2"></i>Cancelar
-                </a>
+            <div class="pt-4">
+                <div class="flex flex-col md:flex-row md:space-x-4 space-y-3 md:space-y-0">
+                    <button type="submit" class="w-full md:flex-1 bg-green-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-save mr-2"></i>Criar Treinamento
+                    </button>
+                    <a href="{{ route('treinamentos.index') }}" class="w-full md:flex-1 bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-500 transition text-center">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </a>
+                </div>
             </div>
         </form>
     </div>

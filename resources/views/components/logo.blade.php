@@ -15,12 +15,14 @@
     $inlineStyle = trim($style);
 
     if ($height) {
-        $inlineStyle = trim($inlineStyle . '; height:' . $height . ';');
+        $h = (is_numeric($height) ? $height . 'px' : $height);
+        $inlineStyle = trim($inlineStyle . '; height:' . $h . ';');
     }
 
     if ($width) {
-        $inlineStyle = trim($inlineStyle . '; width:' . $width . ';');
+        $w = (is_numeric($width) ? $width . 'px' : $width);
+        $inlineStyle = trim($inlineStyle . '; width:' . $w . ';');
     }
 @endphp
 
-<img src="{{ $logoSource }}" alt="{{ $alt }}" class="{{ $class }}" style="{{ $inlineStyle }}">
+<img src="{{ $logoSource }}" alt="{{ $alt }}" class="{{ trim(($class . ' max-w-full h-auto')) }}" style="{{ $inlineStyle }}"> 
