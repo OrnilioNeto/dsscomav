@@ -10,6 +10,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'asset_prefix' => env('APP_ASSET_PREFIX', ''),
+
     'timezone' => 'UTC',
 
     'locale' => env('APP_LOCALE', 'en'),

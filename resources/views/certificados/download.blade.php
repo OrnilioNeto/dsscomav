@@ -29,7 +29,7 @@
                 <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <div>
                         <div class="flex items-center gap-4">
-                            <img src="{{ asset('images/logo-comav-transportes.png') }}" alt="Logo" style="height:42px;">
+                            <img src="{{ site_asset('images/logo-comav-transportes.png') }}" alt="Logo" style="height:42px;">
                             <div>
                                 <p class="text-xs uppercase tracking-[0.35em]" style="color: rgba(255,255,255,0.85);">Certificado de Conclusão</p>
                                 <h1 class="mt-2 text-3xl font-bold md:text-4xl">{{ $certificate->training->titulo }}</h1>

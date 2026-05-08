@@ -40,7 +40,7 @@
 
             @if($valido && $certificate)
             <div class="flex items-center justify-center mb-6">
-                <img src="{{ asset('images/logo-comav-transportes.png') }}" alt="Logo" style="height:48px; margin-right:12px;">
+                <img src="{{ site_asset('images/logo-comav-transportes.png') }}" alt="Logo" style="height:48px; margin-right:12px;">
             </div>
             <div class="grid lg:grid-cols-[1.3fr_0.7fr] gap-6">
                 <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200 space-y-5">
