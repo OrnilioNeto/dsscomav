@@ -59,12 +59,6 @@
                     <i class="fas fa-sign-in-alt mr-2"></i> Entrar
                 </button>
             </form>
-
-            <div class="mt-6 p-4 bg-blue-50 rounded-lg text-sm text-gray-700">
-                <p class="font-semibold mb-2">👤 Credenciais de Teste:</p>
-                <p><strong>Super Admin:</strong> CPF: 00000000000 | Senha: admin123</p>
-                <p class="mt-2"><strong>Motorista:</strong> CPF: 22222222222 | Senha: senha123</p>
-            </div>
         </div>
     </div>
 </div>
