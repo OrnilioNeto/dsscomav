@@ -21,4 +21,5 @@ Thumbs.db
 *.swo
 *~
 .phpunit.result.cache
+!bootstrap/cache/.gitkeep
 bootstrap/cache/*.php
