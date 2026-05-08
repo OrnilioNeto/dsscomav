@@ -8,7 +8,7 @@
         "laravel/tinker": "^2.8",
         "laravel/sanctum": "^3.0",
         "simplesoftwareio/simple-qrcode": "^4.2",
-        "tcpdf/tcpdf": "^6.4"
+        "tecnickcom/tcpdf": "^6.4"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0",
