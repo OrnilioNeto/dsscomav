@@ -32,34 +32,6 @@ class Certificate extends Model
         'porcentagem_assistida' => 'integer',
     ];
 
-    // Converte timestamps persistidos em UTC para timezone local da aplicacao.
-    public function getDataEmissaoAttribute($value)
-    {
-        if ($value) {
-            return Carbon::parse($value, 'UTC')->setTimezone(config('app.timezone'));
-        }
-
-        return $value;
-    }
-
-    public function getDataInicioAssistenciaAttribute($value)
-    {
-        if ($value) {
-            return Carbon::parse($value, 'UTC')->setTimezone(config('app.timezone'));
-        }
-
-        return $value;
-    }
-
-    public function getDataFinalizacaoAssistenciaAttribute($value)
-    {
-        if ($value) {
-            return Carbon::parse($value, 'UTC')->setTimezone(config('app.timezone'));
-        }
-
-        return $value;
-    }
-
     // Relacionamentos
     public function user()
     {
