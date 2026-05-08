@@ -1,0 +1,181 @@
+═══════════════════════════════════════════════════════════════════════
+  DEPLOY PLATAFORMA DSS - cPanel | PASSO A PASSO
+═══════════════════════════════════════════════════════════════════════
+
+✅ PASSO 1: Entrar no cPanel via SSH
+───────────────────────────────────────────────────────────────────────
+ssh usuario@seu-dominio.com
+# Digite sua senha cPanel
+
+
+✅ PASSO 2: Navegar até a pasta do site
+───────────────────────────────────────────────────────────────────────
+# Se for domínio principal:
+cd ~/public_html
+
+# Se for subdomínio:
+cd ~/public_html/subdominio
+
+# Verificar aonde está:
+pwd
+
+
+✅ PASSO 3: Clonar o repositório GitHub
+───────────────────────────────────────────────────────────────────────
+# Opção A - Clonar tudo nessa pasta (recomendado):
+git clone https://github.com/SEU_USUARIO/plataforma_dss.git .
+
+# Opção B - Clonar em subpasta:
+git clone https://github.com/SEU_USUARIO/plataforma_dss.git plataforma_dss
+cd plataforma_dss
+
+
+✅ PASSO 4: Instalar dependências PHP
+───────────────────────────────────────────────────────────────────────
+composer install --no-dev --optimize-autoloader
+
+
+✅ PASSO 5: Criar arquivo .env
+───────────────────────────────────────────────────────────────────────
+cp .env.production.example .env
+
+
+✅ PASSO 6: Gerar APP_KEY
+───────────────────────────────────────────────────────────────────────
+php artisan key:generate
+
+
+✅ PASSO 7: Editar .env com dados do cPanel
+───────────────────────────────────────────────────────────────────────
+nano .env
+
+# Alterar estas linhas com os dados do cPanel:
+# 1. APP_URL - mude para seu domínio com https
+APP_URL=https://seu-dominio.com
+
+# 2. Dados do banco MySQL (pegue no cPanel > MySQL Databases)
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=[seu banco MySQL]
+DB_USERNAME=[seu usuario MySQL]
+DB_PASSWORD=[sua senha MySQL]
+
+# Salvar: Ctrl+O, Enter, Ctrl+X
+
+
+✅ PASSO 8: Criar pastas necessárias
+───────────────────────────────────────────────────────────────────────
+mkdir -p storage/certificates storage/app/public public/uploads
+chmod -R 775 storage bootstrap/cache public/uploads
+
+
+✅ PASSO 9: Rodar migrations e seed (PRIMEIRA VEZ)
+───────────────────────────────────────────────────────────────────────
+php artisan migrate --force --seed
+
+
+✅ PASSO 10: Criar link para storage
+───────────────────────────────────────────────────────────────────────
+php artisan storage:link
+
+
+✅ PASSO 11: Cachear configurações (performance)
+───────────────────────────────────────────────────────────────────────
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+
+✅ PASSO 12: Configurar DocumentRoot no cPanel
+───────────────────────────────────────────────────────────────────────
+CRITÍCO: O domínio DEVE apontar para a pasta /public do Laravel
+
+1. Log in no cPanel
+2. Vá para "Addon Domains" ou "Parked Domains"
+3. Edite seu domínio
+4. Aponte "Document Root" para:
+   /home/seu_usuario/public_html/public
+   (ou /home/seu_usuario/public_html/plataforma_dss/public se clonou em subpasta)
+5. Clique em "Save"
+
+
+✅ PASSO 13: Ativar SSL (HTTPS)
+───────────────────────────────────────────────────────────────────────
+1. No cPanel, procure "SSL/TLS"
+2. Clique em "Install and Manage SSL"
+3. Use "AutoSSL" (geralmente é gratuito)
+4. Ative o certificado
+5. Confirme que APP_URL no .env tem https://
+
+
+✅ PASSO 14: Testar
+───────────────────────────────────────────────────────────────────────
+Abra no navegador:
+https://seu-dominio.com
+
+Se ligar, vá em Login e use:
+CPF: 00000000000
+Senha: admin123
+
+
+⚠️  PASSO 15: SEGURANÇA - Alterar credenciais padrão
+───────────────────────────────────────────────────────────────────────
+1. Faça login com as credenciais acima
+2. Vá para Admin > Usuários
+3. Clique no usuário "00000000000"
+4. Mude a senha para algo seguro
+5. Repita para o usuário "11111111111"
+6. EXCLUA ou desative usuários de teste se houver
+
+
+═══════════════════════════════════════════════════════════════════════
+  ATUALIZAR DEPOIS (Quando fizer push no GitHub)
+═══════════════════════════════════════════════════════════════════════
+
+cd ~/public_html  # (ou seu caminho)
+git pull origin main
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+
+
+═══════════════════════════════════════════════════════════════════════
+  TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════
+
+❌ "composer not found"
+→ Peça ao suporte cPanel para instalar Composer, ou use composer global
+
+❌ "Class not found"
+→ composer dump-autoload
+
+❌ Página em branco
+→ php artisan cache:clear
+→ Verifique storage/logs/laravel.log
+
+❌ "Connection refused" no banco
+→ Confira DB_HOST, DB_USERNAME, DB_PASSWORD no .env
+→ Confirme que criou o banco no cPanel MySQL
+
+❌ "Permission denied" em storage/
+→ chmod -R 775 storage bootstrap/cache public/uploads
+
+❌ Imagens não aparecem
+→ php artisan storage:link
+→ Verifique se public/storage aponta para storage/app/public
+
+
+═══════════════════════════════════════════════════════════════════════
+  SUPORTE E DOCUMENTAÇÃO
+═══════════════════════════════════════════════════════════════════════
+
+Documentação do projeto:
+- README.md - Visão geral
+- INSTALACAO.md - Detalhes completos
+- DEPLOYMENT_CPANEL.md - Guia completo de deploy
+
+Docs Laravel:
+https://laravel.com/docs/10
+
+═══════════════════════════════════════════════════════════════════════
