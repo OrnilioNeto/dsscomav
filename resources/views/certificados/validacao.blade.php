@@ -100,7 +100,7 @@
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm font-semibold">Data de emissão</p>
-                            <p class="text-lg font-bold text-gray-800">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</p>
+                            <p class="text-lg font-bold text-gray-800" id="horaEmissaoVal1">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</p>
                         </div>
                     </div>
 

@@ -84,7 +84,7 @@
                 </td>
                 <td style="text-align: right; font-size: 9pt;">
                     <div>Código: <strong>{{ $certificate->codigo_certificado }}</strong></div>
-                    <div>Emissão: {{ $certificate->data_emissao->format('d/m/Y H:i') }}</div>
+                    <div>Emissão: <span id="horaEmissaoPdf">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span></div>
                 </td>
             </tr>
         </table>

@@ -355,8 +355,8 @@
                         <span class="value">{{ $certificate->training->carga_horaria }} min</span>
                     </div>
                     <div class="info-box">
-                        <span class="label">Tempo Assistido</span>
-                        <span class="value">{{ gmdate('H:i:s', (int)$certificate->tempo_assistido_segundos) }}</span>
+                        <span class="label">Emissão</span>
+                        <span class="value" id="horaEmissaoPdfNew">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
                     </div>
                     <div class="info-box">
                         <span class="label">Início</span>

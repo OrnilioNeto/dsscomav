@@ -38,7 +38,7 @@
                     </div>
                     <div class="text-sm text-blue-100">
                         <p>Código: <span class="font-mono font-semibold">{{ $certificate->codigo_certificado }}</span></p>
-                        <p>Emitido em: {{ $certificate->data_emissao->format('d/m/Y H:i') }}</p>
+                        <p>Emitido em: <span id="horaEmissao1">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span></p>
                     </div>
                 </div>
             </div>
@@ -115,7 +115,7 @@
                             </div>
                             <div class="flex justify-between gap-4 text-sm">
                                 <span class="font-semibold text-slate-500">Emissão</span>
-                                <span class="text-slate-900">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
+                                <span class="text-slate-900" id="horaEmissao2">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
                             </div>
                             <div class="flex justify-between gap-4 text-sm">
                                 <span class="font-semibold text-slate-500">Válido</span>
