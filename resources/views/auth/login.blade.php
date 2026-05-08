@@ -7,13 +7,7 @@
     <div class="w-full max-w-md">
         <div class="bg-white rounded-lg shadow-2xl p-8">
             <div class="text-center mb-8">
-                @php
-                    $assetPrefix = trim((string) config('app.asset_prefix', ''), '/');
-                    $logoUrl = $assetPrefix !== ''
-                        ? asset($assetPrefix . '/images/logo-comav-transportes.png')
-                        : asset('images/logo-comav-transportes.png');
-                @endphp
-                <img src="{{ $logoUrl }}" alt="Logo" class="mx-auto mb-4" style="height:54px;">
+                <x-logo alt="Logo" class="mx-auto mb-4" height="54px" />
                 <h1 class="text-3xl font-bold text-gray-800">Previa Segurança</h1>
                 <p class="text-gray-600 mt-2">Treinamentos/DSS</p>
             </div>

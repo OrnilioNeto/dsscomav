@@ -5,13 +5,7 @@
 @section('content')
 <div class="text-white py-20" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-700) 100%);">
     <div class="max-w-7xl mx-auto px-4 text-center">
-        @php
-            $assetPrefix = trim((string) config('app.asset_prefix', ''), '/');
-            $logoUrl = $assetPrefix !== ''
-                ? asset($assetPrefix . '/images/logo-comav-transportes.png')
-                : asset('images/logo-comav-transportes.png');
-        @endphp
-        <img src="{{ $logoUrl }}" alt="Logo COMAV" class="mx-auto mb-6" style="height:72px;">
+        <x-logo alt="Logo COMAV" class="mx-auto mb-6" height="72px" />
         <h1 class="text-5xl font-bold mb-4">Previa Segurança</h1>
         <p class="text-xl mb-8" style="color: rgba(255,255,255,0.9);">Sistema de Treinamento Corporativo - Diálogo Semanal de Segurança</p>
         
