@@ -7,6 +7,32 @@ use Illuminate\Database\Eloquent\Model;
 
 class Certificate extends Model
 {
+    ];
+
+    // Acessores para converter timezone corretamente
+    public function getDataEmissaoAttribute($value)
+    {
+        if ($value) {
+            return \Carbon\Carbon::parse($value)->setTimezone(config('app.timezone'));
+        }
+        return $value;
+    }
+
+    public function getDataInicioAssistenciaAttribute($value)
+    {
+        if ($value) {
+            return \Carbon\Carbon::parse($value)->setTimezone(config('app.timezone'));
+        }
+        return $value;
+    }
+
+    public function getDataFinalizacaoAssistenciaAttribute($value)
+    {
+        if ($value) {
+            return \Carbon\Carbon::parse($value)->setTimezone(config('app.timezone'));
+        }
+        return $value;
+    }
     use HasFactory;
 
     protected $fillable = [
