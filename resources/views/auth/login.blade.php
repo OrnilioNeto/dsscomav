@@ -9,7 +9,7 @@
             <div class="text-center mb-8">
                 <img src="{{ asset('images/logo-comav-transportes.png') }}" alt="Logo" class="mx-auto mb-4" style="height:54px;">
                 <h1 class="text-3xl font-bold text-gray-800">Previa Segurança</h1>
-                <p class="text-gray-600 mt-2">Treinamento Corporativo</p>
+                <p class="text-gray-600 mt-2">Treinamentos/DSS</p>
             </div>
 
             @if($errors->any())
