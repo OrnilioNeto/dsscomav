@@ -1,7 +1,7 @@
 deployment:
   tasks:
     # 1. GARANTE CONTEXTO DO PROJETO (CRÍTICO)
-    - cd /home/prev0142/repositories/dsscomav
+    - cd /home/prev0142/repositories/dsscomavprod
 
     # 2. CONFIGURA AMBIENTE DO COMPOSER
     - export COMPOSER_HOME=/var/composer
