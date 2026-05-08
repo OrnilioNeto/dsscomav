@@ -26,7 +26,7 @@ SELECT
     'Super Admin',
     '10178415430',
     'superadmin@dss.com',
-    '$2y$10$0b7y4KqQZ5s8Qz4G6xJ6sO8YwR3v2wG8m1fM2oQ3u5Qf2N6pV9yQK',
+    '$2b$10$Te7G9E614AtfX9/qcPE.GOzBlGtAi1xudWyqmasSM2ph5FHI6UXGG',
     'funcionario',
     'ativo',
     r.id,

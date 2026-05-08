@@ -10,6 +10,19 @@ use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
+    private function ensureBaseRoles(): void
+    {
+        Role::updateOrCreate(
+            ['nome' => 'admin'],
+            ['descricao' => 'Administrador - Gestão de usuários, treinamentos e certificados']
+        );
+
+        Role::updateOrCreate(
+            ['nome' => 'usuario'],
+            ['descricao' => 'Usuário - Acesso a treinamentos conforme seu tipo']
+        );
+    }
+
     public function index()
     {
         $usuarios = User::with('role')->paginate(15);
@@ -18,7 +31,12 @@ class UserController extends Controller
 
     public function create()
     {
-        $roles = Role::all();
+        $this->ensureBaseRoles();
+
+        $roles = Role::whereIn('nome', ['admin', 'usuario'])
+            ->orderBy('nome')
+            ->get();
+
         return view('usuarios.create', compact('roles'));
     }
 
@@ -59,7 +77,12 @@ class UserController extends Controller
     public function edit($id)
     {
         $usuario = User::findOrFail($id);
-        $roles = Role::all();
+        $this->ensureBaseRoles();
+
+        $roles = Role::whereIn('nome', ['admin', 'usuario'])
+            ->orderBy('nome')
+            ->get();
+
         return view('usuarios.edit', compact('usuario', 'roles'));
     }
 
