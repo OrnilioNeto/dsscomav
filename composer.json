@@ -6,12 +6,36 @@
         "php": "^8.1",
         "laravel/framework": "^10.0",
         "laravel/tinker": "^2.8",
-        "laravel/sanctum": "^3.0"
+        "laravel/sanctum": "^3.0",
+        "simplesoftwareio/simple-qrcode": "^4.2",
+        "tcpdf/tcpdf": "^6.4"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0",
         "laravel/pint": "^1.0",
         "laravel/sail": "^1.0"
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
     },
     "autoload": {
         "psr-4": {
@@ -20,5 +44,6 @@
             "Database\\Seeders\\": "database/seeders/"
         }
     },
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }
