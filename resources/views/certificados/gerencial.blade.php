@@ -170,6 +170,7 @@
 
     <!-- Tabela de Certificados -->
     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="overflow-x-auto">
         <table class="w-full">
             <thead class="bg-gray-100 border-b-2 border-gray-300">
                 <tr>
@@ -217,6 +218,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     <!-- Paginação -->

@@ -106,13 +106,15 @@
                 </select>
             </div>
 
-            <div class="flex space-x-4 pt-4">
-                <button type="submit" class="flex-1 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition">
-                    <i class="fas fa-save mr-2"></i>Salvar Alterações
-                </button>
-                <a href="{{ route('treinamentos.show', $training) }}" class="flex-1 bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-500 transition text-center">
-                    <i class="fas fa-times mr-2"></i>Cancelar
-                </a>
+            <div class="pt-4">
+                <div class="flex flex-col md:flex-row md:space-x-4 space-y-3 md:space-y-0">
+                    <button type="submit" class="w-full md:flex-1 bg-green-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-save mr-2"></i>Salvar Alterações
+                    </button>
+                    <a href="{{ route('treinamentos.show', $training) }}" class="w-full md:flex-1 bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-500 transition text-center">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </a>
+                </div>
             </div>
         </form>
     </div>

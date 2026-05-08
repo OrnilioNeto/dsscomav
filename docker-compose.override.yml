@@ -1,0 +1,5 @@
+services:
+  app-dss:
+    volumes:
+      - ./:/var/www/app:cached
+      - ./public/images:/var/www/app/public/images:cached
