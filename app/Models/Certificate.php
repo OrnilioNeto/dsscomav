@@ -2,37 +2,12 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Certificate extends Model
 {
-    ];
-
-    // Acessores para converter timezone corretamente
-    public function getDataEmissaoAttribute($value)
-    {
-        if ($value) {
-            return \Carbon\Carbon::parse($value)->setTimezone(config('app.timezone'));
-        }
-        return $value;
-    }
-
-    public function getDataInicioAssistenciaAttribute($value)
-    {
-        if ($value) {
-            return \Carbon\Carbon::parse($value)->setTimezone(config('app.timezone'));
-        }
-        return $value;
-    }
-
-    public function getDataFinalizacaoAssistenciaAttribute($value)
-    {
-        if ($value) {
-            return \Carbon\Carbon::parse($value)->setTimezone(config('app.timezone'));
-        }
-        return $value;
-    }
     use HasFactory;
 
     protected $fillable = [
@@ -57,6 +32,34 @@ class Certificate extends Model
         'porcentagem_assistida' => 'integer',
     ];
 
+    // Converte timestamps persistidos em UTC para timezone local da aplicacao.
+    public function getDataEmissaoAttribute($value)
+    {
+        if ($value) {
+            return Carbon::parse($value, 'UTC')->setTimezone(config('app.timezone'));
+        }
+
+        return $value;
+    }
+
+    public function getDataInicioAssistenciaAttribute($value)
+    {
+        if ($value) {
+            return Carbon::parse($value, 'UTC')->setTimezone(config('app.timezone'));
+        }
+
+        return $value;
+    }
+
+    public function getDataFinalizacaoAssistenciaAttribute($value)
+    {
+        if ($value) {
+            return Carbon::parse($value, 'UTC')->setTimezone(config('app.timezone'));
+        }
+
+        return $value;
+    }
+
     // Relacionamentos
     public function user()
     {
@@ -78,7 +81,7 @@ class Certificate extends Model
         return 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' . urlencode($this->validation_url);
     }
 
-    // Métodos auxiliares
+    // Metodos auxiliares
     public function generateCodigoUnico()
     {
         return strtoupper(
