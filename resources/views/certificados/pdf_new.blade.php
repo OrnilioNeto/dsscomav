@@ -277,7 +277,7 @@
         <div class="header-title">Treinamento - {{ $certificate->training->titulo }}</div>
         <div class="code-date">
             <span>Código: {{ $certificate->codigo_certificado }}</span>
-            <span>Emitido em: {{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
+            <span>Emitido em: <span id="horaEmissaoPdfNewHeader">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span></span>
         </div>
     </div>
 
@@ -359,12 +359,12 @@
                         <span class="value" id="horaEmissaoPdfNew">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
                     </div>
                     <div class="info-box">
-                        <span class="label">Início</span>
-                        <span class="value">{{ $certificate->data_inicio_assistencia->format('d/m/Y H:i') }}</span>
+                        <span class="label">Início do Treinamento</span>
+                        <span class="value" id="horaInicioPdfNew">{{ $certificate->data_inicio_assistencia->format('d/m/Y H:i') }}</span>
                     </div>
                     <div class="info-box">
-                        <span class="label">Finalização</span>
-                        <span class="value">{{ $certificate->data_finalizacao_assistencia->format('d/m/Y H:i') }}</span>
+                        <span class="label">Fim do Treinamento</span>
+                        <span class="value" id="horaFimPdfNew">{{ $certificate->data_finalizacao_assistencia->format('d/m/Y H:i') }}</span>
                     </div>
                 </div>
             </div>
@@ -387,7 +387,7 @@
                 </div>
                 <div class="validation-row">
                     <span class="validation-label">Emissão</span>
-                    <span class="validation-value">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
+                    <span class="validation-value" id="horaEmissaoPdfNewValidation">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
                 </div>
                 <div class="validity-badge">✓ Válido</div>
             </div>

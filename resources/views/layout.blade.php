@@ -258,11 +258,12 @@
             setTimeout(onResize, 50);
         })();
 
-        // Substitui hora de emissão do servidor pela hora local do cliente
+        // Substitui todas as horas do servidor pela hora local do cliente
         (function(){
             function formatarHoraLocal(dataString){
                 // dataString vem do servidor no formato 'd/m/Y H:i'
-                // Precisamos pegar apenas a hora local do navegador
+                // Extrai a data do string se houver
+                const match = dataString.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s*(\d{1,2}):(\d{1,2})?/);
                 const agora = new Date();
                 const dia = String(agora.getDate()).padStart(2, '0');
                 const mes = String(agora.getMonth() + 1).padStart(2, '0');
@@ -274,15 +275,20 @@
             }
 
             function atualizarHoras(){
-                // Atualiza todos os elementos com id começando com 'horaEmissao'
-                const elementos = document.querySelectorAll('[id^="horaEmissao"]');
-                elementos.forEach(el => {
-                    el.textContent = formatarHoraLocal(el.textContent);
+                // Atualiza TODOS os elementos que contêm hora (qualquer id com 'hora')
+                document.querySelectorAll('[id*="hora"]').forEach(el => {
+                    if(el.textContent.trim()) {
+                        el.textContent = formatarHoraLocal(el.textContent);
+                    }
                 });
 
-                // Também atualiza elementos com class 'horaEmissao'
-                document.querySelectorAll('.horaEmissao').forEach(el => {
-                    el.textContent = formatarHoraLocal(el.textContent);
+                // Também atualiza elementos com classes de hora
+                ['horaEmissao', 'horaTreinamento', 'horaFinalizacao', 'horaCertificado'].forEach(className => {
+                    document.querySelectorAll('.' + className).forEach(el => {
+                        if(el.textContent.trim()) {
+                            el.textContent = formatarHoraLocal(el.textContent);
+                        }
+                    });
                 });
             }
 
