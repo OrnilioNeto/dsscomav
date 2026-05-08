@@ -257,48 +257,6 @@
             // also run immediately in case DOM already loaded
             setTimeout(onResize, 50);
         })();
-
-        // Substitui todas as horas do servidor pela hora local do cliente
-        (function(){
-            function formatarHoraLocal(dataString){
-                // dataString vem do servidor no formato 'd/m/Y H:i'
-                // Extrai a data do string se houver
-                const match = dataString.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s*(\d{1,2}):(\d{1,2})?/);
-                const agora = new Date();
-                const dia = String(agora.getDate()).padStart(2, '0');
-                const mes = String(agora.getMonth() + 1).padStart(2, '0');
-                const ano = agora.getFullYear();
-                const horas = String(agora.getHours()).padStart(2, '0');
-                const minutos = String(agora.getMinutes()).padStart(2, '0');
-                
-                return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
-            }
-
-            function atualizarHoras(){
-                // Atualiza TODOS os elementos que contêm hora (qualquer id com 'hora')
-                document.querySelectorAll('[id*="hora"]').forEach(el => {
-                    if(el.textContent.trim()) {
-                        el.textContent = formatarHoraLocal(el.textContent);
-                    }
-                });
-
-                // Também atualiza elementos com classes de hora
-                ['horaEmissao', 'horaTreinamento', 'horaFinalizacao', 'horaCertificado'].forEach(className => {
-                    document.querySelectorAll('.' + className).forEach(el => {
-                        if(el.textContent.trim()) {
-                            el.textContent = formatarHoraLocal(el.textContent);
-                        }
-                    });
-                });
-            }
-
-            // Aguarda o DOM estar pronto
-            if(document.readyState === 'loading'){
-                document.addEventListener('DOMContentLoaded', atualizarHoras);
-            } else {
-                atualizarHoras();
-            }
-        })();
     </script>
     @yield('extra_js')
 </body>

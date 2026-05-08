@@ -38,7 +38,7 @@
                     </div>
                     <div class="text-sm text-blue-100">
                         <p>Código: <span class="font-mono font-semibold">{{ $certificate->codigo_certificado }}</span></p>
-                        <p>Emitido em: <span id="horaEmissao1">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span></p>
+                        <p>Emitido em: {{ $certificate->data_emissao->format('d/m/Y H:i') }}</p>
                     </div>
                 </div>
             </div>
@@ -84,11 +84,11 @@
                             </div>
                             <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Início do Treinamento</p>
-                                <p class="mt-2 text-lg font-bold" id="horaInicio">{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</p>
+                                <p class="mt-2 text-lg font-bold">{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</p>
                             </div>
                             <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fim do Treinamento</p>
-                                <p class="mt-2 text-lg font-bold" id="horaFim">{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</p>
+                                <p class="mt-2 text-lg font-bold">{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</p>
                             </div>
                             <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tempo assistido</p>
@@ -115,7 +115,7 @@
                             </div>
                             <div class="flex justify-between gap-4 text-sm">
                                 <span class="font-semibold text-slate-500">Emissão</span>
-                                <span class="text-slate-900" id="horaEmissao2">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
+                                <span class="text-slate-900">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</span>
                             </div>
                             <div class="flex justify-between gap-4 text-sm">
                                 <span class="font-semibold text-slate-500">Válido</span>
