@@ -2,6 +2,28 @@
 
 @section('title', 'Meu Dashboard')
 
+@section('extra_css')
+<style>
+    .certificate-badge {
+        width: 4.5rem;
+        height: 4.5rem;
+        border-radius: 1.25rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+        border: 1px solid rgba(249, 115, 22, 0.25);
+        box-shadow: 0 12px 28px rgba(249, 115, 22, 0.18);
+        color: #c2410c;
+        flex-shrink: 0;
+    }
+
+    .certificate-badge i {
+        filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.75));
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="max-w-7xl mx-auto px-4 py-8">
     <h1 class="text-4xl font-bold text-gray-800 mb-8">
@@ -46,7 +68,9 @@
                     <p class="text-gray-600 text-sm">Certificados</p>
                     <p class="text-3xl font-bold text-orange-600">{{ $certificados }}</p>
                 </div>
-                <i class="fas fa-certificate text-5xl text-orange-100"></i>
+                <div class="certificate-badge" aria-hidden="true">
+                    <i class="fas fa-certificate text-3xl"></i>
+                </div>
             </div>
         </div>
     </div>
@@ -220,10 +244,14 @@
 
     <!-- Link para Certificados -->
     <div class="mt-8">
-        <a href="{{ route('certificados.meus') }}" class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-lg hover:shadow-lg transition">
-            <i class="fas fa-certificate text-3xl mb-3"></i>
-            <h3 class="text-xl font-bold">Meus Certificados</h3>
-            <p class="text-orange-100 text-sm mt-2">Visualize e baixe seus certificados</p>
+        <a href="{{ route('certificados.meus') }}" class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-lg hover:shadow-lg transition flex items-start gap-4">
+            <div class="certificate-badge bg-white/95 border-white/30 shadow-none" aria-hidden="true">
+                <i class="fas fa-certificate text-3xl"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold">Meus Certificados</h3>
+                <p class="text-orange-100 text-sm mt-2">Visualize e baixe seus certificados</p>
+            </div>
         </a>
     </div>
 </div>
