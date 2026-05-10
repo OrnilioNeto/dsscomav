@@ -3,11 +3,50 @@
 namespace App\Http\Controllers;
 
 use App\Models\Training;
+use App\Models\TrainingMaterial;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class TrainingController extends Controller
 {
+    public function __construct()
+    {
+        // Garantir que a tabela de materiais existe quando o controller for carregado
+        $this->ensureTrainingMaterialsTableExists();
+    }
+
+    /**
+     * Verifica se a tabela training_materials existe,
+     * se não existir, a cria automaticamente.
+     */
+    private function ensureTrainingMaterialsTableExists()
+    {
+        try {
+            if (!Schema::hasTable('training_materials')) {
+                // Criar a tabela training_materials
+                Schema::create('training_materials', function ($table) {
+                    $table->id();
+                    $table->unsignedBigInteger('training_id');
+                    $table->string('nome');
+                    $table->text('descricao')->nullable();
+                    $table->string('arquivo');
+                    $table->string('tipo_arquivo');
+                    $table->unsignedBigInteger('tamanho');
+                    $table->integer('ordem')->default(0);
+                    $table->timestamps();
+
+                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
+                    $table->index('training_id');
+                });
+            }
+        } catch (\Exception $e) {
+            // Se houver erro, apenas registra no log mas não interrompe a execução
+            \Log::warning('Erro ao verificar/criar tabela training_materials: ' . $e->getMessage());
+        }
+    }
+
     public function index()
     {
         $treinamentos = Training::paginate(15);
@@ -41,7 +80,7 @@ class TrainingController extends Controller
 
         $assessments = array_values(array_filter($request->avaliacao_opcoes ?? []));
 
-        Training::create([
+        $training = Training::create([
             'titulo' => $request->titulo,
             'descricao' => $request->descricao,
             'tipo' => $request->tipo,
@@ -55,6 +94,47 @@ class TrainingController extends Controller
             'avaliacao_opcoes' => $assessments,
             'avaliacao_resposta_correta' => (int) $request->avaliacao_resposta_correta,
         ]);
+
+        // Processar materiais de apoio enviados durante a criação
+        if ($request->has('materiais') && is_array($request->input('materiais'))) {
+            $ordem = 0;
+            foreach ($request->input('materiais') as $index => $materialData) {
+                // Verificar se há arquivo para este material
+                if ($request->hasFile("materiais.{$index}.arquivo")) {
+                    $file = $request->file("materiais.{$index}.arquivo");
+                    
+                    // Validar o arquivo
+                    $fileValidator = Validator::make(
+                        ['arquivo' => $file],
+                        ['arquivo' => 'required|file|max:102400'] // 100MB max
+                    );
+                    
+                    if ($fileValidator->fails()) {
+                        continue; // Pular este arquivo se não passar na validação
+                    }
+                    
+                    // Armazenar o arquivo
+                    $storagePath = "materiais-apoio/training-{$training->id}";
+                    $fileName = $file->getClientOriginalName();
+                    $filePath = $file->storeAs($storagePath, $fileName, 'public');
+                    
+                    // Obter informações do arquivo
+                    $fileSize = $file->getSize();
+                    $mimeType = $file->getMimeType();
+                    
+                    // Criar registro no banco de dados
+                    TrainingMaterial::create([
+                        'training_id' => $training->id,
+                        'nome' => $materialData['nome'] ?? 'Material',
+                        'descricao' => $materialData['descricao'] ?? null,
+                        'arquivo' => $filePath,
+                        'tipo_arquivo' => $mimeType,
+                        'tamanho' => $fileSize,
+                        'ordem' => $ordem++,
+                    ]);
+                }
+            }
+        }
 
         return redirect()->route('treinamentos.index')->with('success', 'Treinamento criado!');
     }

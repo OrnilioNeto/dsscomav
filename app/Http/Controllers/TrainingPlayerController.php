@@ -11,7 +11,7 @@ class TrainingPlayerController extends Controller
 {
     public function show($id)
     {
-        $training = Training::findOrFail($id);
+        $training = Training::with('materials')->findOrFail($id);
         $user = auth()->user();
 
         // Verificar acesso

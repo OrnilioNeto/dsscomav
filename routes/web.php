@@ -6,6 +6,7 @@ use App\Http\Controllers\CertificateManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\TrainingPlayerController;
+use App\Http\Controllers\TrainingMaterialController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\CheckRole;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +45,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/treinamentos/{id}/certificado', [CertificateController::class, 'downloadForTraining'])->name('certificados.por-training');
     Route::get('/certificados/{id}/download', [CertificateController::class, 'downloadCertificate'])->name('certificados.download');
 
+    // Download de Materiais de Apoio
+    Route::get('/materiais/{materialId}/download', [TrainingMaterialController::class, 'download'])->name('materiais.download');
+
     // Rotas do Admin e Super Admin
     Route::middleware([CheckRole::class . ':admin,super_admin'])->group(function () {
         // Usuários
@@ -51,6 +55,11 @@ Route::middleware('auth')->group(function () {
 
         // Treinamentos
         Route::resource('treinamentos', TrainingController::class);
+
+        // Materiais de Apoio
+        Route::post('/treinamentos/{trainingId}/materiais/upload', [TrainingMaterialController::class, 'upload'])->name('materiais.upload');
+        Route::delete('/materiais/{materialId}', [TrainingMaterialController::class, 'delete'])->name('materiais.delete');
+        Route::post('/treinamentos/{trainingId}/materiais/reorder', [TrainingMaterialController::class, 'updateOrder'])->name('materiais.reorder');
 
         // Certificados e Relatórios Gerenciais
         Route::get('/certificados-gerencial', [CertificateManagementController::class, 'index'])->name('certificados.gerencial');

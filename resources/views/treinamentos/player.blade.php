@@ -75,6 +75,36 @@
         </div>
     </div>
 
+    <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+        <h2 class="text-xl font-bold mb-4 flex items-center">
+            <i class="fas fa-file-download text-green-600 mr-2"></i>Materiais de Apoio
+        </h2>
+
+        @if($training->materials && $training->materials->count() > 0)
+            <div class="grid gap-3">
+                @foreach($training->materials as $material)
+                    <div class="flex items-center justify-between bg-gray-50 p-4 rounded border border-gray-200 hover:border-green-300 transition">
+                        <div class="flex items-center gap-3 flex-1">
+                            <i class="fas {{ $material->getIcone() }} text-2xl"></i>
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-800">{{ $material->nome }}</p>
+                                @if($material->descricao)
+                                    <p class="text-gray-600 text-sm">{{ $material->descricao }}</p>
+                                @endif
+                                <p class="text-gray-500 text-xs">{{ $material->getTamanhoFormatado() }}</p>
+                            </div>
+                        </div>
+                        <a href="{{ route('materiais.download', $material->id) }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition whitespace-nowrap ml-3">
+                            <i class="fas fa-download mr-1"></i>Baixar
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <p class="text-gray-500 text-sm italic">Nenhum material de apoio disponível para este treinamento.</p>
+        @endif
+    </div>
+
     <div class="grid md:grid-cols-2 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <h2 class="text-xl font-bold mb-4">Seu Progresso</h2>
