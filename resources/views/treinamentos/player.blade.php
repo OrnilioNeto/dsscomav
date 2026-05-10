@@ -197,7 +197,7 @@
     let assessmentAttempt = {{ (int) ($progress->avaliacao_tentativas ?? 0) }};
 
     let ultimoTempo = lastSafeTime;
-    let watchedSeconds = 0; // SEMPRE começa do 0 - será restaurado quando p play foi realmente acionado
+    let watchedSeconds = lastSafeTime;
     let dataInicioLocal = null; // ISO string from client local time
     let referenceDuration = registeredDurationSeconds; // will be overridden by video.duration when available
     let ultimoEnvio = 0;
@@ -211,13 +211,6 @@
     // Constantes de bloqueio (conforme prompt)
     const AVANÇO_MÁXIMO_UX = 2; // segundos - limiar cliente (UX)
     const AVANÇO_MÁXIMO_SERVIDOR = 10; // segundos - validado no servidor
-
-    // Para upload, zera a UI de progresso até que realmente toque
-    if (trainingType === 'upload') {
-        currentProgress = 0;
-        document.getElementById('progress-percent').textContent = '0%';
-        document.getElementById('progress-bar').style.width = '0%';
-    }
 
     function podeAvancar(tempoAtual) {
         return tempoAtual <= ultimoTempo;
