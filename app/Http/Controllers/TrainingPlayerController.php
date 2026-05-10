@@ -82,10 +82,11 @@ class TrainingPlayerController extends Controller
             $tempoCliente = $tempoAnterior + $avancoPermitido;
         }
 
+        $tempoAssistido = max($tempoAnterior, $tempoCliente);
         $porcentagemAssistida = max((int) $porcentagem, (int) $progress->porcentagem_assistida);
 
         $updateData = [
-            'tempo_assistido' => $tempoCliente,
+            'tempo_assistido' => $tempoAssistido,
             'porcentagem_assistida' => $porcentagemAssistida,
         ];
 
@@ -111,7 +112,7 @@ class TrainingPlayerController extends Controller
             'progress' => $progress->fresh(),
             'show_assessment' => $showAssessment,
             'status' => 'sucesso',
-            'tempo' => $tempoCliente,
+            'tempo' => $tempoAssistido,
             'duracao' => $duracao,
         ]);
     }
