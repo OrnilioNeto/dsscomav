@@ -47,6 +47,11 @@ class Training extends Model
         return $this->hasMany(Certificate::class);
     }
 
+    public function materials()
+    {
+        return $this->hasMany(TrainingMaterial::class)->orderBy('ordem');
+    }
+
     // Métodos auxiliares
     public function isPermittedFor($tipoUsuario)
     {

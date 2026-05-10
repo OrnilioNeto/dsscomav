@@ -100,6 +100,65 @@
         </div>
     </div>
 
+    <!-- Materiais de Apoio -->
+    @if($training->materials->count() > 0)
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <h2 class="text-xl font-bold mb-4 flex items-center">
+                <i class="fas fa-file-download text-green-600 mr-2"></i>Materiais de Apoio
+            </h2>
+            <div class="grid gap-3">
+                @foreach($training->materials as $material)
+                    <div class="flex items-center justify-between bg-gray-50 p-4 rounded border border-gray-200 hover:border-green-300 transition">
+                        <div class="flex items-center gap-3 flex-1">
+                            <i class="fas {{ $material->getIcone() }} text-2xl"></i>
+                            <div class="flex-1">
+                                <p class="font-semibold text-gray-800">{{ $material->nome }}</p>
+                                @if($material->descricao)
+                                    <p class="text-gray-600 text-sm">{{ $material->descricao }}</p>
+                                @endif
+                                <p class="text-gray-500 text-xs">{{ $material->getTamanhoFormatado() }}</p>
+                            </div>
+                        </div>
+                        <a href="{{ route('materiais.download', $material->id) }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition whitespace-nowrap ml-3">
+                            <i class="fas fa-download mr-1"></i>Baixar
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
+    <div class="grid md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-xl font-bold mb-4">Seu Progresso</h2>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-700">Assistido</span>
+                    <span id="progress-percent" class="font-bold text-blue-900">{{ $progress->porcentagem_assistida }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div id="progress-bar" class="bg-blue-900 h-4 rounded-full transition-all" style="width: {{ $progress->porcentagem_assistida }}%"></div>
+                </div>
+                <div id="assessment-status" class="text-sm text-gray-600"></div>
+                @if($progress->concluido)
+                    <div class="text-green-600 font-semibold">
+                        <i class="fas fa-check-circle mr-2"></i>Concluído em {{ $progress->data_conclusao->format('d/m/Y H:i') }}
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-xl font-bold mb-4">Instruções</h2>
+            <ul class="space-y-2 text-gray-700 list-disc list-inside">
+                <li>Assista o vídeo completamente para desbloquear a avaliação.</li>
+                <li><strong>Não é permitido adiantar o vídeo.</strong></li>
+                <li>A avaliação abre automaticamente ao atingir 90% do tempo.</li>
+                <li>Responda corretamente para concluir o treinamento.</li>
+            </ul>
+        </div>
+    </div>
+
     <div class="flex gap-4">
         <a href="{{ route('dashboard') }}" class="flex-1 bg-gray-400 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-500 transition text-center">
             <i class="fas fa-arrow-left mr-2"></i>Voltar
