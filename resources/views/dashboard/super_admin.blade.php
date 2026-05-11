@@ -2,13 +2,45 @@
 
 @section('title', 'Dashboard Super Admin')
 
+@section('extra_css')
+<style>
+    .aba-btn {
+        cursor: pointer;
+    }
+
+    .aba-btn:hover {
+        background-color: #f3f4f6;
+    }
+
+    .aba-ativa {
+        border-bottom: 4px solid #1e3a8a;
+        color: #1e3a8a;
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="max-w-7xl mx-auto px-4 py-8">
     <h1 class="text-4xl font-bold text-gray-800 mb-8">
         <i class="fas fa-tachometer-alt text-blue-900 mr-3"></i>Dashboard Super Administrador
     </h1>
 
-    <!-- Estatísticas -->
+    <!-- Abas de Navegação -->
+    <div class="bg-white rounded-lg shadow-lg mb-8 overflow-x-auto">
+        <div class="flex border-b-2 border-gray-300">
+            <a href="#dashboard" onclick="abrirAba(event, 'dashboard')" class="aba-btn aba-ativa flex-1 px-4 py-3 font-semibold text-center border-b-4 border-blue-900 text-blue-900">
+                <i class="fas fa-chart-bar mr-2"></i>Dashboard
+            </a>
+
+            <a href="#relatorios" onclick="abrirAba(event, 'relatorios')" class="aba-btn flex-1 px-4 py-3 font-semibold text-center text-gray-700 hover:text-blue-900 transition">
+                <i class="fas fa-chart-pie mr-2"></i>Relatórios
+            </a>
+        </div>
+    </div>
+
+    <!-- ABA: DASHBOARD -->
+    <div id="dashboard" class="aba-conteudo">
+        <!-- Estatísticas -->
     <div class="grid md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <div class="flex items-center justify-between">
@@ -110,5 +142,66 @@
             <p class="text-purple-100 text-sm mt-2">Criar, editar e publicar conteúdo</p>
         </a>
     </div>
+    </div>
+
+    <!-- ABA: RELATÓRIOS -->
+    <div id="relatorios" class="aba-conteudo" style="display:none;">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold mb-6 flex items-center">
+                <i class="fas fa-chart-pie text-blue-900 mr-2"></i>Relatórios Gerenciais
+            </h2>
+
+            <div class="grid md:grid-cols-3 gap-4">
+                <a href="{{ route('relatorios.treinamentos') }}" class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg border-2 border-blue-300 hover:shadow-lg transition">
+                    <i class="fas fa-chart-line text-3xl text-blue-900 mb-3"></i>
+                    <h3 class="font-bold text-gray-800 mb-2">Treinamentos</h3>
+                    <p class="text-sm text-gray-600">Relatório detalhado sobre assistência e conclusão de treinamentos</p>
+                </a>
+
+                <a href="{{ route('relatorios.usuarios') }}" class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg border-2 border-green-300 hover:shadow-lg transition">
+                    <i class="fas fa-users text-3xl text-green-900 mb-3"></i>
+                    <h3 class="font-bold text-gray-800 mb-2">Usuários</h3>
+                    <p class="text-sm text-gray-600">Análise de usuários, histórico e participação</p>
+                </a>
+
+                <a href="{{ route('relatorios.auditoria') }}" class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg border-2 border-purple-300 hover:shadow-lg transition">
+                    <i class="fas fa-audit text-3xl text-purple-900 mb-3"></i>
+                    <h3 class="font-bold text-gray-800 mb-2">Auditoria</h3>
+                    <p class="text-sm text-gray-600">Relatório completo para auditoria e compliance</p>
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
+@endsection
+
+@section('extra_js')
+<script>
+    function abrirAba(evt, tabName) {
+        evt.preventDefault();
+
+        // Esconder todos os conteúdos
+        const abaConteudos = document.querySelectorAll('.aba-conteudo');
+        abaConteudos.forEach(function(element) {
+            element.style.display = 'none';
+            element.classList.remove('aba-ativa');
+        });
+
+        // Remover classe ativa de todos os botões
+        const abaBotoes = document.querySelectorAll('.aba-btn');
+        abaBotoes.forEach(function(btn) {
+            btn.classList.remove('aba-ativa');
+            btn.style.borderBottom = 'none';
+            btn.style.color = '#374151';
+        });
+
+        // Mostrar a aba clicada
+        document.getElementById(tabName).style.display = 'block';
+
+        // Marcar botão como ativo
+        evt.currentTarget.classList.add('aba-ativa');
+        evt.currentTarget.style.color = '#1e3a8a';
+        evt.currentTarget.style.borderBottom = '4px solid #1e3a8a';
+    }
+</script>
 @endsection
