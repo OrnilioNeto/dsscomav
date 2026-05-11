@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class TrainingController extends Controller
 {
@@ -15,6 +16,7 @@ class TrainingController extends Controller
     {
         // Garantir que a tabela de materiais existe quando o controller for carregado
         $this->ensureTrainingMaterialsTableExists();
+        $this->ensureTrainingReleaseColumnExists();
     }
 
     /**
@@ -44,6 +46,22 @@ class TrainingController extends Controller
         } catch (\Exception $e) {
             // Se houver erro, apenas registra no log mas não interrompe a execução
             \Log::warning('Erro ao verificar/criar tabela training_materials: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Garante que a coluna data_liberacao exista na tabela trainings.
+     */
+    private function ensureTrainingReleaseColumnExists()
+    {
+        try {
+            if (Schema::hasTable('trainings') && !Schema::hasColumn('trainings', 'data_liberacao')) {
+                Schema::table('trainings', function ($table) {
+                    $table->dateTime('data_liberacao')->nullable()->after('data_publicacao');
+                });
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Erro ao verificar/criar coluna data_liberacao em trainings: ' . $e->getMessage());
         }
     }
 
@@ -80,7 +98,7 @@ class TrainingController extends Controller
 
         $assessments = array_values(array_filter($request->avaliacao_opcoes ?? []));
 
-        $training = Training::create([
+        $data = [
             'titulo' => $request->titulo,
             'descricao' => $request->descricao,
             'tipo' => $request->tipo,
@@ -93,7 +111,23 @@ class TrainingController extends Controller
             'avaliacao_pergunta' => $request->avaliacao_pergunta,
             'avaliacao_opcoes' => $assessments,
             'avaliacao_resposta_correta' => (int) $request->avaliacao_resposta_correta,
-        ]);
+        ];
+
+        // Se o cliente enviou data de liberação local, salva como horário de São Paulo
+        if ($request->filled('data_liberacao')) {
+            try {
+                // Parsear como hora local de São Paulo (UTC-3)
+                $data['data_liberacao'] = Carbon::createFromFormat(
+                    'Y-m-d\TH:i',
+                    $request->input('data_liberacao'),
+                    'America/Sao_Paulo'
+                );
+            } catch (\Exception $e) {
+                // ignorar problema de parse e não definir a data
+            }
+        }
+
+        $training = Training::create($data);
 
         // Processar materiais de apoio enviados durante a criação
         if ($request->has('materiais') && is_array($request->input('materiais'))) {
@@ -173,7 +207,7 @@ class TrainingController extends Controller
 
         $assessments = array_values(array_filter($request->avaliacao_opcoes ?? []));
 
-        $training->update([
+        $updateData = [
             'titulo' => $request->titulo,
             'descricao' => $request->descricao,
             'tipo' => $request->tipo,
@@ -183,7 +217,21 @@ class TrainingController extends Controller
             'avaliacao_pergunta' => $request->avaliacao_pergunta,
             'avaliacao_opcoes' => $assessments,
             'avaliacao_resposta_correta' => (int) $request->avaliacao_resposta_correta,
-        ]);
+        ];
+
+        if ($request->filled('data_liberacao')) {
+            try {
+                // Parsear como hora local de São Paulo (UTC-3)
+                $updateData['data_liberacao'] = Carbon::createFromFormat(
+                    'Y-m-d\TH:i',
+                    $request->input('data_liberacao'),
+                    'America/Sao_Paulo'
+                );
+            } catch (\Exception $e) {
+            }
+        }
+
+        $training->update($updateData);
 
         return redirect()->route('treinamentos.show', $training)->with('success', 'Treinamento atualizado!');
     }

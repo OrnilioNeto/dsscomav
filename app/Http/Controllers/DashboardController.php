@@ -99,9 +99,17 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        $treinamentosDisponíveis = Training::where('status', 'ativo')
+        $treinamentosElegiveis = Training::where('status', 'ativo')
             ->get()
             ->filter(fn($t) => $user->canAccessTraining($t));
+
+        $treinamentosDisponíveis = $treinamentosElegiveis
+            ->filter(fn($t) => $t->isReleased())
+            ->values();
+
+        $treinamentosBloqueados = $treinamentosElegiveis
+            ->filter(fn($t) => !$t->isReleased())
+            ->values();
 
         $progresso = UserProgress::where('user_id', $user->id)->get();
         $certificados = Certificate::where('user_id', $user->id)->where('valido', true)->count();
@@ -130,6 +138,7 @@ class DashboardController extends Controller
 
         return view('dashboard.usuario', [
             'treinamentosDisponíveis' => $treinamentosDisponíveis,
+            'treinamentosBloqueados' => $treinamentosBloqueados,
             'treinamentosConcluidos' => $treinamentosConcluidos,
             'treinamentosPendentes' => $treinamentosPendentes,
             'treinamentosNaoIniciados' => $treinamentosNaoIniciados,
