@@ -13,12 +13,20 @@
         </p>
     </div>
 
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+        <p class="text-sm font-semibold text-blue-900 mb-2">Legenda rápida dos filtros</p>
+        <p class="text-sm text-blue-900/80 leading-6">
+            <strong>Tipo de usuário</strong> filtra quem está assistindo; <strong>Usuário</strong> seleciona uma pessoa específica; <strong>Nome livre</strong> faz busca parcial; <strong>Treinamento</strong> aponta o conteúdo analisado; <strong>Status</strong> diferencia <em>concluído</em>, <em>pendente</em> e <em>não iniciado</em>.
+            O indicador <strong>Registros de Progresso</strong> representa participações registradas, não pessoas únicas. Os campos de tempo exibem o formato exato do certificado: <strong>HH:MM:SS</strong>.
+        </p>
+    </div>
+
     <!-- KPIs -->
     <div class="grid md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-100">
-            <p class="text-gray-600 text-sm">Total de Assistências</p>
+            <p class="text-gray-600 text-sm">Registros de Progresso</p>
             <p class="text-3xl font-bold text-blue-900">{{ $totalAssistencias }}</p>
-            <p class="text-xs text-gray-500 mt-1">Registros filtrados no período atual</p>
+            <p class="text-xs text-gray-500 mt-1">Cada linha representa uma participação registrada</p>
         </div>
         <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-100">
             <p class="text-gray-600 text-sm">Concluídas</p>
@@ -31,7 +39,7 @@
             <p class="text-xs text-gray-500 mt-1">Proporção de conclusão sobre a base analisada</p>
         </div>
         <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-100">
-            <p class="text-gray-600 text-sm">Tempo Total Assistido</p>
+            <p class="text-gray-600 text-sm">Tempo assistido exato</p>
             <p class="text-3xl font-bold text-orange-600">{{ $tempoTotalFormatado }}</p>
             <p class="text-xs text-gray-500 mt-1">Acumulado de consumo de conteúdo</p>
         </div>
@@ -39,7 +47,7 @@
 
     <div class="grid md:grid-cols-3 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-100">
-            <p class="text-gray-600 text-sm">Tempo Médio Assistido</p>
+            <p class="text-gray-600 text-sm">Tempo médio assistido</p>
             <p class="text-3xl font-bold text-blue-900">{{ $tempoMedioFormatado }}</p>
             <p class="text-xs text-gray-500 mt-1">Média por registro de progresso</p>
         </div>
@@ -63,6 +71,10 @@
                 <a href="javascript:history.back()" class="bg-gray-200 text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-300">← Voltar</a>
                 <a href="{{ route('dashboard') }}" class="bg-blue-900 text-white px-3 py-2 rounded-lg hover:bg-blue-800">Dashboard</a>
             </div>
+        </div>
+
+        <div class="mb-4 rounded-lg bg-gray-50 border border-gray-200 p-4 text-sm text-gray-700">
+            Para visualizar quem ainda não começou, selecione o status <strong>Não iniciado</strong>. Se um treinamento for informado, a lista mostra quem ainda não iniciou esse conteúdo; sem treinamento, mostra quem não possui nenhum progresso registrado.
         </div>
 
         <form method="GET" action="{{ route('relatorios.treinamentos') }}" class="space-y-4">
@@ -105,12 +117,14 @@
 
             <div class="grid md:grid-cols-4 gap-4">
                 <div>
-                    <label for="concluido" class="block text-sm font-semibold text-gray-700 mb-1">Status</label>
-                    <select name="concluido" id="concluido" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label for="status_progresso" class="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                    <select name="status_progresso" id="status_progresso" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todos</option>
-                        <option value="1" @if(request('concluido') === '1') selected @endif>Concluído</option>
-                        <option value="0" @if(request('concluido') === '0') selected @endif>Pendente</option>
+                        <option value="concluido" @if(request('status_progresso') === 'concluido' || request('concluido') === '1') selected @endif>Concluído</option>
+                        <option value="pendente" @if(request('status_progresso') === 'pendente' || request('concluido') === '0') selected @endif>Pendente</option>
+                        <option value="nao_iniciado" @if(request('status_progresso') === 'nao_iniciado') selected @endif>Não iniciado</option>
                     </select>
+                    <p class="mt-1 text-xs text-gray-500">Concluído = finalizou; Pendente = começou, mas ainda não concluiu; Não iniciado = nunca abriu esse conteúdo.</p>
                 </div>
 
                 <div>
@@ -157,10 +171,10 @@
                 <thead class="bg-gray-100 border-b-2 border-gray-300">
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold">Treinamento</th>
-                        <th class="px-4 py-3 text-center font-semibold">Assistências</th>
+                        <th class="px-4 py-3 text-center font-semibold">Participações</th>
                         <th class="px-4 py-3 text-center font-semibold">Concluídas</th>
                         <th class="px-4 py-3 text-center font-semibold">Taxa Conclusão</th>
-                        <th class="px-4 py-3 text-center font-semibold">Tempo Total</th>
+                        <th class="px-4 py-3 text-center font-semibold">Tempo exato</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -201,8 +215,8 @@
                     <thead class="bg-gray-100 border-b border-gray-300">
                         <tr>
                             <th class="px-3 py-2 text-left text-sm font-semibold">Usuário</th>
-                            <th class="px-3 py-2 text-center text-sm font-semibold">Assistências</th>
-                            <th class="px-3 py-2 text-center text-sm font-semibold">Tempo</th>
+                            <th class="px-3 py-2 text-center text-sm font-semibold">Participações</th>
+                            <th class="px-3 py-2 text-center text-sm font-semibold">Tempo exato</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -271,8 +285,8 @@
                                 <div class="text-sm text-gray-600">{{ $progresso->user->getCpfFormatted() }}</div>
                             </td>
                             <td class="px-4 py-3 text-gray-700">
-                                <div class="font-semibold">{{ $progresso->training->titulo }}</div>
-                                <div class="text-xs text-gray-500">{{ ucfirst(str_replace('_', ' ', $progresso->training->tipo ?? '')) }}</div>
+                                <div class="font-semibold">{{ optional($progresso->training)->titulo ?? 'Nenhum treinamento iniciado' }}</div>
+                                <div class="text-xs text-gray-500">{{ $progresso->training ? ucfirst(str_replace('_', ' ', $progresso->training->tipo ?? '')) : '—' }}</div>
                             </td>
                             <td class="px-4 py-3 text-center text-gray-700">{{ gmdate('H:i:s', (int) ($progresso->tempo_assistido ?? 0)) }}</td>
                             <td class="px-4 py-3 text-center">
@@ -282,7 +296,9 @@
                                 <span class="text-sm text-gray-700">{{ $progresso->porcentagem_assistida ?? 0 }}%</span>
                             </td>
                             <td class="px-4 py-3 text-center">
-                                @if($progresso->concluido)
+                                @if(($progresso->status_progresso ?? null) === 'nao_iniciado')
+                                    <span class="bg-slate-100 text-slate-900 px-3 py-1 rounded-full text-sm font-semibold">○ Não iniciado</span>
+                                @elseif($progresso->concluido)
                                     <span class="bg-green-100 text-green-900 px-3 py-1 rounded-full text-sm font-semibold">✓ Concluído</span>
                                 @else
                                     <span class="bg-yellow-100 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">⧖ Pendente</span>
