@@ -3,6 +3,35 @@
 @section('title', $training->titulo)
 
 @section('content')
+<style>
+    /* Esconde controles de velocidade do vídeo HTML5 */
+    video::-webkit-media-controls-panel {
+        display: flex !important;
+    }
+
+    video::-webkit-media-controls-mute-button,
+    video::-webkit-media-controls-volume-slider,
+    video::-webkit-media-controls-play-button,
+    video::-webkit-media-controls-timeline,
+    video::-webkit-media-controls-current-time-display,
+    video::-webkit-media-controls-time-remaining-display,
+    video::-webkit-media-controls-fullscreen-button,
+    video::-webkit-media-controls-download-button,
+    video::-webkit-media-controls-picture-in-picture-button {
+        display: flex !important;
+    }
+
+    /* Remove menu de contexto (botão direito) do player */
+    .training-video-container {
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    /* Para navegadores que permitem speed control via menu */
+    video::-webkit-media-text-track-display {
+        display: flex !important;
+    }
+</style>
 <div class="max-w-5xl mx-auto px-4 py-8">
     <div class="flex items-start justify-between mb-6">
         <div>
@@ -21,12 +50,12 @@
 
     <p class="text-gray-700 text-lg mb-8">{{ $training->descricao }}</p>
 
-    <div class="bg-white p-4 rounded-2xl shadow-lg mb-8">
+    <div class="training-video-container bg-white p-4 rounded-2xl shadow-lg mb-8">
         @if($training->tipo_video === 'upload')
             <video
                 id="training-video"
                 class="w-full rounded-xl bg-black"
-                controlsList="nodownload nofullscreen noremoteplayback"
+                controlsList="nodownload nofullscreen noremoteplayback nospeed"
             >
                 <source src="{{ $training->url_video }}" type="video/mp4">
                 Seu navegador não suporta vídeo HTML5.
@@ -130,6 +159,7 @@
             <ul class="space-y-2 text-gray-700 list-disc list-inside">
                 <li>Assista o vídeo completamente para desbloquear a avaliação.</li>
                 <li><strong>Não é permitido adiantar o vídeo.</strong></li>
+                <li><strong>A velocidade de reprodução está bloqueada em 1x (normal).</strong></li>
                 <li>A partir de 90% será liberado o botão para realizar a avaliação.</li>
                 <li>Responda corretamente para concluir o treinamento.</li>
             </ul>
@@ -568,6 +598,63 @@
         }
 
         loadYoutubeApi();
+    }
+
+    // =========================================================================
+    // BLOQUEIO DE VELOCIDADE DE REPRODUÇÃO
+    // =========================================================================
+    // Força playbackRate = 1.0 sempre, impedindo que usuário acelere ou desacelere
+
+    if (trainingType === 'upload') {
+        const video = document.getElementById('training-video');
+
+        // 1. Bloqueia propriedade playbackRate através de Object.defineProperty
+        Object.defineProperty(video, 'playbackRate', {
+            get() {
+                return 1.0;
+            },
+            set(value) {
+                console.warn('🔒 Velocidade de reprodução bloqueada. Apenas 1x permitido.');
+                return 1.0;
+            },
+            configurable: false
+        });
+
+        // 2. Monitora mudanças de playbackRate com ratechange event
+        video.addEventListener('ratechange', (e) => {
+            if (video.playbackRate !== 1.0) {
+                console.warn('🔒 Bloqueado: Tentativa de mudar para playbackRate:', video.playbackRate);
+                video.playbackRate = 1.0;
+            }
+        });
+
+        // 3. Bloqueia atributo playbackRate no HTML (caso modificado dinamicamente)
+        const observer = new MutationObserver(() => {
+            if (video.playbackRate !== 1.0) {
+                video.playbackRate = 1.0;
+            }
+        });
+
+        observer.observe(video, {
+            attributes: true,
+            attributeFilter: ['playbackRate']
+        });
+
+        console.log('✅ Bloqueio de velocidade ativado para vídeo upload');
+    } else if (trainingType === 'youtube') {
+        // Para YouTube, o controle de velocidade é gerenciado pelo iframe
+        // YouTube Player API não expõe playbackRate, então conferir periodicamente
+        setInterval(() => {
+            if (youtubePlayer && typeof youtubePlayer.getPlaybackRate === 'function') {
+                const currentRate = youtubePlayer.getPlaybackRate();
+                if (currentRate !== 1.0) {
+                    youtubePlayer.setPlaybackRate(1.0);
+                    console.warn('🔒 Bloqueado: Velocidade YouTube restaurada para 1.0');
+                }
+            }
+        }, 500);
+
+        console.log('✅ Bloqueio de velocidade ativado para YouTube');
     }
 
     function salvarProgresso(percent) {
