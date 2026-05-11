@@ -117,6 +117,13 @@
                     </table>
 
                     <div style="margin-top: 8px;">
+                        <strong>Data do Conteúdo:</strong>
+                        <div style="margin-top: 4px; font-size: 8pt;" class="muted">
+                            {{ optional($certificate->training->data_liberacao)->format('d/m/Y H:i') ?? 'Não informada' }}
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 8px;">
                         <strong>Instrutor:</strong>
                         <div style="margin-top: 4px; font-size: 8pt;" class="muted">Ornilio Machado Neto, Tec Seguranca do trabalho, RG - 10827, Bombeiro Civil</div>
                     </div>

@@ -102,6 +102,10 @@
                             <p class="text-gray-600 text-sm font-semibold">Data de emissão</p>
                             <p class="text-lg font-bold text-gray-800">{{ $certificate->data_emissao->format('d/m/Y H:i') }}</p>
                         </div>
+                        <div>
+                            <p class="text-gray-600 text-sm font-semibold">Data do Conteúdo</p>
+                            <p class="text-lg font-bold text-gray-800">{{ optional($certificate->training->data_liberacao)->format('d/m/Y H:i') ?? 'Não informada' }}</p>
+                        </div>
                     </div>
 
                     <div class="border-t pt-5">
