@@ -7,6 +7,7 @@ use App\Models\Training;
 use App\Models\User;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CertificateManagementController extends Controller
 {
@@ -126,56 +127,88 @@ class CertificateManagementController extends Controller
         $query = UserProgress::query();
         $this->aplicarEscopoUsuariosComuns($query, $request->user(), 'user');
 
-        // Filtros
-        // Filtrar por tipo de usuário ou por usuário específico
         if ($request->filled('usuario_id')) {
-            $query->where('user_id', request('usuario_id'));
-        } elseif ($request->filled('tipo_usuario')) {
-            $query->whereHas('user', function($q) {
-                $q->where('tipo_usuario', request('tipo_usuario'));
+            $query->where('user_id', $request->integer('usuario_id'));
+        }
+
+        if ($request->filled('tipo_usuario')) {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('tipo_usuario', $request->input('tipo_usuario'));
             });
         }
 
         if ($request->filled('training_id')) {
-            $query->where('training_id', request('training_id'));
+            $query->where('training_id', $request->integer('training_id'));
         }
 
         if ($request->filled('usuario_nome')) {
-            $query->whereHas('user', function($q) {
-                $q->where('nome', 'like', '%' . request('usuario_nome') . '%');
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
             });
         }
 
         if ($request->filled('concluido')) {
-            $query->where('concluido', request('concluido') === '1');
+            $query->where('concluido', $request->input('concluido') === '1');
         }
 
         if ($request->filled('data_inicio')) {
-            $query->whereDate('data_inicio_assistencia', '>=', request('data_inicio'));
+            $query->whereDate('data_inicio', '>=', $request->input('data_inicio'));
         }
 
         if ($request->filled('data_fim')) {
-            $query->whereDate('data_finalizacao_assistencia', '<=', request('data_fim'));
+            $query->whereDate('data_conclusao', '<=', $request->input('data_fim'));
         }
 
-        $progressos = $query->with(['user', 'training'])->paginate(15);
+        $progressos = (clone $query)
+            ->with(['user', 'training'])
+            ->orderByDesc('data_inicio')
+            ->paginate(15);
         $treinamentos = Training::orderBy('titulo')->get();
 
         // Tipos de usuário para filtro e lista dinâmica de usuários
         $userTypes = User::select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
         if ($request->filled('tipo_usuario')) {
-            $users = User::where('tipo_usuario', request('tipo_usuario'))->orderBy('nome')->get();
+            $users = User::where('tipo_usuario', $request->input('tipo_usuario'))->orderBy('nome')->get();
         } else {
             $users = User::orderBy('nome')->get();
         }
 
-        // Estatísticas
-        $totalAssistencias = UserProgress::count();
-        $concluidas = UserProgress::where('concluido', true)->count();
+        // Estatísticas executivas
+        $totalAssistencias = (clone $query)->count();
+        $concluidas = (clone $query)->where('concluido', true)->count();
         $taxaGeral = $totalAssistencias > 0 ? ($concluidas / $totalAssistencias) * 100 : 0;
+        $tempoTotalAssistido = (clone $query)->sum('tempo_assistido');
+        $tempoMedioAssistido = (clone $query)->avg('tempo_assistido');
 
-        $tempoMedioAssistido = UserProgress::avg('tempo_assistido');
-        $tempoMedioFormatado = $tempoMedioAssistido ? gmdate('H:i:s', $tempoMedioAssistido) : '0:00:00';
+        $treinamentosResumo = (clone $query)
+            ->select('training_id')
+            ->selectRaw('COUNT(*) as assistencias')
+            ->selectRaw('SUM(CASE WHEN concluido = 1 THEN 1 ELSE 0 END) as concluidas')
+            ->selectRaw('SUM(COALESCE(tempo_assistido, 0)) as tempo_total_assistido')
+            ->groupBy('training_id')
+            ->with(['training:id,titulo,tipo,carga_horaria'])
+            ->orderByDesc('assistencias')
+            ->take(10)
+            ->get();
+
+        $usuariosEmDestaque = (clone $query)
+            ->select('user_id')
+            ->selectRaw('COUNT(*) as assistencias')
+            ->selectRaw('SUM(CASE WHEN concluido = 1 THEN 1 ELSE 0 END) as concluidas')
+            ->selectRaw('SUM(COALESCE(tempo_assistido, 0)) as tempo_total_assistido')
+            ->groupBy('user_id')
+            ->with(['user:id,nome,cpf,tipo_usuario,status'])
+            ->orderByDesc('tempo_total_assistido')
+            ->take(10)
+            ->get();
+
+        $tempoMedioFormatado = $this->formatarTempoEmHoras($tempoMedioAssistido);
+        $tempoTotalFormatado = $this->formatarTempoEmHoras($tempoTotalAssistido);
+
+        $conteudosPorTipo = Training::selectRaw("COALESCE(tipo, 'sem_tipo') as tipo, COUNT(*) as total")
+            ->groupBy('tipo')
+            ->orderByDesc('total')
+            ->get();
 
         return view('relatorios.treinamentos', [
             'progressos' => $progressos,
@@ -184,9 +217,13 @@ class CertificateManagementController extends Controller
             'concluidas' => $concluidas,
             'taxaGeral' => number_format($taxaGeral, 2, ',', '.'),
             'tempoMedioFormatado' => $tempoMedioFormatado,
+            'tempoTotalFormatado' => $tempoTotalFormatado,
             'filtrosAtivos' => $this->verificarFiltrosAtivos($request),
             'userTypes' => $userTypes,
             'users' => $users,
+            'treinamentosResumo' => $treinamentosResumo,
+            'usuariosEmDestaque' => $usuariosEmDestaque,
+            'conteudosPorTipo' => $conteudosPorTipo,
         ]);
     }
 
@@ -220,28 +257,51 @@ class CertificateManagementController extends Controller
         }
 
         if ($request->filled('tipo_usuario')) {
-            $query->where('tipo_usuario', request('tipo_usuario'));
+            $query->where('tipo_usuario', $request->input('tipo_usuario'));
         }
 
-        $usuarios = $query->with(['progress', 'certificates'])
+        $usuarios = (clone $query)
+            ->with(['progress', 'certificates'])
+            ->withCount(['progress', 'certificates'])
+            ->withSum('progress as tempo_total_assistido', 'tempo_assistido')
+            ->withMax('progress as ultima_atividade_em', 'data_conclusao')
             ->orderBy('nome')
             ->paginate(15);
 
         // Tipos e lista de usuários para filtros dinâmicos
         $userTypes = User::select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
         if ($request->filled('tipo_usuario')) {
-            $users = User::where('tipo_usuario', request('tipo_usuario'))->orderBy('nome')->get();
+            $users = User::where('tipo_usuario', $request->input('tipo_usuario'))->orderBy('nome')->get();
         } else {
             $users = User::orderBy('nome')->get();
         }
 
-        $totalUsuarios = User::count();
-        $usuariosAtivos = User::where('status', 'ativo')->count();
+        $totalUsuarios = (clone $query)->count();
+        $usuariosAtivos = (clone $query)->where('status', 'ativo')->count();
+        $usuariosComTreinamentos = (clone $query)->whereHas('progress')->count();
+        $usuariosComCertificados = (clone $query)->whereHas('certificates')->count();
+        $tempoTotalAssistido = UserProgress::query()
+            ->whereHas('user', function ($q) use ($request) {
+                if ($request->user()->isSuperAdmin() && $request->filled('incluir_adm')) {
+                    return;
+                }
+
+                $q->where(function ($sub) {
+                    $sub->whereNull('role_id')
+                        ->orWhereHas('role', function ($role) {
+                            $role->whereNotIn('nome', ['admin', 'super_admin']);
+                        });
+                });
+            })
+            ->sum('tempo_assistido');
 
         return view('relatorios.usuarios', [
             'usuarios' => $usuarios,
             'totalUsuarios' => $totalUsuarios,
             'usuariosAtivos' => $usuariosAtivos,
+            'usuariosComTreinamentos' => $usuariosComTreinamentos,
+            'usuariosComCertificados' => $usuariosComCertificados,
+            'tempoTotalFormatado' => $this->formatarTempoEmHoras($tempoTotalAssistido),
             'filtrosAtivos' => $this->verificarFiltrosAtivos($request),
             'userTypes' => $userTypes,
             'users' => $users,
@@ -255,86 +315,120 @@ class CertificateManagementController extends Controller
     {
         $user = $request->user();
 
-        // Estatísticas gerais
         $usuariosBase = User::query();
         $this->aplicarEscopoUsuariosComuns($usuariosBase, $user);
         if ($request->filled('tipo_usuario')) {
-            $usuariosBase->where('tipo_usuario', request('tipo_usuario'));
+            $usuariosBase->where('tipo_usuario', $request->input('tipo_usuario'));
         }
         if ($request->filled('usuario_id')) {
-            $usuariosBase->where('id', request('usuario_id'));
+            $usuariosBase->where('id', $request->integer('usuario_id'));
         }
-        $totalUsuarios = $usuariosBase->count();
 
-        $totalTreinamentos = Training::count();
         $certificadosBase = Certificate::query();
         $this->aplicarEscopoUsuariosComuns($certificadosBase, $user, 'user');
         if ($request->filled('usuario_id')) {
-            $certificadosBase->where('user_id', request('usuario_id'));
+            $certificadosBase->where('user_id', $request->integer('usuario_id'));
         }
         if ($request->filled('training_tipo')) {
-            $certificadosBase->whereHas('training', function ($q) {
-                $q->where('tipo', request('training_tipo'));
+            $certificadosBase->whereHas('training', function ($q) use ($request) {
+                $q->where('tipo', $request->input('training_tipo'));
             });
         }
-        $totalCertificados = $certificadosBase->count();
 
-        $usuariosAtivosBase = User::where('status', 'ativo');
-        $this->aplicarEscopoUsuariosComuns($usuariosAtivosBase, $user);
-        $usuariosAtivos = $usuariosAtivosBase->count();
-
-        // Por tipo de usuário
-        $usuariosPorTipoBase = User::query();
-        $this->aplicarEscopoUsuariosComuns($usuariosPorTipoBase, $user);
+        $progressBase = UserProgress::query();
+        $this->aplicarEscopoUsuariosComuns($progressBase, $user, 'user');
         if ($request->filled('tipo_usuario')) {
-            $usuariosPorTipoBase->where('tipo_usuario', request('tipo_usuario'));
+            $progressBase->whereHas('user', function ($q) use ($request) {
+                $q->where('tipo_usuario', $request->input('tipo_usuario'));
+            });
         }
-        $usuariosPorTipo = $usuariosPorTipoBase
+        if ($request->filled('usuario_id')) {
+            $progressBase->where('user_id', $request->integer('usuario_id'));
+        }
+
+        $totalUsuarios = (clone $usuariosBase)->count();
+        $usuariosAtivos = (clone $usuariosBase)->where('status', 'ativo')->count();
+        $totalTreinamentos = Training::count();
+        $totalCertificados = (clone $certificadosBase)->count();
+        $totalAssistencias = (clone $progressBase)->count();
+        $concluidas = (clone $progressBase)->where('concluido', true)->count();
+        $taxaGeral = $totalAssistencias > 0 ? ($concluidas / $totalAssistencias) * 100 : 0;
+        $tempoTotalAssistido = (clone $progressBase)->sum('tempo_assistido');
+        $tempoMedioAssistido = (clone $progressBase)->avg('tempo_assistido');
+
+        $usuariosPorTipo = (clone $usuariosBase)
+            ->selectRaw("COALESCE(tipo_usuario, 'sem_tipo') as tipo_usuario, COUNT(*) as total")
             ->groupBy('tipo_usuario')
-            ->selectRaw('tipo_usuario, count(*) as total')
+            ->orderByDesc('total')
             ->get();
 
-        // Treinamentos mais assistidos
         $treinamentosMaisAssistidos = Training::withCount(['progress'])
-            ->orderBy('progress_count', 'desc')
+            ->withCount(['progress as concluidos_count' => function ($q) {
+                $q->where('concluido', true);
+            }])
+            ->withSum('progress as tempo_total_assistido', 'tempo_assistido')
+            ->orderByDesc('progress_count')
             ->take(10)
             ->get();
 
-        // Taxa de conclusão por treinamento
+        $conteudosPorTipo = Training::selectRaw("COALESCE(tipo, 'sem_tipo') as tipo, COUNT(*) as total")
+            ->groupBy('tipo')
+            ->orderByDesc('total')
+            ->get();
+
         $taxaConclusao = [];
-        foreach (Training::all() as $training) {
-            $total = $training->progress()->count();
-            $concluidos = $training->progress()->where('concluido', true)->count();
-            $taxaConclusao[$training->id] = $total > 0 ? ($concluidos / $total) * 100 : 0;
+        $treinamentosComProgressos = Training::withCount(['progress'])
+            ->withCount(['progress as concluidos_count' => function ($q) {
+                $q->where('concluido', true);
+            }])
+            ->get();
+
+        foreach ($treinamentosComProgressos as $training) {
+            $taxaConclusao[$training->id] = $training->progress_count > 0
+                ? ($training->concluidos_count / $training->progress_count) * 100
+                : 0;
         }
 
-        // Tempo médio de assistência
-        $tempoMedioBase = UserProgress::query();
-        $this->aplicarEscopoUsuariosComuns($tempoMedioBase, $user, 'user');
-        $tempoMedioTotal = $tempoMedioBase->avg('tempo_assistido');
-        $tempoMedioFormatado = gmdate('H:i:s', $tempoMedioTotal ?? 0);
+        $usuariosEmDestaque = (clone $progressBase)
+            ->select('user_id')
+            ->selectRaw('COUNT(*) as assistencias')
+            ->selectRaw('SUM(CASE WHEN concluido = 1 THEN 1 ELSE 0 END) as concluidas')
+            ->selectRaw('SUM(COALESCE(tempo_assistido, 0)) as tempo_total_assistido')
+            ->groupBy('user_id')
+            ->with(['user:id,nome,cpf,tipo_usuario,status'])
+            ->orderByDesc('tempo_total_assistido')
+            ->take(10)
+            ->get();
 
-        // Usuários sem nenhum treinamento
         $usuariosSemTreinamentoBase = User::whereDoesntHave('progress');
         $this->aplicarEscopoUsuariosComuns($usuariosSemTreinamentoBase, $user);
+        if ($request->filled('tipo_usuario')) {
+            $usuariosSemTreinamentoBase->where('tipo_usuario', $request->input('tipo_usuario'));
+        }
+        if ($request->filled('usuario_id')) {
+            $usuariosSemTreinamentoBase->where('id', $request->integer('usuario_id'));
+        }
         $usuariosSemTreinamento = $usuariosSemTreinamentoBase->count();
 
-        // Certificados por mês (últimos 12 meses)
-        $certificadosPorMesBase = Certificate::query();
-        $this->aplicarEscopoUsuariosComuns($certificadosPorMesBase, $user, 'user');
-        // Usar strftime para compatibilidade com SQLite
-        $certificadosPorMes = $certificadosPorMesBase
-            ->selectRaw("strftime('%m', data_emissao) as mes, strftime('%Y', data_emissao) as ano, COUNT(*) as total")
-            ->whereRaw("strftime('%Y', data_emissao) >= ?", [now()->subYear()->year])
-            ->groupBy('ano', 'mes')
-            ->orderBy('ano', 'asc')
-            ->orderBy('mes', 'asc')
+        $driver = DB::connection()->getDriverName();
+        $monthExpression = $driver === 'mysql'
+            ? "DATE_FORMAT(data_emissao, '%Y-%m')"
+            : "strftime('%Y-%m', data_emissao)";
+
+        $certificadosPorMes = (clone $certificadosBase)
+            ->selectRaw("{$monthExpression} as periodo, COUNT(*) as total")
+            ->whereNotNull('data_emissao')
+            ->groupBy('periodo')
+            ->orderBy('periodo', 'asc')
             ->get();
+
+        $tempoMedioFormatado = $this->formatarTempoEmHoras($tempoMedioAssistido);
+        $tempoTotalFormatado = $this->formatarTempoEmHoras($tempoTotalAssistido);
 
         // Tipos e usuários para filtros dinâmicos
         $userTypes = User::select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
         if ($request->filled('tipo_usuario')) {
-            $users = User::where('tipo_usuario', request('tipo_usuario'))->orderBy('nome')->get();
+            $users = User::where('tipo_usuario', $request->input('tipo_usuario'))->orderBy('nome')->get();
         } else {
             $users = User::orderBy('nome')->get();
         }
@@ -344,10 +438,16 @@ class CertificateManagementController extends Controller
             'totalTreinamentos' => $totalTreinamentos,
             'totalCertificados' => $totalCertificados,
             'usuariosAtivos' => $usuariosAtivos,
+            'totalAssistencias' => $totalAssistencias,
+            'concluidas' => $concluidas,
+            'taxaGeral' => number_format($taxaGeral, 2, ',', '.'),
+            'tempoTotalFormatado' => $tempoTotalFormatado,
+            'tempoMedioFormatado' => $tempoMedioFormatado,
             'usuariosPorTipo' => $usuariosPorTipo,
             'treinamentosMaisAssistidos' => $treinamentosMaisAssistidos,
+            'conteudosPorTipo' => $conteudosPorTipo,
+            'usuariosEmDestaque' => $usuariosEmDestaque,
             'taxaConclusao' => $taxaConclusao,
-            'tempoMedioFormatado' => $tempoMedioFormatado,
             'usuariosSemTreinamento' => $usuariosSemTreinamento,
             'certificadosPorMes' => $certificadosPorMes,
             'userTypes' => $userTypes,
@@ -444,6 +544,14 @@ class CertificateManagementController extends Controller
                $request->filled('concluido') ||
                $request->filled('data_inicio') ||
                $request->filled('data_fim');
+    }
+
+    /**
+     * Formata segundos em HH:MM:SS com proteção para valores nulos.
+     */
+    private function formatarTempoEmHoras($segundos): string
+    {
+        return gmdate('H:i:s', max(0, (int) ($segundos ?? 0)));
     }
 
     /**
