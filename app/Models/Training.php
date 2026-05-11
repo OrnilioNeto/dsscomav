@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use Carbon\Carbon;
 
 class Training extends Model
 {
@@ -22,6 +23,7 @@ class Training extends Model
         'carga_horaria',
         'thumbnail',
         'data_publicacao',
+        'data_liberacao',
         'status', // 'ativo' ou 'inativo'
         'obrigatorio',
         'avaliacao_pergunta',
@@ -31,6 +33,7 @@ class Training extends Model
 
     protected $casts = [
         'data_publicacao' => 'datetime',
+        'data_liberacao' => 'datetime',
         'tipo_usuario_permitido' => 'json',
         'avaliacao_opcoes' => 'json',
         'obrigatorio' => 'boolean',
@@ -104,5 +107,14 @@ class Training extends Model
             && is_array($this->avaliacao_opcoes)
             && count(array_filter($this->avaliacao_opcoes)) >= 2
             && $this->avaliacao_resposta_correta !== null;
+    }
+
+    public function isReleased(): bool
+    {
+        if (!$this->data_liberacao) {
+            return true;
+        }
+
+        return Carbon::now(config('app.timezone'))->gte($this->data_liberacao);
     }
 }

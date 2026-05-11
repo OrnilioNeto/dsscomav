@@ -163,6 +163,14 @@
                 </div>
             </div>
 
+            <div class="mt-4">
+                <label class="block text-gray-700 font-semibold mb-2">Liberar Conteúdo (data e hora - fuso: Brasil UTC-3)</label>
+                <div class="flex gap-2 items-center">
+                    <input type="datetime-local" id="data-liberacao-local" name="data_liberacao" class="px-4 py-2 border border-gray-300 rounded-lg" placeholder="DD/MM/AAAA HH:MM">
+                    <p class="text-sm text-gray-500">Hora de São Paulo.</p>
+                </div>
+            </div>
+
             <div class="pt-4">
                 <div class="flex flex-col md:flex-row md:space-x-4 space-y-3 md:space-y-0">
                     <button type="submit" class="w-full md:flex-1 bg-green-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-green-700 transition">
@@ -189,7 +197,7 @@
                         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Criando...';
 
                         try {
-                            // Criar FormData com os dados do formulário
+                            // FormData coleta automaticamente todos os inputs, incluindo data_liberacao
                             const formData = new FormData(treinamentoForm);
 
                             // Adicionar ficheiros de materiais

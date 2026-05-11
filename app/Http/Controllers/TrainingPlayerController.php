@@ -19,6 +19,11 @@ class TrainingPlayerController extends Controller
             abort(403, 'Acesso negado a este treinamento.');
         }
 
+        // Verificar se o treinamento já está liberado pela data/hora configurada
+        if (!$training->isReleased()) {
+            abort(403, 'Treinamento ainda não liberado.');
+        }
+
         // Obter ou criar progresso
         $progress = UserProgress::firstOrCreate(
             [

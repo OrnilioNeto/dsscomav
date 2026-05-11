@@ -111,29 +111,37 @@
                     <i class="fas fa-file-download mr-2 text-green-600"></i>Materiais de Apoio
                 </h2>
 
+                <div class="mt-4 mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2">Liberar Conteúdo (data e hora - fuso: Brasil UTC-3)</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="datetime-local" id="data-liberacao-local-edit" name="data_liberacao" value="{{ old('data_liberacao', optional($training->data_liberacao)->format('Y-m-d\TH:i')) }}" class="px-4 py-2 border border-gray-300 rounded-lg" placeholder="DD/MM/AAAA HH:MM">
+                        <p class="text-sm text-gray-500">Hora de São Paulo.</p>
+                    </div>
+                </div>
+
                 <!-- Aviso -->
                 <p class="text-sm text-gray-600 mb-4">Adicione PDFs, imagens ou outros arquivos que servirão como material de suporte para os usuários durante o treinamento.</p>
 
                 <!-- Upload de novo material -->
                 <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
                     <h3 class="font-semibold text-gray-800 mb-3">Carregar novo material</h3>
-                    <form id="material-upload-form" class="space-y-3">
+                    <div id="material-upload-form" class="space-y-3">
                         <div>
-                            <label class="block text-gray-700 text-sm font-semibold mb-2">Nome do Material *</label>
-                            <input type="text" id="material-nome" placeholder="Ex: Manual do Motorista" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" required>
+                            <label class="block text-gray-700 text-sm font-semibold mb-2">Nome do Material</label>
+                            <input type="text" id="material-nome" placeholder="Ex: Manual do Motorista" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
                         </div>
                         <div>
                             <label class="block text-gray-700 text-sm font-semibold mb-2">Descrição (opcional)</label>
                             <textarea id="material-descricao" placeholder="Descrição breve do material..." rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"></textarea>
                         </div>
                         <div>
-                            <label class="block text-gray-700 text-sm font-semibold mb-2">Arquivo * (Máx. 100MB)</label>
-                            <input type="file" id="material-arquivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.zip,.rar,.txt" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" required>
+                            <label class="block text-gray-700 text-sm font-semibold mb-2">Arquivo (Máx. 100MB)</label>
+                            <input type="file" id="material-arquivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.zip,.rar,.txt" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
                         </div>
-                        <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition text-sm">
+                        <button type="button" id="material-upload-btn" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition text-sm">
                             <i class="fas fa-upload mr-2"></i>Carregar Material
                         </button>
-                    </form>
+                    </div>
                     <div id="upload-feedback" class="mt-2"></div>
                 </div>
 
@@ -170,15 +178,15 @@
                 // Aguardar o DOM estar pronto
                 document.addEventListener('DOMContentLoaded', function() {
                     const form = document.getElementById('material-upload-form');
-                    if (!form) return;
+                    const uploadBtn = document.getElementById('material-upload-btn');
+                    if (!form || !uploadBtn) return;
 
-                    form.addEventListener('submit', async function(e) {
+                    uploadBtn.addEventListener('click', async function(e) {
                         e.preventDefault();
 
                         const nome = document.getElementById('material-nome').value;
                         const descricao = document.getElementById('material-descricao').value;
                         const arquivo = document.getElementById('material-arquivo').files[0];
-                        const uploadBtn = form.querySelector('button[type="submit"]');
                         const feedback = document.getElementById('upload-feedback');
 
                         if (!arquivo) {
