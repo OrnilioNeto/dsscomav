@@ -13,6 +13,14 @@
         </p>
     </div>
 
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+        <p class="text-sm font-semibold text-blue-900 mb-2">Legenda rápida dos filtros</p>
+        <p class="text-sm text-blue-900/80 leading-6">
+            <strong>Nome</strong> faz busca parcial; <strong>Tipo de usuário</strong> filtra o perfil; <strong>Usuário específico</strong> seleciona um registro exato; <strong>Status</strong> separa ativos e inativos; <strong>CPF</strong> aceita texto formatado ou só números.
+            Os números de <strong>Treinamentos</strong> e <strong>Tempo assistido exato</strong> representam histórico registrado, não uma contagem única de pessoas. O tempo segue o mesmo formato do certificado: <strong>HH:MM:SS</strong>.
+        </p>
+    </div>
+
     <!-- KPIs -->
     <div class="grid md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-100">
@@ -39,9 +47,9 @@
 
     <div class="grid md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-100 md:col-span-2">
-            <p class="text-gray-600 text-sm">Tempo Total Assistido</p>
+            <p class="text-gray-600 text-sm">Tempo assistido exato</p>
             <p class="text-3xl font-bold text-blue-900">{{ $tempoTotalFormatado }}</p>
-            <p class="text-xs text-gray-500 mt-1">Somatório de todas as assistências registradas</p>
+            <p class="text-xs text-gray-500 mt-1">Somatório de todos os registros de progresso</p>
         </div>
         <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-100 md:col-span-2">
             <p class="text-gray-600 text-sm">Cobertura Operacional</p>
