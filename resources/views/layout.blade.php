@@ -89,9 +89,15 @@
                             <i class="fas fa-home mr-1"></i><span class="hidden sm:inline">Dashboard</span>
                         </a>
 
-                        <a href="{{ route('certificados.meus') }}" class="site-link-hover nav-link flex items-center">
-                            <i class="fas fa-certificate mr-1"></i><span class="hidden sm:inline">Certificados</span>
-                        </a>
+                        @if(Auth::user()->isSuperAdmin())
+                            <a href="{{ route('certificados.gerencial') }}" class="site-link-hover nav-link flex items-center">
+                                <i class="fas fa-certificate mr-1"></i><span class="hidden sm:inline">Consulta Certificados</span>
+                            </a>
+                        @else
+                            <a href="{{ route('certificados.meus') }}" class="site-link-hover nav-link flex items-center">
+                                <i class="fas fa-certificate mr-1"></i><span class="hidden sm:inline">Certificados</span>
+                            </a>
+                        @endif
 
                         <a href="{{ route('certificacao.conformidade') }}" class="site-link-hover nav-link flex items-center">
                             <i class="fas fa-shield-alt mr-1"></i><span class="hidden sm:inline">Transparência</span>
@@ -125,7 +131,11 @@
                             <a href="{{ route('treinamentos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Treinamentos</a>
                         @endif
                         <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover">Dashboard</a>
-                        <a href="{{ route('certificados.meus') }}" class="block px-3 py-2 rounded text-white site-link-hover">Certificados</a>
+                        @if(Auth::user()->isSuperAdmin())
+                            <a href="{{ route('certificados.gerencial') }}" class="block px-3 py-2 rounded text-white site-link-hover">Consulta Certificados</a>
+                        @else
+                            <a href="{{ route('certificados.meus') }}" class="block px-3 py-2 rounded text-white site-link-hover">Certificados</a>
+                        @endif
                                 <a href="{{ route('certificacao.conformidade') }}" class="block px-3 py-2 rounded text-white site-link-hover">Transparência</a>
 
                         <div class="border-t border-white/20 mt-2 pt-2">
