@@ -93,6 +93,10 @@
                             <i class="fas fa-certificate mr-1"></i><span class="hidden sm:inline">Certificados</span>
                         </a>
 
+                        <a href="{{ route('certificacao.conformidade') }}" class="site-link-hover nav-link flex items-center">
+                            <i class="fas fa-shield-alt mr-1"></i><span class="hidden sm:inline">Transparência</span>
+                        </a>
+
                         <div class="relative">
                             <button id="user-desktop-toggle" class="flex items-center site-link-hover">
                                 <i class="fas fa-user-circle text-xl"></i>
@@ -122,6 +126,7 @@
                         @endif
                         <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover">Dashboard</a>
                         <a href="{{ route('certificados.meus') }}" class="block px-3 py-2 rounded text-white site-link-hover">Certificados</a>
+                                <a href="{{ route('certificacao.conformidade') }}" class="block px-3 py-2 rounded text-white site-link-hover">Transparência</a>
 
                         <div class="border-t border-white/20 mt-2 pt-2">
                             <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white">Meu Perfil</a>

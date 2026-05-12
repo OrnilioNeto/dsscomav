@@ -34,6 +34,11 @@ Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Página de Certificação / Conformidade (acessível a todos os usuários autenticados)
+    Route::get('/certificacao-conformidade', function () {
+        return view('legal.certificacao');
+    })->name('certificacao.conformidade');
+
     // Visualizar e completar treinamentos
     Route::get('/treinamentos/{id}/player', [TrainingPlayerController::class, 'show'])->name('treinamentos.player');
     Route::post('/treinamentos/{id}/atualizar-progresso', [TrainingPlayerController::class, 'updateProgress'])->name('treinamentos.atualizar-progresso');
