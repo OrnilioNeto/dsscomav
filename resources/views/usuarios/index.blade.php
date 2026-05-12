@@ -8,9 +8,16 @@
         <h1 class="text-4xl font-bold text-gray-800">
             <i class="fas fa-users text-blue-900 mr-3"></i>Usuários
         </h1>
+        <div class="flex gap-3">
+            @if(auth()->user()->isSuperAdmin())
+                <a href="{{ route('usuarios.exclus-kpi') }}" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">
+                    <i class="fas fa-exclamation-circle mr-2"></i>Excluídos dos KPIs
+                </a>
+            @endif
         <a href="{{ route('usuarios.create') }}" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
             <i class="fas fa-user-plus mr-2"></i>Novo Usuário
         </a>
+        </div>
     </div>
 
     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
