@@ -17,6 +17,7 @@ class TrainingController extends Controller
         // Garantir que a tabela de materiais existe quando o controller for carregado
         $this->ensureTrainingMaterialsTableExists();
         $this->ensureTrainingReleaseColumnExists();
+        $this->ensureTrainingMandatoryColumnExists();
     }
 
     /**
@@ -65,6 +66,22 @@ class TrainingController extends Controller
         }
     }
 
+    /**
+     * Garante que a coluna obrigatorio exista na tabela trainings.
+     */
+    private function ensureTrainingMandatoryColumnExists()
+    {
+        try {
+            if (Schema::hasTable('trainings') && !Schema::hasColumn('trainings', 'obrigatorio')) {
+                Schema::table('trainings', function ($table) {
+                    $table->boolean('obrigatorio')->default(false)->after('status');
+                });
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Erro ao verificar/criar coluna obrigatorio em trainings: ' . $e->getMessage());
+        }
+    }
+
     public function index()
     {
         $treinamentos = Training::paginate(15);
@@ -86,6 +103,7 @@ class TrainingController extends Controller
             'url_video' => 'required|url',
             'tipo_video' => 'required|in:youtube,vimeo,upload',
             'carga_horaria' => 'required|integer|min:1',
+            'obrigatorio' => 'nullable|boolean',
             'avaliacao_pergunta' => 'required|string|max:500',
             'avaliacao_opcoes' => 'required|array|min:2',
             'avaliacao_opcoes.*' => 'required|string|max:255',
@@ -106,6 +124,7 @@ class TrainingController extends Controller
             'url_video' => $request->url_video,
             'tipo_video' => $request->tipo_video,
             'carga_horaria' => $request->carga_horaria,
+            'obrigatorio' => $request->boolean('obrigatorio'),
             'data_publicacao' => now(),
             'status' => 'ativo',
             'avaliacao_pergunta' => $request->avaliacao_pergunta,
@@ -195,6 +214,7 @@ class TrainingController extends Controller
             'tipo' => 'required|in:dss,treinamento',
             'tipo_usuario_permitido' => 'required|array',
             'carga_horaria' => 'required|integer|min:1',
+            'obrigatorio' => 'nullable|boolean',
             'avaliacao_pergunta' => 'required|string|max:500',
             'avaliacao_opcoes' => 'required|array|min:2',
             'avaliacao_opcoes.*' => 'required|string|max:255',
@@ -214,6 +234,7 @@ class TrainingController extends Controller
             'tipo_usuario_permitido' => $request->tipo_usuario_permitido,
             'carga_horaria' => $request->carga_horaria,
             'status' => $request->status ?? $training->status,
+            'obrigatorio' => $request->boolean('obrigatorio'),
             'avaliacao_pergunta' => $request->avaliacao_pergunta,
             'avaliacao_opcoes' => $assessments,
             'avaliacao_resposta_correta' => (int) $request->avaliacao_resposta_correta,

@@ -38,12 +38,14 @@ class DashboardController extends Controller
 
     private function dashboardSuperAdmin()
     {
-        $totalUsuarios = User::count();
+        $totalUsuarios = User::kpiEligible()->count();
         $totalTreinamentos = Training::count();
-        $usuariosAtivos = User::where('status', 'ativo')->count();
-        $certificadosEmitidos = Certificate::count();
+        $usuariosAtivos = User::kpiEligible()->where('status', 'ativo')->count();
+        $certificadosEmitidos = Certificate::whereHas('user', function ($query) {
+            $query->kpiEligible();
+        })->count();
 
-        $usuariosPorTipo = User::groupBy('tipo_usuario')
+        $usuariosPorTipo = User::kpiEligible()->groupBy('tipo_usuario')
             ->selectRaw('tipo_usuario, count(*) as total')
             ->get();
 
@@ -68,13 +70,15 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
         
-        $totalUsuarios = User::where('role_id', '<>', 1)->count();
+        $totalUsuarios = User::kpiEligible()->where('role_id', '<>', 1)->count();
         $totalTreinamentos = Training::count();
-        $usuariosAtivos = User::where('status', 'ativo')->count();
-        $certificadosEmitidos = Certificate::count();
+        $usuariosAtivos = User::kpiEligible()->where('status', 'ativo')->count();
+        $certificadosEmitidos = Certificate::whereHas('user', function ($query) {
+            $query->kpiEligible();
+        })->count();
 
         $treinamentosRecentes = Training::orderBy('created_at', 'desc')->take(5)->get();
-        $usuariosRecentes = User::where('role_id', '<>', 1)->orderBy('created_at', 'desc')->take(5)->get();
+        $usuariosRecentes = User::kpiEligible()->where('role_id', '<>', 1)->orderBy('created_at', 'desc')->take(5)->get();
 
         // Se o admin participa de treinamentos, carregar dados de treinamentos disponíveis
         $treinamentosDisponíveis = [];

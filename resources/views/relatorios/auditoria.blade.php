@@ -126,6 +126,34 @@
         </div>
     </div>
 
+    <section class="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">Justificativa operacional</p>
+                <h2 class="mt-2 text-2xl font-black text-amber-950">Usuários em férias no período</h2>
+                <p class="mt-2 max-w-3xl text-sm leading-6 text-amber-900/80">
+                    Esses usuários ficam destacados para justificar diferenças entre a base total e os KPIs do período. Se houver atividade registrada durante as férias, o usuário entra normalmente nas métricas; se não houver, ele é tratado como ausência justificada.
+                </p>
+            </div>
+            <div class="rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-amber-100 text-center min-w-[180px]">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">Em férias</p>
+                <p class="mt-2 text-4xl font-black text-amber-900">{{ $usuariosEmFerias }}</p>
+            </div>
+        </div>
+
+        @if(($usuariosEmFeriasLista ?? collect())->count())
+            <div class="mt-5 flex flex-wrap gap-2">
+                @foreach($usuariosEmFeriasLista as $usuarioFerias)
+                    <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-200">
+                        {{ $usuarioFerias->nome }}
+                    </span>
+                @endforeach
+            </div>
+        @else
+            <p class="mt-4 text-sm text-amber-900/70">Nenhum usuário em férias no período selecionado.</p>
+        @endif
+    </section>
+
     <div class="grid gap-6 lg:grid-cols-12">
         <section class="rounded-3xl bg-white p-6 shadow-xl ring-1 ring-slate-100 lg:col-span-5">
             <div class="flex items-start justify-between gap-4">
@@ -304,6 +332,13 @@
                             <option value="{{ $training->id }}" @if(request('training_id') == $training->id) selected @endif>{{ $training->titulo }}</option>
                         @endforeach
                     </select>
+                </div>
+
+                <div class="flex items-end">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <input type="checkbox" name="somente_ferias" value="1" {{ request('somente_ferias') ? 'checked' : '' }} class="h-4 w-4 rounded border-slate-300 text-purple-900 focus:ring-purple-500">
+                        Mostrar somente usuários em férias
+                    </label>
                 </div>
             </div>
 

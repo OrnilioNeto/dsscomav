@@ -149,7 +149,7 @@
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
                     <label class="flex items-center">
-                        <input type="checkbox" name="obrigatorio" value="1" class="mr-2">
+                        <input type="checkbox" name="obrigatorio" value="1" {{ old('obrigatorio') ? 'checked' : '' }} class="mr-2">
                         <span class="text-gray-700 font-semibold">Treinamento Obrigatório</span>
                     </label>
                 </div>
