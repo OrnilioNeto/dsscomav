@@ -82,6 +82,31 @@
                 </div>
             </div>
 
+            <details class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <summary class="cursor-pointer list-none flex items-center justify-between gap-3 text-amber-900 font-semibold">
+                    <span><i class="fas fa-calendar-alt mr-2"></i>Férias e usuário de teste</span>
+                    <span class="text-xs bg-amber-100 px-2 py-1 rounded-full">Abrir</span>
+                </summary>
+                <div class="mt-4 grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Início das férias</label>
+                        <input type="date" name="ferias_inicio" value="{{ old('ferias_inicio') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    </div>
+
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Fim das férias</label>
+                        <input type="date" name="ferias_fim" value="{{ old('ferias_fim') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    </div>
+                </div>
+
+                <label class="flex items-center mt-4">
+                    <input type="checkbox" name="usuario_teste" value="1" {{ old('usuario_teste') ? 'checked' : '' }} class="mr-2">
+                    <span class="text-gray-700 font-semibold">Usuário de teste</span>
+                </label>
+
+                <p class="text-sm text-gray-600 mt-2">Contas de teste ficam fora dos relatórios e KPIs. Férias só entram em KPI quando houver atividade no período informado.</p>
+            </details>
+
             <!-- Campos específicos para Motorista -->
             <div id="motorista-fields" class="space-y-4 hidden border-t pt-4">
                 <h3 class="text-lg font-bold text-gray-800">Dados do Motorista</h3>

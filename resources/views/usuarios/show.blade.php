@@ -11,6 +11,15 @@
         </a>
     </div>
 
+    <div class="flex flex-wrap gap-2 mb-6">
+        @if($usuario->isOnVacation())
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-900">Em férias</span>
+        @endif
+        @if($usuario->usuario_teste)
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-900">Usuário de teste</span>
+        @endif
+    </div>
+
     <div class="grid md:grid-cols-2 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <h2 class="text-xl font-bold mb-4">Informações Pessoais</h2>

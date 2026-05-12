@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -29,6 +30,9 @@ class User extends Authenticatable
         'cargo',
         'empresa',
         'responsavel',
+        'ferias_inicio',
+        'ferias_fim',
+        'usuario_teste',
     ];
 
     protected $hidden = [
@@ -40,6 +44,9 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'data_nascimento' => 'date',
         'validade_cnh' => 'date',
+        'ferias_inicio' => 'date',
+        'ferias_fim' => 'date',
+        'usuario_teste' => 'boolean',
     ];
 
     // Relacionamentos
@@ -89,5 +96,79 @@ class User extends Authenticatable
     public function getCpfFormatted()
     {
         return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $this->cpf);
+    }
+
+    public function isTestUser(): bool
+    {
+        return (bool) $this->usuario_teste;
+    }
+
+    public function isOnVacation(?Carbon $referenceDate = null): bool
+    {
+        if (! $this->ferias_inicio || ! $this->ferias_fim) {
+            return false;
+        }
+
+        $referenceDate = $referenceDate ?: Carbon::now(config('app.timezone'));
+
+        return $referenceDate->betweenIncluded($this->ferias_inicio, $this->ferias_fim);
+    }
+
+    public function hasProgressDuringPeriod(?Carbon $periodStart = null, ?Carbon $periodEnd = null): bool
+    {
+        $periodStart = $periodStart ? $periodStart->copy()->startOfDay() : Carbon::now(config('app.timezone'))->startOfDay();
+        $periodEnd = $periodEnd ? $periodEnd->copy()->endOfDay() : Carbon::now(config('app.timezone'))->endOfDay();
+
+        return $this->progress()
+            ->where(function ($query) use ($periodStart, $periodEnd) {
+                $query->whereBetween('data_inicio', [$periodStart, $periodEnd])
+                    ->orWhereBetween('data_conclusao', [$periodStart, $periodEnd]);
+            })
+            ->exists();
+    }
+
+    public function scopeKpiEligible($query, $periodStart = null, $periodEnd = null)
+    {
+        // SEMPRE excluir: admin, super_admin, usuario_teste e usuários em férias (agora)
+        $now = Carbon::now(config('app.timezone'));
+
+        return $query
+            ->where(function ($roleQuery) {
+                $roleQuery->whereNull('role_id')
+                    ->orWhereHas('role', function ($role) {
+                        $role->whereNotIn('nome', ['admin', 'super_admin']);
+                    });
+            })
+            ->where('usuario_teste', false)
+            ->where(function ($vacationQuery) use ($now) {
+                // Excluir quem está em férias agora
+                $vacationQuery->whereNull('ferias_inicio')
+                    ->orWhereNull('ferias_fim')
+                    ->orWhere(function ($notVacationQuery) use ($now) {
+                        $notVacationQuery->whereDate('ferias_inicio', '>', $now->toDateString())
+                            ->orWhereDate('ferias_fim', '<', $now->toDateString());
+                    });
+            });
+    }
+
+    public function scopeVacationInPeriod($query, $periodStart = null, $periodEnd = null)
+    {
+        $periodStart = $periodStart ? Carbon::parse($periodStart, config('app.timezone'))->startOfDay() : Carbon::now(config('app.timezone'))->startOfDay();
+        $periodEnd = $periodEnd ? Carbon::parse($periodEnd, config('app.timezone'))->endOfDay() : Carbon::now(config('app.timezone'))->endOfDay();
+
+        return $query
+            ->where(function ($roleQuery) {
+                $roleQuery->whereNull('role_id')
+                    ->orWhereHas('role', function ($role) {
+                        $role->whereNotIn('nome', ['admin', 'super_admin']);
+                    });
+            })
+            ->where('usuario_teste', false)
+            ->whereNotNull('ferias_inicio')
+            ->whereDate('ferias_inicio', '<=', $periodEnd->toDateString())
+            ->where(function ($rangeQuery) use ($periodStart) {
+                $rangeQuery->whereNull('ferias_fim')
+                    ->orWhereDate('ferias_fim', '>=', $periodStart->toDateString());
+            });
     }
 }

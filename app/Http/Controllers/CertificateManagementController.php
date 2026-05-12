@@ -26,14 +26,14 @@ class CertificateManagementController extends Controller
             $query->where('user_id', request('usuario_id'));
         } elseif ($request->filled('usuario_nome')) {
             $query->whereHas('user', function($q) {
-                $q->where('nome', 'like', '%' . request('usuario_nome') . '%');
+                $q->kpiEligible()->where('nome', 'like', '%' . request('usuario_nome') . '%');
             });
         }
 
         if ($request->filled('cpf')) {
             $cpf = preg_replace('/\D/', '', request('cpf'));
             $query->whereHas('user', function($q) use ($cpf) {
-                $q->where('cpf', 'like', '%' . $cpf . '%');
+                $q->kpiEligible()->where('cpf', 'like', '%' . $cpf . '%');
             });
         }
 
@@ -97,17 +97,23 @@ class CertificateManagementController extends Controller
         $certificados = $query->paginate(15);
         $treinamentos = Training::orderBy('titulo')->get();
         // Tipos de usuário existentes para o filtro
-        $userTypes = User::select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
+        $userTypes = User::kpiEligible()->select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
 
         // Lista de usuários, possivelmente filtrada por tipo
         if ($request->filled('tipo_usuario')) {
-            $users = User::where('tipo_usuario', request('tipo_usuario'))->orderBy('nome')->get();
+            $users = User::kpiEligible()->where('tipo_usuario', request('tipo_usuario'))->orderBy('nome')->get();
         } else {
-            $users = User::orderBy('nome')->get();
+            $users = User::kpiEligible()->orderBy('nome')->get();
         }
 
-        $totalCertificados = Certificate::count();
-        $certificadosValidos = Certificate::where('valido', true)->count();
+        $totalCertificados = Certificate::whereHas('user', function ($q) {
+            $q->kpiEligible();
+        })->count();
+        $certificadosValidos = Certificate::where('valido', true)
+            ->whereHas('user', function ($q) {
+                $q->kpiEligible();
+            })
+            ->count();
 
         return view('certificados.gerencial', [
             'certificados' => $certificados,
@@ -126,11 +132,13 @@ class CertificateManagementController extends Controller
     public function relatorioTreinamentos(Request $request)
     {
         $statusProgresso = $request->input('status_progresso');
+        $somenteFerias = $request->filled('somente_ferias');
+        $trainingId = $request->filled('training_id') ? $request->integer('training_id') : null;
         $progressos = null;
         $treinamentoNaoIniciado = null;
 
         if ($statusProgresso === 'nao_iniciado') {
-            $usersQuery = User::query();
+            $usersQuery = User::query()->kpiEligible();
             $this->aplicarEscopoUsuariosComuns($usersQuery, $request->user());
 
             if ($request->filled('tipo_usuario')) {
@@ -145,8 +153,12 @@ class CertificateManagementController extends Controller
                 $usersQuery->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
             }
 
-            if ($request->filled('training_id')) {
-                $treinamentoNaoIniciado = Training::findOrFail($request->integer('training_id'));
+            if ($somenteFerias) {
+                $usersQuery->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
+            }
+
+            if ($trainingId) {
+                $treinamentoNaoIniciado = Training::findOrFail($trainingId);
                 $usersQuery->whereDoesntHave('progress', function ($q) use ($treinamentoNaoIniciado) {
                     $q->where('training_id', $treinamentoNaoIniciado->id);
                 });
@@ -183,6 +195,9 @@ class CertificateManagementController extends Controller
         } else {
             $query = UserProgress::query();
             $this->aplicarEscopoUsuariosComuns($query, $request->user(), 'user');
+            $query->whereHas('user', function ($userQuery) {
+                $userQuery->kpiEligible();
+            });
 
             if ($request->filled('usuario_id')) {
                 $query->where('user_id', $request->integer('usuario_id'));
@@ -190,7 +205,7 @@ class CertificateManagementController extends Controller
 
             if ($request->filled('tipo_usuario')) {
                 $query->whereHas('user', function ($q) use ($request) {
-                    $q->where('tipo_usuario', $request->input('tipo_usuario'));
+                    $q->kpiEligible()->where('tipo_usuario', $request->input('tipo_usuario'));
                 });
             }
 
@@ -200,7 +215,13 @@ class CertificateManagementController extends Controller
 
             if ($request->filled('usuario_nome')) {
                 $query->whereHas('user', function ($q) use ($request) {
-                    $q->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+                    $q->kpiEligible()->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+                });
+            }
+
+            if ($somenteFerias) {
+                $query->whereHas('user', function ($q) use ($request) {
+                    $q->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
                 });
             }
 
@@ -227,13 +248,40 @@ class CertificateManagementController extends Controller
         }
 
         $treinamentos = Training::orderBy('titulo')->get();
+        $usuariosEmFeriasBase = User::query()->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
+        $this->aplicarEscopoUsuariosComuns($usuariosEmFeriasBase, $request->user());
+        if ($request->filled('tipo_usuario')) {
+            $usuariosEmFeriasBase->where('tipo_usuario', $request->input('tipo_usuario'));
+        }
+        if ($request->filled('usuario_id')) {
+            $usuariosEmFeriasBase->where('id', $request->integer('usuario_id'));
+        }
+        if ($request->filled('usuario_nome')) {
+            $usuariosEmFeriasBase->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+        }
+        if ($trainingId) {
+            $usuariosEmFeriasBase->whereHas('progress', function ($q) use ($trainingId, $request) {
+                $q->where('training_id', $trainingId);
+                if ($request->filled('data_inicio')) {
+                    $q->whereDate('data_inicio', '>=', $request->input('data_inicio'));
+                }
+                if ($request->filled('data_fim')) {
+                    $q->whereDate('data_inicio', '<=', $request->input('data_fim'));
+                }
+            });
+        }
+        $usuariosEmFerias = (clone $usuariosEmFeriasBase)->count();
+        $usuariosEmFeriasLista = (clone $usuariosEmFeriasBase)
+            ->orderBy('nome')
+            ->take(8)
+            ->get();
 
         // Tipos de usuário para filtro e lista dinâmica de usuários
-        $userTypes = User::select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
+        $userTypes = User::kpiEligible()->select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
         if ($request->filled('tipo_usuario')) {
-            $users = User::where('tipo_usuario', $request->input('tipo_usuario'))->orderBy('nome')->get();
+            $users = User::kpiEligible()->where('tipo_usuario', $request->input('tipo_usuario'))->orderBy('nome')->get();
         } else {
-            $users = User::orderBy('nome')->get();
+            $users = User::kpiEligible()->orderBy('nome')->get();
         }
 
         if ($statusProgresso === 'nao_iniciado') {
@@ -247,6 +295,9 @@ class CertificateManagementController extends Controller
         } else {
             $query = UserProgress::query();
             $this->aplicarEscopoUsuariosComuns($query, $request->user(), 'user');
+            $query->whereHas('user', function ($userQuery) {
+                $userQuery->kpiEligible();
+            });
 
             if ($request->filled('usuario_id')) {
                 $query->where('user_id', $request->integer('usuario_id'));
@@ -254,7 +305,7 @@ class CertificateManagementController extends Controller
 
             if ($request->filled('tipo_usuario')) {
                 $query->whereHas('user', function ($q) use ($request) {
-                    $q->where('tipo_usuario', $request->input('tipo_usuario'));
+                    $q->kpiEligible()->where('tipo_usuario', $request->input('tipo_usuario'));
                 });
             }
 
@@ -264,7 +315,7 @@ class CertificateManagementController extends Controller
 
             if ($request->filled('usuario_nome')) {
                 $query->whereHas('user', function ($q) use ($request) {
-                    $q->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+                    $q->kpiEligible()->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
                 });
             }
 
@@ -335,6 +386,8 @@ class CertificateManagementController extends Controller
             'treinamentosResumo' => $treinamentosResumo,
             'usuariosEmDestaque' => $usuariosEmDestaque,
             'conteudosPorTipo' => $conteudosPorTipo,
+            'usuariosEmFerias' => $usuariosEmFerias,
+            'usuariosEmFeriasLista' => $usuariosEmFeriasLista,
             'statusProgresso' => $statusProgresso,
         ]);
     }
@@ -344,7 +397,7 @@ class CertificateManagementController extends Controller
      */
     public function relatorioUsuarios(Request $request)
     {
-        $query = User::query();
+        $query = User::query()->kpiEligible();
 
         // Admin sempre enxerga apenas usuários comuns; Super Admin pode incluir administradores via filtro.
         if ($request->user()->isSuperAdmin() && $request->filled('incluir_adm')) {
@@ -372,6 +425,10 @@ class CertificateManagementController extends Controller
             $query->where('tipo_usuario', $request->input('tipo_usuario'));
         }
 
+        if ($request->filled('somente_ferias')) {
+            $query->vacationInPeriod(now(), now());
+        }
+
         $usuarios = (clone $query)
             ->with(['progress', 'certificates'])
             ->withCount(['progress', 'certificates'])
@@ -380,12 +437,42 @@ class CertificateManagementController extends Controller
             ->orderBy('nome')
             ->paginate(15);
 
-        // Tipos e lista de usuários para filtros dinâmicos
-        $userTypes = User::select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
+        $usuariosEmFeriasBase = User::query()->vacationInPeriod(now(), now());
+        $this->aplicarEscopoUsuariosComuns($usuariosEmFeriasBase, $request->user());
+
         if ($request->filled('tipo_usuario')) {
-            $users = User::where('tipo_usuario', $request->input('tipo_usuario'))->orderBy('nome')->get();
+            $usuariosEmFeriasBase->where('tipo_usuario', $request->input('tipo_usuario'));
+        }
+
+        if ($request->filled('usuario_id')) {
+            $usuariosEmFeriasBase->where('id', $request->integer('usuario_id'));
+        }
+
+        if ($request->filled('nome')) {
+            $usuariosEmFeriasBase->where('nome', 'like', '%' . $request->input('nome') . '%');
+        }
+
+        if ($request->filled('cpf')) {
+            $cpf = preg_replace('/\D/', '', request('cpf'));
+            $usuariosEmFeriasBase->where('cpf', 'like', '%' . $cpf . '%');
+        }
+
+        if ($request->filled('status')) {
+            $usuariosEmFeriasBase->where('status', $request->input('status'));
+        }
+
+        $usuariosEmFerias = (clone $usuariosEmFeriasBase)->count();
+        $usuariosEmFeriasLista = (clone $usuariosEmFeriasBase)
+            ->orderBy('nome')
+            ->take(8)
+            ->get();
+
+        // Tipos e lista de usuários para filtros dinâmicos
+        $userTypes = User::kpiEligible()->select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
+        if ($request->filled('tipo_usuario')) {
+            $users = User::kpiEligible()->where('tipo_usuario', $request->input('tipo_usuario'))->orderBy('nome')->get();
         } else {
-            $users = User::orderBy('nome')->get();
+            $users = User::kpiEligible()->orderBy('nome')->get();
         }
 
         $totalUsuarios = (clone $query)->count();
@@ -394,7 +481,15 @@ class CertificateManagementController extends Controller
         $usuariosComCertificados = (clone $query)->whereHas('certificates')->count();
         $tempoTotalAssistido = UserProgress::query()
             ->whereHas('user', function ($q) use ($request) {
+                $q->kpiEligible();
+
                 if ($request->user()->isSuperAdmin() && $request->filled('incluir_adm')) {
+
+            if ($somenteFerias) {
+                $query->whereHas('user', function ($q) use ($request) {
+                    $q->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
+                });
+            }
                     return;
                 }
 
@@ -414,6 +509,8 @@ class CertificateManagementController extends Controller
             'usuariosComTreinamentos' => $usuariosComTreinamentos,
             'usuariosComCertificados' => $usuariosComCertificados,
             'tempoTotalFormatado' => $this->formatarTempoEmHoras($tempoTotalAssistido),
+            'usuariosEmFerias' => $usuariosEmFerias,
+            'usuariosEmFeriasLista' => $usuariosEmFeriasLista,
             'filtrosAtivos' => $this->verificarFiltrosAtivos($request),
             'userTypes' => $userTypes,
             'users' => $users,
@@ -430,7 +527,7 @@ class CertificateManagementController extends Controller
         $periodoFim = $request->input('periodo_fim');
         $trainingId = $request->filled('training_id') ? $request->integer('training_id') : null;
 
-        $usuariosBase = User::query();
+        $usuariosBase = User::query()->kpiEligible($periodoInicio, $periodoFim);
         $this->aplicarEscopoUsuariosComuns($usuariosBase, $user);
         if ($request->filled('tipo_usuario')) {
             $usuariosBase->where('tipo_usuario', $request->input('tipo_usuario'));
@@ -441,6 +538,9 @@ class CertificateManagementController extends Controller
 
         $certificadosBase = Certificate::query();
         $this->aplicarEscopoUsuariosComuns($certificadosBase, $user, 'user');
+        $certificadosBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim) {
+            $q->kpiEligible($periodoInicio, $periodoFim);
+        });
         if ($request->filled('usuario_id')) {
             $certificadosBase->where('user_id', $request->integer('usuario_id'));
         }
@@ -461,9 +561,12 @@ class CertificateManagementController extends Controller
 
         $progressBase = UserProgress::query();
         $this->aplicarEscopoUsuariosComuns($progressBase, $user, 'user');
+        $progressBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim) {
+            $q->kpiEligible($periodoInicio, $periodoFim);
+        });
         if ($request->filled('tipo_usuario')) {
             $progressBase->whereHas('user', function ($q) use ($request) {
-                $q->where('tipo_usuario', $request->input('tipo_usuario'));
+                $q->kpiEligible()->where('tipo_usuario', $request->input('tipo_usuario'));
             });
         }
         if ($request->filled('usuario_id')) {
@@ -479,6 +582,16 @@ class CertificateManagementController extends Controller
             $progressBase->whereDate('data_inicio', '<=', $periodoFim);
         }
 
+        if ($request->filled('somente_ferias')) {
+            $usuariosBase->vacationInPeriod($periodoInicio, $periodoFim);
+            $certificadosBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim) {
+                $q->vacationInPeriod($periodoInicio, $periodoFim);
+            });
+            $progressBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim) {
+                $q->vacationInPeriod($periodoInicio, $periodoFim);
+            });
+        }
+
         $totalUsuarios = (clone $usuariosBase)->count();
         $usuariosAtivos = (clone $usuariosBase)->where('status', 'ativo')->count();
         $totalTreinamentos = Training::count();
@@ -492,6 +605,19 @@ class CertificateManagementController extends Controller
         $taxaCertificacao = $totalUsuarios > 0 ? ($usuariosComCertificados / $totalUsuarios) * 100 : 0;
         $tempoTotalAssistido = (clone $progressBase)->sum('tempo_assistido');
         $tempoMedioAssistido = (clone $progressBase)->avg('tempo_assistido');
+        $usuariosEmFeriasBase = User::query()->vacationInPeriod($periodoInicio, $periodoFim);
+        $this->aplicarEscopoUsuariosComuns($usuariosEmFeriasBase, $user);
+        if ($request->filled('tipo_usuario')) {
+            $usuariosEmFeriasBase->where('tipo_usuario', $request->input('tipo_usuario'));
+        }
+        if ($request->filled('usuario_id')) {
+            $usuariosEmFeriasBase->where('id', $request->integer('usuario_id'));
+        }
+        $usuariosEmFerias = (clone $usuariosEmFeriasBase)->count();
+        $usuariosEmFeriasLista = (clone $usuariosEmFeriasBase)
+            ->orderBy('nome')
+            ->take(8)
+            ->get();
 
         $usuariosPorTipo = (clone $usuariosBase)
             ->selectRaw("COALESCE(tipo_usuario, 'sem_tipo') as tipo_usuario, COUNT(*) as total")
@@ -537,7 +663,7 @@ class CertificateManagementController extends Controller
             ->take(10)
             ->get();
 
-        $usuariosSemTreinamentoBase = User::whereDoesntHave('progress');
+        $usuariosSemTreinamentoBase = User::query()->kpiEligible($periodoInicio, $periodoFim)->whereDoesntHave('progress');
         $this->aplicarEscopoUsuariosComuns($usuariosSemTreinamentoBase, $user);
         if ($request->filled('tipo_usuario')) {
             $usuariosSemTreinamentoBase->where('tipo_usuario', $request->input('tipo_usuario'));
@@ -574,11 +700,11 @@ class CertificateManagementController extends Controller
         $tempoTotalFormatado = $this->formatarTempoEmHoras($tempoTotalAssistido);
 
         // Tipos e usuários para filtros dinâmicos
-        $userTypes = User::select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
+        $userTypes = User::kpiEligible($periodoInicio, $periodoFim)->select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
         if ($request->filled('tipo_usuario')) {
-            $users = User::where('tipo_usuario', $request->input('tipo_usuario'))->orderBy('nome')->get();
+            $users = User::kpiEligible($periodoInicio, $periodoFim)->where('tipo_usuario', $request->input('tipo_usuario'))->orderBy('nome')->get();
         } else {
-            $users = User::orderBy('nome')->get();
+            $users = User::kpiEligible($periodoInicio, $periodoFim)->orderBy('nome')->get();
         }
 
         $treinamentos = Training::orderBy('titulo')->get();
@@ -605,6 +731,8 @@ class CertificateManagementController extends Controller
             'taxaCertificacaoPercentual' => $taxaCertificacao,
             'tempoTotalFormatado' => $tempoTotalFormatado,
             'tempoMedioFormatado' => $tempoMedioFormatado,
+            'usuariosEmFerias' => $usuariosEmFerias,
+            'usuariosEmFeriasLista' => $usuariosEmFeriasLista,
             'usuariosPorTipo' => $usuariosPorTipo,
             'treinamentosMaisAssistidos' => $treinamentosMaisAssistidos,
             'conteudosPorTipo' => $conteudosPorTipo,
@@ -634,7 +762,7 @@ class CertificateManagementController extends Controller
             $query->where('user_id', request('usuario_id'));
         } elseif ($request->filled('usuario_nome')) {
             $query->whereHas('user', function($q) {
-                $q->where('nome', 'like', '%' . request('usuario_nome') . '%');
+                $q->kpiEligible()->where('nome', 'like', '%' . request('usuario_nome') . '%');
             });
         }
 
@@ -652,7 +780,9 @@ class CertificateManagementController extends Controller
             $query->where('valido', request('valido') === '1');
         }
 
-        $certificados = $query->with(['user', 'training'])->get();
+        $certificados = $query->whereHas('user', function ($q) {
+            $q->kpiEligible();
+        })->with(['user', 'training'])->get();
 
         $filename = 'certificados_' . now()->format('Y-m-d_H-i-s') . '.csv';
 

@@ -106,6 +106,13 @@
                 </select>
             </div>
 
+            <div>
+                <label class="flex items-center">
+                    <input type="checkbox" name="obrigatorio" value="1" {{ old('obrigatorio', $training->obrigatorio) ? 'checked' : '' }} class="mr-2">
+                    <span class="text-gray-700 font-semibold">Treinamento Obrigatório</span>
+                </label>
+            </div>
+
             <div class="border-t pt-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">
                     <i class="fas fa-file-download mr-2 text-green-600"></i>Materiais de Apoio

@@ -71,7 +71,8 @@ class Training extends Model
 
     public function getTaxaConclusao()
     {
-        $total = User::where('status', 'ativo')
+        $total = User::kpiEligible()
+            ->where('status', 'ativo')
             ->whereIn('tipo_usuario', is_array($this->tipo_usuario_permitido) ? $this->tipo_usuario_permitido : json_decode($this->tipo_usuario_permitido, true) ?? [])
             ->count();
 
@@ -81,6 +82,9 @@ class Training extends Model
 
         $concluido = $this->progress()
             ->where('concluido', true)
+            ->whereHas('user', function ($query) {
+                $query->kpiEligible();
+            })
             ->distinct('user_id')
             ->count();
 

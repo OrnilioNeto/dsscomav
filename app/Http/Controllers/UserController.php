@@ -51,6 +51,9 @@ class UserController extends Controller
             'tipo_usuario' => 'required|in:motorista,funcionario,terceirizado',
             'empresa' => 'nullable|string|max:255',
             'cargo' => 'nullable|string|max:255',
+            'ferias_inicio' => 'nullable|date|required_with:ferias_fim',
+            'ferias_fim' => 'nullable|date|required_with:ferias_inicio|after_or_equal:ferias_inicio',
+            'usuario_teste' => 'nullable|boolean',
             'role_id' => 'required|exists:roles,id',
         ]);
 
@@ -62,6 +65,10 @@ class UserController extends Controller
         $data = $request->all();
         $data['cpf'] = preg_replace('/\D/', '', $data['cpf']);
         $data['password'] = Hash::make($data['password']);
+        $data['ferias_inicio'] = $request->filled('ferias_inicio') ? $request->input('ferias_inicio') : null;
+        $data['ferias_fim'] = $request->filled('ferias_fim') ? $request->input('ferias_fim') : null;
+        $data['usuario_teste'] = $request->boolean('usuario_teste');
+        $data['participa_treinamentos'] = $request->boolean('participa_treinamentos');
 
         User::create($data);
 
@@ -98,6 +105,9 @@ class UserController extends Controller
             'empresa' => 'nullable|string|max:255',
             'cargo' => 'nullable|string|max:255',
             'status' => 'required|in:ativo,inativo',
+            'ferias_inicio' => 'nullable|date|required_with:ferias_fim',
+            'ferias_fim' => 'nullable|date|required_with:ferias_inicio|after_or_equal:ferias_inicio',
+            'usuario_teste' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -105,6 +115,9 @@ class UserController extends Controller
         }
 
         $data = $request->all();
+        $data['ferias_inicio'] = $request->filled('ferias_inicio') ? $request->input('ferias_inicio') : null;
+        $data['ferias_fim'] = $request->filled('ferias_fim') ? $request->input('ferias_fim') : null;
+        $data['usuario_teste'] = $request->boolean('usuario_teste');
         
         // Se é um admin, permitir marcar participação em treinamentos
         if ($usuario->isAdmin()) {
