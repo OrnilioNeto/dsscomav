@@ -303,6 +303,24 @@
         </a>
     </div>
 
+    <div class="mt-6 overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-sm">
+        <div class="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
+            <div class="min-w-0">
+                <div class="mb-1 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-800">
+                    <i class="fab fa-whatsapp"></i>
+                    Suporte
+                </div>
+                <p class="text-sm font-semibold text-gray-900">Dúvidas sobre o sistema ou conteúdo?</p>
+                <p class="text-xs text-gray-600">Fale no WhatsApp com a equipe de apoio.</p>
+            </div>
+
+            <a href="https://wa.me/5584994017097" target="_blank" rel="noopener noreferrer" class="inline-flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-emerald-700">
+                <i class="fab fa-whatsapp text-lg"></i>
+                <span class="whitespace-nowrap">84 99401-7097</span>
+            </a>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.locked-training-card').forEach(function(card) {
