@@ -141,6 +141,12 @@
             <h3 class="text-xl font-bold">Gerenciar Treinamentos</h3>
             <p class="text-purple-100 text-sm mt-2">Criar, editar e publicar conteúdo</p>
         </a>
+
+        <a href="{{ route('certificados.gerencial') }}" class="bg-gradient-to-r from-orange-700 to-orange-500 text-white p-6 rounded-lg hover:shadow-lg transition">
+            <i class="fas fa-certificate text-3xl mb-3"></i>
+            <h3 class="text-xl font-bold">Consulta de Certificados</h3>
+            <p class="text-orange-100 text-sm mt-2">Visualizar certificados e relatórios gerenciais</p>
+        </a>
     </div>
     </div>
 

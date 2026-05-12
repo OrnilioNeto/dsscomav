@@ -151,6 +151,11 @@ class CertificateController extends Controller
     public function myCertificates()
     {
         $user = auth()->user();
+
+        if ($user->isSuperAdmin()) {
+            return redirect()->route('certificados.gerencial');
+        }
+
         $certificates = Certificate::where('user_id', $user->id)
             ->where('valido', true)
             ->with(['training', 'user'])
