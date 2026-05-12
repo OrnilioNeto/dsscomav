@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Role;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -135,5 +136,86 @@ class UserController extends Controller
         $usuario->delete();
 
         return redirect()->route('usuarios.index')->with('success', 'Usuário deletado!');
+    }
+
+    public function relatorioExcluidosKPI()
+    {
+        // Apenas super_admin pode acessar
+        if (! auth()->user()->isSuperAdmin()) {
+            abort(403, 'Acesso negado. Apenas super_admin pode acessar este relatório.');
+        }
+
+        $today = Carbon::now(config('app.timezone'))->toDateString();
+
+        // Usuários super_admin
+        $superAdmins = User::whereHas('role', function ($q) {
+            $q->where('nome', 'super_admin');
+        })->get();
+
+        // Usuários de teste
+        $usuariosTeste = User::where('usuario_teste', true)->get();
+
+        // Admins sem participação em treinamentos
+        $adminsSemParticipacaoTreinamentos = User::where('usuario_teste', false)
+            ->whereHas('role', function ($q) {
+                $q->where('nome', 'admin');
+            })
+            ->where('participa_treinamentos', false)
+            ->get();
+
+        // Usuários em férias (agora), exceto super_admin e exceto usuários de teste
+        $usuariosEmFerias = User::where('usuario_teste', false)
+            ->where(function ($roleQuery) {
+                $roleQuery->whereNull('role_id')
+                    ->orWhereHas('role', function ($role) {
+                        $role->where('nome', '<>', 'super_admin');
+                    });
+            })
+            ->whereNotNull('ferias_inicio')
+            ->whereNotNull('ferias_fim')
+            ->whereDate('ferias_inicio', '<=', $today)
+            ->whereDate('ferias_fim', '>=', $today)
+            ->get();
+
+        // Excluídos únicos: super_admin OU usuário_teste OU admin sem participação OU em férias
+        $totalExcluidosKPI = User::where(function ($query) use ($today) {
+            $query->whereHas('role', function ($roleQuery) {
+                $roleQuery->where('nome', 'super_admin');
+            })
+                ->orWhere('usuario_teste', true)
+                ->orWhere(function ($adminWithoutParticipationQuery) {
+                    $adminWithoutParticipationQuery->where('usuario_teste', false)
+                        ->whereHas('role', function ($roleQuery) {
+                            $roleQuery->where('nome', 'admin');
+                        })
+                        ->where('participa_treinamentos', false);
+                })
+                ->orWhere(function ($vacationQuery) use ($today) {
+                    $vacationQuery->where('usuario_teste', false)
+                        ->where(function ($roleQuery) {
+                            $roleQuery->whereNull('role_id')
+                                ->orWhereHas('role', function ($role) {
+                                    $role->where('nome', '<>', 'super_admin');
+                                });
+                        })
+                        ->whereNotNull('ferias_inicio')
+                        ->whereNotNull('ferias_fim')
+                        ->whereDate('ferias_inicio', '<=', $today)
+                        ->whereDate('ferias_fim', '>=', $today);
+                });
+        })->count();
+
+        $totalUsuarios = User::count();
+        $usuariosEligiveisKPI = User::kpiEligible()->count();
+
+        return view('usuarios.excluidos-kpi', compact(
+            'superAdmins',
+            'usuariosTeste',
+            'adminsSemParticipacaoTreinamentos',
+            'usuariosEmFerias',
+            'usuariosEligiveisKPI',
+            'totalUsuarios',
+            'totalExcluidosKPI'
+        ));
     }
 }

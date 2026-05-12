@@ -129,17 +129,22 @@ class User extends Authenticatable
 
     public function scopeKpiEligible($query, $periodStart = null, $periodEnd = null)
     {
-        // SEMPRE excluir: admin, super_admin, usuario_teste e usuários em férias (agora)
+        // SEMPRE excluir: super_admin, usuario_teste, admin sem participação e usuários em férias (agora)
         $now = Carbon::now(config('app.timezone'));
 
         return $query
             ->where(function ($roleQuery) {
                 $roleQuery->whereNull('role_id')
                     ->orWhereHas('role', function ($role) {
-                        $role->whereNotIn('nome', ['admin', 'super_admin']);
+                        $role->where('nome', '<>', 'super_admin');
                     });
             })
             ->where('usuario_teste', false)
+            ->where(function ($adminParticipationQuery) {
+                $adminParticipationQuery->whereDoesntHave('role', function ($role) {
+                    $role->where('nome', 'admin');
+                })->orWhere('participa_treinamentos', true);
+            })
             ->where(function ($vacationQuery) use ($now) {
                 // Excluir quem está em férias agora
                 $vacationQuery->whereNull('ferias_inicio')

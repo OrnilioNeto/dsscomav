@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
     // Rotas do Admin e Super Admin
     Route::middleware([CheckRole::class . ':admin,super_admin'])->group(function () {
         // Usuários
+        Route::get('/usuarios/excluidos-kpi', [UserController::class, 'relatorioExcluidosKPI'])->name('usuarios.exclus-kpi');
         Route::resource('usuarios', UserController::class);
 
         // Treinamentos
