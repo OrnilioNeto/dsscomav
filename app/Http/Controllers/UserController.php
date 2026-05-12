@@ -98,7 +98,7 @@ class UserController extends Controller
     {
         $usuario = User::findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'nome' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
             'telefone' => 'nullable|string',
@@ -109,7 +109,14 @@ class UserController extends Controller
             'ferias_inicio' => 'nullable|date|required_with:ferias_fim',
             'ferias_fim' => 'nullable|date|required_with:ferias_inicio|after_or_equal:ferias_inicio',
             'usuario_teste' => 'nullable|boolean',
-        ]);
+        ];
+
+        // Se super_admin, permitir alteração de senha
+        if (auth()->user()->isSuperAdmin()) {
+            $rules['password'] = 'nullable|string|min:8|confirmed';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -119,6 +126,17 @@ class UserController extends Controller
         $data['ferias_inicio'] = $request->filled('ferias_inicio') ? $request->input('ferias_inicio') : null;
         $data['ferias_fim'] = $request->filled('ferias_fim') ? $request->input('ferias_fim') : null;
         $data['usuario_teste'] = $request->boolean('usuario_teste');
+        
+        // Se super_admin e preencheu nova senha, hashear e incluir na atualização
+        if (auth()->user()->isSuperAdmin() && $request->filled('password')) {
+            $data['password'] = Hash::make($request->input('password'));
+        } else {
+            // Remover da tentativa de update para não alterar senha
+            unset($data['password']);
+        }
+        
+        // Remover confirmação de senha da atualização
+        unset($data['password_confirmation']);
         
         // Se é um admin, permitir marcar participação em treinamentos
         if ($usuario->isAdmin()) {

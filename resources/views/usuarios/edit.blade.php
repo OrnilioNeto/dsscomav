@@ -37,6 +37,25 @@
                 </div>
             </div>
 
+            @if(auth()->user()->isSuperAdmin())
+                <div class="bg-red-50 p-4 rounded-lg border-2 border-red-200">
+                    <h3 class="text-red-900 font-semibold mb-4">
+                        <i class="fas fa-lock mr-2"></i>Configurações de Acesso (Super Admin)
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Alterar Senha</label>
+                            <input type="password" name="password" placeholder="Deixe em branco para manter a senha atual" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600">
+                            <p class="text-xs text-gray-600 mt-1">Mínimo 8 caracteres. Deixe em branco para não alterar.</p>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Confirmar Senha</label>
+                            <input type="password" name="password_confirmation" placeholder="Confirme a nova senha" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600">
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">Status *</label>
