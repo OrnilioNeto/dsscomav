@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use TCPDF;
 use Illuminate\Support\Facades\Storage;
+use App\Services\TrainingAnalyzer;
+use App\Services\AiSummarizer;
 
 class CertificateManagementController extends Controller
 {
@@ -666,6 +668,95 @@ class CertificateManagementController extends Controller
             'userTypes' => $userTypes,
             'users' => $users,
         ]);
+    }
+
+    /**
+     * Página de IA / Análises (super admin)
+     */
+    public function relatoriosIa(Request $request)
+    {
+        $treinamentos = Training::orderBy('titulo')->get();
+        return view('admin.relatorios_ia', [
+            'treinamentos' => $treinamentos,
+        ]);
+    }
+
+    /**
+     * Análise local (heurística)
+     */
+    public function analyzeLocal(Request $request, TrainingAnalyzer $analyzer)
+    {
+        $trainingId = $request->input('training_id');
+        
+        // Validar se um treinamento foi selecionado
+        if (empty($trainingId)) {
+            return response()->json([
+                'error' => 'Nenhum treinamento selecionado. Selecione um treinamento para gerar análise.',
+                'concluidos' => 0,
+            ], 400);
+        }
+
+        // Verificar se o treinamento existe
+        $training = Training::find($trainingId);
+        if (!$training) {
+            return response()->json([
+                'error' => 'Treinamento não encontrado no sistema.',
+                'concluidos' => 0,
+            ], 404);
+        }
+
+        $metrics = $analyzer->analyze((int)$trainingId);
+        
+        // Validar se há dados
+        if (($metrics['concluidos'] ?? 0) === 0) {
+            return response()->json(array_merge($metrics, [
+                'error' => "Sem dados de conclusão para '{$training->titulo}'.\n\nNenhum usuário finalizou este treinamento ainda.",
+            ]));
+        }
+
+        return response()->json($metrics);
+    }
+
+    /**
+     * Análise via IA (Gemini) - retorna texto gerado pela IA ou erro
+     */
+    public function analyzeAi(Request $request, TrainingAnalyzer $analyzer, AiSummarizer $ai)
+    {
+        $trainingId = $request->input('training_id');
+        
+        // Validar se um treinamento foi selecionado
+        if (empty($trainingId)) {
+            return response()->json([
+                'source' => 'error',
+                'ai_summary' => null,
+                'error' => 'Nenhum treinamento selecionado. Selecione um treinamento para gerar análise com IA.',
+            ], 400);
+        }
+
+        // Verificar se o treinamento existe
+        $training = Training::find($trainingId);
+        if (!$training) {
+            return response()->json([
+                'source' => 'error',
+                'ai_summary' => null,
+                'error' => 'Treinamento não encontrado no sistema.',
+            ], 404);
+        }
+
+        $metrics = $analyzer->analyze((int)$trainingId);
+        
+        // Validar se há dados
+        if (($metrics['concluidos'] ?? 0) === 0) {
+            return response()->json([
+                'source' => 'error',
+                'ai_summary' => null,
+                'error' => "Sem dados de conclusão para '{$training->titulo}'.\n\nNenhum usuário finalizou este treinamento ainda. Não há dados para análise.",
+            ]);
+        }
+
+        $trainingTitle = $training->titulo;
+        $res = $ai->summarize($metrics, $trainingTitle);
+        return response()->json($res);
     }
 
     /**
