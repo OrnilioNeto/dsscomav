@@ -304,10 +304,13 @@
                 <thead class="bg-gray-100 border-b-2 border-gray-300">
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold">Usuário</th>
+                        <th class="px-4 py-3 text-left font-semibold">Ocupação</th>
                         <th class="px-4 py-3 text-left font-semibold">Treinamento</th>
                         <th class="px-4 py-3 text-center font-semibold">Tempo Assistido</th>
                         <th class="px-4 py-3 text-center font-semibold">Progresso</th>
                         <th class="px-4 py-3 text-center font-semibold">Status</th>
+                        <th class="px-4 py-3 text-left font-semibold">Pergunta da Avaliação</th>
+                        <th class="px-4 py-3 text-left font-semibold">Resposta do Usuário</th>
                         <th class="px-4 py-3 text-center font-semibold">Início</th>
                         <th class="px-4 py-3 text-center font-semibold">Conclusão</th>
                     </tr>
@@ -318,6 +321,9 @@
                             <td class="px-4 py-3">
                                 <div class="font-semibold text-gray-800">{{ $progresso->user->nome }}</div>
                                 <div class="text-sm text-gray-600">{{ $progresso->user->getCpfFormatted() }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">
+                                {{ $progresso->user->tipo_usuario ? ucfirst(str_replace('_', ' ', $progresso->user->tipo_usuario)) : '—' }}
                             </td>
                             <td class="px-4 py-3 text-gray-700">
                                 <div class="font-semibold">{{ optional($progresso->training)->titulo ?? 'Nenhum treinamento iniciado' }}</div>
@@ -339,12 +345,30 @@
                                     <span class="bg-yellow-100 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">⧖ Pendente</span>
                                 @endif
                             </td>
+                            <td class="px-4 py-3 text-gray-700">
+                                {{ optional($progresso->training)->avaliacao_pergunta ?? '—' }}
+                            </td>
+                            <td class="px-4 py-3 text-gray-700">
+                                @php
+                                    $opcoesAvaliacao = optional($progresso->training)->avaliacao_opcoes;
+                                    $respostaUsuario = $progresso->avaliacao_resposta_usuario ?? null;
+                                    $respostaCorreta = optional($progresso->training)->avaliacao_resposta_correta;
+                                @endphp
+                                @if(is_array($opcoesAvaliacao) && $respostaUsuario !== null)
+                                    {{ $opcoesAvaliacao[$respostaUsuario] ?? 'Resposta inválida' }}
+                                @elseif(is_array($opcoesAvaliacao) && $progresso->avaliacao_aprovada && $respostaCorreta !== null)
+                                    {{ $opcoesAvaliacao[$respostaCorreta] ?? 'Resposta correta não encontrada' }}
+                                    <div class="text-xs text-gray-500">(registro antigo sem resposta salva)</div>
+                                @else
+                                    —
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-center text-gray-700">{{ $progresso->data_inicio ? \Carbon\Carbon::parse($progresso->data_inicio)->format('d/m/Y H:i') : '—' }}</td>
                             <td class="px-4 py-3 text-center text-gray-700">{{ $progresso->data_conclusao ? \Carbon\Carbon::parse($progresso->data_conclusao)->format('d/m/Y H:i') : '—' }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-gray-600">
+                            <td colspan="10" class="px-4 py-8 text-center text-gray-600">
                                 <i class="fas fa-inbox text-3xl text-gray-400 mb-2"></i>
                                 <p class="mt-2">Nenhum registro encontrado</p>
                             </td>
