@@ -147,6 +147,7 @@ class TrainingPlayerController extends Controller
             ->where('training_id', $training->id)
             ->firstOrFail();
 
+
         $isCorrect = (int) $request->answer === (int) $training->avaliacao_resposta_correta;
 
         if (!$isCorrect) {
@@ -161,6 +162,7 @@ class TrainingPlayerController extends Controller
                     'tempo_assistido' => 0,
                     'data_inicio' => now(config('app.timezone')),
                     'data_conclusao' => null,
+                    'avaliacao_resposta_usuario' => null,
                 ]);
 
                 return response()->json([
@@ -172,6 +174,7 @@ class TrainingPlayerController extends Controller
 
             $progress->update([
                 'avaliacao_tentativas' => $tentativas,
+                'avaliacao_resposta_usuario' => (int) $request->answer,
             ]);
 
             return response()->json([
@@ -184,6 +187,7 @@ class TrainingPlayerController extends Controller
         $progress->update([
             'avaliacao_aprovada' => true,
             'avaliacao_tentativas' => 0,
+            'avaliacao_resposta_usuario' => (int) $request->answer,
         ]);
 
         if ($progress->porcentagem_assistida >= 90 && !$progress->concluido) {

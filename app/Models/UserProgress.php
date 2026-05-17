@@ -21,6 +21,7 @@ class UserProgress extends Model
         'porcentagem_assistida',
         'avaliacao_aprovada',
         'avaliacao_tentativas',
+        'avaliacao_resposta_usuario',
     ];
 
     protected $casts = [
@@ -29,6 +30,7 @@ class UserProgress extends Model
         'concluido' => 'boolean',
         'avaliacao_aprovada' => 'boolean',
         'avaliacao_tentativas' => 'integer',
+        'avaliacao_resposta_usuario' => 'integer',
         'porcentagem_assistida' => 'integer',
     ];
 
