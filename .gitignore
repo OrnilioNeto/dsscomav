@@ -23,3 +23,5 @@ Thumbs.db
 .phpunit.result.cache
 !bootstrap/cache/.gitkeep
 bootstrap/cache/*.php
+
+database/database.sqlite

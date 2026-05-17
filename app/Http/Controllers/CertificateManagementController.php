@@ -525,20 +525,20 @@ class CertificateManagementController extends Controller
         $pdf->SetCreator('Plataforma DSS');
         $pdf->SetAuthor('Plataforma DSS');
         $pdf->SetTitle('Relatorio de Treinamentos');
-        $pdf->SetMargins(10, 20, 10);
-        $pdf->SetAutoPageBreak(true, 15);
-        $pdf->SetDrawColor(187, 187, 187);
-        $pdf->SetLineWidth(0.3);
+        $pdf->SetMargins(8, 18, 8);
+        $pdf->SetAutoPageBreak(true, 18);
+        $pdf->SetDrawColor(150, 150, 150);
+        $pdf->SetLineWidth(0.2);
         $pdf->AddPage();
 
         // Add logo if exists
         $logoPath = public_path('images/logo-comav-transportes.png');
         if (file_exists($logoPath)) {
-            $pdf->Image($logoPath, 12, 10, 25, '', '', '', '', false, 300, '', false, false, 0);
-            $pdf->SetY(20);
+            $pdf->Image($logoPath, 10, 20, 22, '', '', '', '', false, 300, '', false, false, 0);
+            $pdf->SetY(18);
         }
 
-        $pdf->SetFont('Helvetica', '', 9);
+        $pdf->SetFont('Helvetica', '', 8);
         $pdf->writeHTML($html, true, false, true, false, '');
         $pdf->Output('relatorio_treinamentos.pdf', 'D');
     }
