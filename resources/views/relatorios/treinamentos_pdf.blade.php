@@ -23,37 +23,11 @@
 <div class="title">Relatório de Treinamentos</div>
 <div class="subtitle">{{ $subtitle ?? '' }}</div>
 </div>
-<div class="audit-header">
-<div class="audit-header-label">Pergunta Cadastrada:</div>
-<div class="audit-header-value">
-@if(!$multiTraining && $training)
-{{ $training->avaliacao_pergunta ?? '—' }}
-@else
-<span class="audit-empty">Multiplos treinamentos - Consulte tabela abaixo</span>
-@endif
-</div>
-<div class="audit-header-label">Resposta Correta Cadastrada:</div>
-<div class="audit-header-value">
-@if(!$multiTraining && $training)
-@php
-$opcoes = $training->avaliacao_opcoes;
-$respostaCorretaIdx = $training->avaliacao_resposta_correta;
-@endphp
-@if(is_array($opcoes) && $respostaCorretaIdx !== null && isset($opcoes[$respostaCorretaIdx]))
-{{ $opcoes[$respostaCorretaIdx] }}
-@else
-—
-@endif
-@else
-<span class="audit-empty">Multiplos treinamentos - Consulte tabela abaixo</span>
-@endif
-</div>
-</div>
 <table>
 <thead>
 <tr>
 <th class="text-center">Usuario</th>
-<th class="text-center">Ocupacao</th>
+<th class="text-center">Funcao</th>
 <th class="text-center">Treinamento</th>
 <th class="text-center">Tempo Assistido</th>
 <th class="text-center">Progresso</th>
@@ -69,7 +43,7 @@ $respostaCorretaIdx = $training->avaliacao_resposta_correta;
 @forelse($progressos as $p)
 <tr>
 <td>{{ optional($p->user)->nome ?? '—' }}</td>
-<td class="text-center">{{ optional($p->user)->tipo_usuario ? ucfirst(str_replace('_',' ', optional($p->user)->tipo_usuario)) : '—' }}</td>
+<td class="text-center">@if(optional($p->user)->tipo_usuario === 'motorista') Motorista @elseif(optional($p->user)->tipo_usuario === 'funcionario') {{ optional($p->user)->cargo ?? '—' }} @else {{ optional($p->user)->tipo_usuario ? ucfirst(str_replace('_',' ', optional($p->user)->tipo_usuario)) : '—' }} @endif</td>
 <td>{{ optional($p->training)->titulo ?? '—' }}</td>
 <td class="text-center">{{ isset($p->tempo_assistido) ? gmdate('H:i:s', (int)$p->tempo_assistido) : '—' }}</td>
 <td class="text-center">{{ $p->porcentagem_assistida ?? 0 }}%</td>
@@ -87,7 +61,6 @@ $respostaCorretaIdx = $training->avaliacao_resposta_correta;
         {{ $opcoesAvaliacao[$respostaUsuario] ?? 'Resposta invalida' }}
     @elseif(is_array($opcoesAvaliacao) && $respostaCorreta !== null)
         {{ $opcoesAvaliacao[$respostaCorreta] ?? '—' }}<br>
-        <span class="small">(registrado na liberacao)</span>
     @else
         —
     @endif
