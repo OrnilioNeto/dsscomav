@@ -3,17 +3,46 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: app-dss
     ports:
       - "9000:8000"
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:9000
+    depends_on:
+      - db
     volumes:
-      - app_database:/var/www/app/database
+      - .:/var/www/app
       - app_storage:/var/www/app/storage
       - ./public/images:/var/www/app/public/images
 
+  db:
+    image: mariadb:11
+    container_name: dss-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: dss_db
+      MYSQL_USER: dss_user
+      MYSQL_PASSWORD: dss_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  adminer:
+    image: adminer
+    container_name: dss-adminer
+    restart: always
+    environment:
+      UPLOAD: 4096M
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - "8001:8080"
+    depends_on:
+      - db
+
 volumes:
-  app_database:
   app_storage:
+  mariadb_data:
