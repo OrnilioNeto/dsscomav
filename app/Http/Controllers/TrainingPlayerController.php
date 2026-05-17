@@ -174,7 +174,6 @@ class TrainingPlayerController extends Controller
 
             $progress->update([
                 'avaliacao_tentativas' => $tentativas,
-                'avaliacao_resposta_usuario' => (int) $request->answer,
             ]);
 
             return response()->json([

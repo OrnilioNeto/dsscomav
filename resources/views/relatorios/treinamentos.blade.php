@@ -182,14 +182,17 @@
                 </div>
             </div>
 
-            <div class="flex gap-2 items-end">
-                <button type="submit" class="flex-1 md:flex-none bg-blue-900 text-white py-2 px-4 rounded-lg hover:bg-blue-800 transition">
-                    <i class="fas fa-search mr-2"></i>Filtrar
-                </button>
-                <a href="{{ route('relatorios.treinamentos') }}" class="flex-1 md:flex-none bg-gray-300 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-400 transition text-center">
-                    <i class="fas fa-redo mr-2"></i>Limpar
-                </a>
-            </div>
+                <div class="flex gap-2 items-end">
+                    <button type="submit" class="flex-1 md:flex-none bg-blue-900 text-white py-2 px-4 rounded-lg hover:bg-blue-800 transition">
+                        <i class="fas fa-search mr-2"></i>Filtrar
+                    </button>
+                    <a href="{{ route('relatorios.treinamentos') }}" class="flex-1 md:flex-none bg-gray-300 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-400 transition text-center">
+                        <i class="fas fa-redo mr-2"></i>Limpar
+                    </a>
+                    <a href="{{ route('relatorios.treinamentos.pdf') }}{{ request()->getQueryString() ? ('?' . request()->getQueryString()) : '' }}" class="flex-1 md:flex-none bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-500 transition text-center">
+                        <i class="fas fa-file-pdf mr-2"></i>Baixar PDF
+                    </a>
+                </div>
         </form>
     </div>
 
@@ -354,13 +357,17 @@
                                     $respostaUsuario = $progresso->avaliacao_resposta_usuario ?? null;
                                     $respostaCorreta = optional($progresso->training)->avaliacao_resposta_correta;
                                 @endphp
-                                @if(is_array($opcoesAvaliacao) && $respostaUsuario !== null)
-                                    {{ $opcoesAvaliacao[$respostaUsuario] ?? 'Resposta inválida' }}
-                                @elseif(is_array($opcoesAvaliacao) && $progresso->avaliacao_aprovada && $respostaCorreta !== null)
-                                    {{ $opcoesAvaliacao[$respostaCorreta] ?? 'Resposta correta não encontrada' }}
-                                    <div class="text-xs text-gray-500">(registro antigo sem resposta salva)</div>
+                                @if($progresso->concluido && $progresso->avaliacao_aprovada)
+                                    @if(is_array($opcoesAvaliacao) && $respostaUsuario !== null)
+                                        {{ $opcoesAvaliacao[$respostaUsuario] ?? 'Resposta inválida' }}
+                                    @elseif(is_array($opcoesAvaliacao) && $respostaCorreta !== null)
+                                        {{ $opcoesAvaliacao[$respostaCorreta] ?? 'Resposta correta não encontrada' }}
+                                        <div class="text-xs text-gray-500">(registrado no momento da liberação)</div>
+                                    @else
+                                        —
+                                    @endif
                                 @else
-                                    —
+                                    <span class="text-xs text-gray-500">—</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-center text-gray-700">{{ $progresso->data_inicio ? \Carbon\Carbon::parse($progresso->data_inicio)->format('d/m/Y H:i') : '—' }}</td>
