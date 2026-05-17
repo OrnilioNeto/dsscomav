@@ -1,17 +1,14 @@
 <html>
 <head>
     <style>
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; line-height: 1.3; margin: 0; padding: 0; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; line-height: 1.4; margin: 0; padding: 0; }
         .header-section { margin-bottom: 16px; padding-bottom: 12px; text-align: center; }
         .title { font-size: 18px; font-weight: 700; color: #003d82; margin-bottom: 4px; }
         .subtitle { font-size: 11px; color: #666; margin-top: 2px; font-weight: 500; }
-        .audit-header { margin-bottom: 12px; background: #f0f4f8; padding: 10px; border-left: 5px solid #003d82; font-size: 9px; }
-        .audit-header-label { font-weight: 700; color: #003d82; margin-top: 6px; }
-        .audit-header-label:first-child { margin-top: 0; }
-        .audit-header-value { color: #333; margin-top: 2px; padding: 4px 0; }
-        .audit-empty { color: #999; font-style: italic; }
-        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        th, td { border: 1px solid #bbb; padding: 5px 4px; font-size: 8px; text-align: left; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; page-break-inside: avoid; }
+        thead { display: table-header-group; }
+        tbody tr { page-break-inside: avoid; page-break-after: auto; }
+        th, td { border: 1px solid #bbb; padding: 6px 3px; font-size: 8px; text-align: left; vertical-align: middle; }
         th { background: #003d82; font-weight: 700; color: white; }
         tr:nth-child(even) { background: #fafbfc; }
         .text-center { text-align: center; }

@@ -524,8 +524,11 @@ class CertificateManagementController extends Controller
         $pdf = new TCPDF('L');
         $pdf->SetCreator('Plataforma DSS');
         $pdf->SetAuthor('Plataforma DSS');
-        $pdf->SetTitle('Relatório de Treinamentos');
-        $pdf->SetMargins(12, 20, 12);
+        $pdf->SetTitle('Relatorio de Treinamentos');
+        $pdf->SetMargins(10, 20, 10);
+        $pdf->SetAutoPageBreak(true, 15);
+        $pdf->SetDrawColor(187, 187, 187);
+        $pdf->SetLineWidth(0.3);
         $pdf->AddPage();
 
         // Add logo if exists
