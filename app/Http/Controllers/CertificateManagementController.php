@@ -9,6 +9,8 @@ use App\Models\UserProgress;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use TCPDF;
+use Illuminate\Support\Facades\Storage;
 
 class CertificateManagementController extends Controller
 {
@@ -390,6 +392,152 @@ class CertificateManagementController extends Controller
             'usuariosEmFeriasLista' => $usuariosEmFeriasLista,
             'statusProgresso' => $statusProgresso,
         ]);
+    }
+
+    /**
+     * Export filtered training report as PDF
+     */
+    public function relatorioTreinamentosPdf(Request $request)
+    {
+        // Reuse same logic to build $progressos but without pagination
+        $statusProgresso = $request->input('status_progresso');
+        $somenteFerias = $request->filled('somente_ferias');
+        $trainingId = $request->filled('training_id') ? $request->integer('training_id') : null;
+
+        if ($statusProgresso === 'nao_iniciado') {
+            $usersQuery = User::query()->kpiEligible();
+            $this->aplicarEscopoUsuariosComuns($usersQuery, $request->user());
+
+            if ($request->filled('tipo_usuario')) {
+                $usersQuery->where('tipo_usuario', $request->input('tipo_usuario'));
+            }
+
+            if ($request->filled('usuario_id')) {
+                $usersQuery->where('id', $request->integer('usuario_id'));
+            }
+
+            if ($request->filled('usuario_nome')) {
+                $usersQuery->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+            }
+
+            if ($somenteFerias) {
+                $usersQuery->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
+            }
+
+            if ($trainingId) {
+                $treinamentoNaoIniciado = Training::findOrFail($trainingId);
+                $usersQuery->whereDoesntHave('progress', function ($q) use ($treinamentoNaoIniciado) {
+                    $q->where('training_id', $treinamentoNaoIniciado->id);
+                });
+            } else {
+                $usersQuery->whereDoesntHave('progress');
+            }
+
+            $usersNaoIniciados = $usersQuery->orderBy('nome')->get();
+            $progressos = $usersNaoIniciados->map(function ($user) use ($treinamentoNaoIniciado) {
+                $row = new \stdClass();
+                $row->user = $user;
+                $row->training = $treinamentoNaoIniciado;
+                $row->tempo_assistido = 0;
+                $row->porcentagem_assistida = 0;
+                $row->concluido = false;
+                $row->data_inicio = null;
+                $row->data_conclusao = null;
+
+                return $row;
+            });
+        } else {
+            $query = UserProgress::query();
+            $this->aplicarEscopoUsuariosComuns($query, $request->user(), 'user');
+            $query->whereHas('user', function ($userQuery) {
+                $userQuery->kpiEligible();
+            });
+
+            if ($request->filled('usuario_id')) {
+                $query->where('user_id', $request->integer('usuario_id'));
+            }
+
+            if ($request->filled('tipo_usuario')) {
+                $query->whereHas('user', function ($q) use ($request) {
+                    $q->kpiEligible()->where('tipo_usuario', $request->input('tipo_usuario'));
+                });
+            }
+
+            if ($request->filled('training_id')) {
+                $query->where('training_id', $request->integer('training_id'));
+            }
+
+            if ($request->filled('usuario_nome')) {
+                $query->whereHas('user', function ($q) use ($request) {
+                    $q->kpiEligible()->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+                });
+            }
+
+            if ($somenteFerias) {
+                $query->whereHas('user', function ($q) use ($request) {
+                    $q->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
+                });
+            }
+
+            if ($statusProgresso !== null && $statusProgresso !== '') {
+                if (in_array($statusProgresso, ['1', 'true', 'concluido'], true)) {
+                    $query->where('concluido', true);
+                } elseif (in_array($statusProgresso, ['0', 'false', 'pendente'], true)) {
+                    $query->where('concluido', false);
+                }
+            }
+
+            if ($request->filled('data_inicio')) {
+                $query->whereDate('data_inicio', '>=', $request->input('data_inicio'));
+            }
+
+            if ($request->filled('data_fim')) {
+                $query->whereDate('data_conclusao', '<=', $request->input('data_fim'));
+            }
+
+            $progressos = (clone $query)
+                ->with(['user', 'training'])
+                ->orderByDesc('data_inicio')
+                ->get();
+        }
+
+        // Determine if single training filtered
+        $multiTraining = $trainingId === null;
+        $subtitle = '';
+        $trainingObj = null;
+        if ($trainingId) {
+            $trainingObj = Training::find($trainingId);
+            $subtitle = $trainingObj ? $trainingObj->titulo : 'Filtro de treinamento aplicado';
+        } else {
+            $subtitle = 'Treinamentos';
+        }
+
+        // Render HTML view for PDF
+        $html = view('relatorios.treinamentos_pdf', [
+            'progressos' => $progressos,
+            'multiTraining' => $multiTraining,
+            'subtitle' => $subtitle,
+            'training' => $trainingObj,
+        ])->render();
+
+        // Generate PDF with TCPDF (Landscape orientation)
+        $pdf = new TCPDF('L');
+        $pdf->SetCreator('Plataforma DSS');
+        $pdf->SetAuthor('Plataforma DSS');
+        $pdf->SetTitle('Relatório de Treinamentos');
+        $pdf->SetMargins(12, 20, 12);
+        $pdf->AddPage();
+
+        // Add logo if exists
+        $logoPath = public_path('images/logo-comav-transportes.png');
+        if (file_exists($logoPath)) {
+            $pdf->Image($logoPath, 12, 10, 25, '', '', '', '', false, 300, '', false, false, 0);
+            $pdf->SetY(20);
+        }
+
+        $pdf->SetFont('Helvetica', '', 9);
+        $pdf->writeHTML($html, true, false, true, false, '');
+        $pdf->Output('relatorio_treinamentos.pdf', 'D');
     }
 
     /**

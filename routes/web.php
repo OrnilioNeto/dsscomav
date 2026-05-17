@@ -70,6 +70,7 @@ Route::middleware('auth')->group(function () {
         // Certificados e Relatórios Gerenciais
         Route::get('/certificados-gerencial', [CertificateManagementController::class, 'index'])->name('certificados.gerencial');
         Route::get('/relatorios/treinamentos', [CertificateManagementController::class, 'relatorioTreinamentos'])->name('relatorios.treinamentos');
+        Route::get('/relatorios/treinamentos/pdf', [CertificateManagementController::class, 'relatorioTreinamentosPdf'])->name('relatorios.treinamentos.pdf');
         Route::get('/relatorios/usuarios', [CertificateManagementController::class, 'relatorioUsuarios'])->name('relatorios.usuarios');
         Route::get('/relatorios/auditoria', [CertificateManagementController::class, 'relatorioAuditoria'])->name('relatorios.auditoria');
         Route::get('/certificados/exportar', [CertificateManagementController::class, 'exportarCertificados'])->name('certificados.exportar');
