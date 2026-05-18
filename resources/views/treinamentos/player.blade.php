@@ -216,12 +216,13 @@
     const assessmentUrl = '{{ route('treinamentos.avaliacao', $training->id) }}';
     const csrfToken = '{{ csrf_token() }}';
     const hasAssessment = {{ $training->hasAssessment() ? 'true' : 'false' }};
+    const isTestUser = {{ auth()->user()->isTestUser() ? 'true' : 'false' }};
     const trainingType = '{{ $training->tipo_video }}';
     const registeredDurationSeconds = {{ (int) $training->carga_horaria * 60 }};
 
     let currentProgress = {{ $progress->porcentagem_assistida }};
     let assessmentOpened = {{ $progress->avaliacao_aprovada ? 'true' : 'false' }};
-    let assessmentUnlocked = {{ $progress->porcentagem_assistida >= 99 ? 'true' : 'false' }};
+    let assessmentUnlocked = {{ (auth()->user()->isTestUser() || $progress->porcentagem_assistida >= 99) ? 'true' : 'false' }};
     let lastUpdateTime = 0;
     let lastSafeTime = {{ (int) $progress->tempo_assistido }};
     let assessmentAttempt = {{ (int) ($progress->avaliacao_tentativas ?? 0) }};
@@ -317,24 +318,46 @@
         e.preventDefault();
         const answer = document.querySelector('input[name="answer"]:checked')?.value;
         console.log('[ASSESSMENT] submitindo resposta:', answer);
-        if (!answer) {
+        if (answer === undefined) {
             console.log('[ASSESSMENT] nenhuma resposta selecionada');
             return;
         }
 
         fetch(assessmentUrl, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': csrfToken
             },
             body: JSON.stringify({ answer })
-        }).then(r => {
-            console.log('[ASSESSMENT] response status:', r.status);
-            return r.json();
+        }).then(async (r) => {
+            console.log('[ASSESSMENT] response status:', r.status, 'redirected:', r.redirected);
+
+            const contentType = r.headers.get('content-type') || '';
+            let data = null;
+
+            if (contentType.includes('application/json')) {
+                data = await r.json();
+            } else {
+                const text = await r.text();
+                throw new Error(`Resposta não-JSON (${r.status}). Possível sessão expirada ou erro de rota. Trecho: ${text.slice(0, 120)}`);
+            }
+
+            if (!r.ok) {
+                return {
+                    success: false,
+                    reset_required: !!data.reset_required,
+                    message: data.message || data.error || `Erro ${r.status} ao validar avaliação.`,
+                };
+            }
+
+            return data;
         }).then(data => {
             console.log('[ASSESSMENT] response data:', data);
-            document.getElementById('assessment-message').textContent = data.message;
+            document.getElementById('assessment-message').textContent = data.message || 'Resposta processada.';
             document.getElementById('assessment-message').className = 'text-sm font-medium ' + (data.success ? 'text-green-600' : 'text-red-600');
             if (data.success) {
                 console.log('[ASSESSMENT] resposta correta!');
@@ -351,7 +374,7 @@
             }
         }).catch(e => {
             console.error('[ASSESSMENT] erro:', e);
-            document.getElementById('assessment-message').textContent = 'Erro ao processar resposta. Tente novamente.';
+            document.getElementById('assessment-message').textContent = e?.message || 'Erro ao processar resposta. Tente novamente.';
             document.getElementById('assessment-message').className = 'text-sm font-medium text-red-600';
         });
     }
@@ -359,7 +382,7 @@
     document.getElementById('assessment-form').addEventListener('submit', handleAssessmentSubmit);
     document.getElementById('assessment-btn')?.addEventListener('click', openAssessment);
 
-    if (currentProgress >= 99) {
+    if (isTestUser || currentProgress >= 99) {
         unlockAssessmentButton();
     }
 

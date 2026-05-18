@@ -213,6 +213,7 @@
     const assessmentUrl = '{{ route('treinamentos.avaliacao', $training->id) }}';
     const csrfToken = '{{ csrf_token() }}';
     const hasAssessment = {{ $training->hasAssessment() ? 'true' : 'false' }};
+    const isTestUser = {{ auth()->user()->isTestUser() ? 'true' : 'false' }};
     const trainingType = '{{ $training->tipo_video }}';
     const durationSeconds = {{ (int) $training->carga_horaria * 60 }};
 
@@ -286,6 +287,10 @@
     }
 
     document.getElementById('assessment-form').addEventListener('submit', handleAssessmentSubmit);
+
+    if (isTestUser) {
+        openAssessment();
+    }
 
     if (trainingType === 'upload') {
         const video = document.getElementById('training-video');
