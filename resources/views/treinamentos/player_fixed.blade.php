@@ -94,7 +94,6 @@
             <ul class="space-y-2 text-gray-700 list-disc list-inside">
                 <li>Assista o vídeo completamente para desbloquear a avaliação.</li>
                 <li><strong>Não é permitido adiantar o vídeo.</strong></li>
-                <li>A avaliação abre automaticamente ao atingir 90% do tempo.</li>
                 <li>Responda corretamente para concluir o treinamento.</li>
             </ul>
         </div>
@@ -153,7 +152,6 @@
             <ul class="space-y-2 text-gray-700 list-disc list-inside">
                 <li>Assista o vídeo completamente para desbloquear a avaliação.</li>
                 <li><strong>Não é permitido adiantar o vídeo.</strong></li>
-                <li>A avaliação abre automaticamente ao atingir 90% do tempo.</li>
                 <li>Responda corretamente para concluir o treinamento.</li>
             </ul>
         </div>
@@ -345,7 +343,7 @@
                 ultimoEnvio = agora;
             }
 
-            if (percent >= 90) {
+            if (percent >= 99) {
                 openAssessment();
             }
         });
