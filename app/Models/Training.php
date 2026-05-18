@@ -36,6 +36,7 @@ class Training extends Model
         'data_liberacao' => 'datetime',
         'tipo_usuario_permitido' => 'json',
         'avaliacao_opcoes' => 'json',
+        'avaliacao_resposta_correta' => 'integer',
         'obrigatorio' => 'boolean',
     ];
 

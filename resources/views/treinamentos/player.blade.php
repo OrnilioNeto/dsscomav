@@ -221,7 +221,7 @@
 
     let currentProgress = {{ $progress->porcentagem_assistida }};
     let assessmentOpened = {{ $progress->avaliacao_aprovada ? 'true' : 'false' }};
-    let assessmentUnlocked = {{ $progress->porcentagem_assistida >= 90 ? 'true' : 'false' }};
+    let assessmentUnlocked = {{ $progress->porcentagem_assistida >= 99 ? 'true' : 'false' }};
     let lastUpdateTime = 0;
     let lastSafeTime = {{ (int) $progress->tempo_assistido }};
     let assessmentAttempt = {{ (int) ($progress->avaliacao_tentativas ?? 0) }};
@@ -344,7 +344,7 @@
     document.getElementById('assessment-form').addEventListener('submit', handleAssessmentSubmit);
     document.getElementById('assessment-btn')?.addEventListener('click', openAssessment);
 
-    if (currentProgress >= 90) {
+    if (currentProgress >= 99) {
         unlockAssessmentButton();
     }
 
