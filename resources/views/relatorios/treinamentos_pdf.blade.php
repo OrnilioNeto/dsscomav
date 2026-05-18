@@ -145,7 +145,7 @@
     <!-- Cabeçalho -->
     <div class="header-section">
         <div class="title">
-            Relatório de Treinamentos
+            Relatório de Participações
         </div>
 
         @if(!empty($subtitle))

@@ -511,7 +511,7 @@ class CertificateManagementController extends Controller
             $trainingObj = Training::find($trainingId);
             $subtitle = $trainingObj ? $trainingObj->titulo : 'Filtro de treinamento aplicado';
         } else {
-            $subtitle = 'Treinamentos';
+            $subtitle = 'Diálogo Semanal de Segurança - DSS';
         }
 
         // Render HTML view for PDF
@@ -542,7 +542,7 @@ class CertificateManagementController extends Controller
 
         $pdf->SetFont('Helvetica', '', 8);
         $pdf->writeHTML($html, true, false, true, false, '');
-        $pdf->Output('relatorio_treinamentos.pdf', 'D');
+        $pdf->Output('Relatório_Participacoes.pdf', 'D');
     }
 
     /**
