@@ -453,7 +453,7 @@
                 ultimoEnvio = agora;
             }
 
-            if (percent >= 90 && hasReallyStartedPlayback) {
+            if (percent >= 99 && hasReallyStartedPlayback) {
                 unlockAssessmentButton();
             }
         });
@@ -560,7 +560,7 @@
                                         ultimoEnvio = agora;
                                     }
 
-                                    if (percent >= 90 && hasReallyStartedPlayback) {
+                                    if (percent >= 99 && hasReallyStartedPlayback) {
                                         unlockAssessmentButton();
                                     }
                                 }, 1000);

@@ -102,7 +102,7 @@ class TrainingPlayerController extends Controller
         $progress->update($updateData);
 
         $fresh = $progress->fresh();
-        $showAssessment = $training->hasAssessment() && $fresh->porcentagem_assistida >= 90 && !$fresh->avaliacao_aprovada;
+        $showAssessment = $training->hasAssessment() && $fresh->porcentagem_assistida >= 99 && !$fresh->avaliacao_aprovada;
 
         if ($fresh->porcentagem_assistida >= 90 && $fresh->avaliacao_aprovada && !$fresh->concluido) {
             $conclusionData = ['concluido' => true];
@@ -189,7 +189,7 @@ class TrainingPlayerController extends Controller
             'avaliacao_resposta_usuario' => (int) $request->answer,
         ]);
 
-        if ($progress->porcentagem_assistida >= 90 && !$progress->concluido) {
+        if ($progress->porcentagem_assistida >= 99 && !$progress->concluido) {
             $progress->update([
                 'concluido' => true,
                 'data_conclusao' => now(config('app.timezone')),
