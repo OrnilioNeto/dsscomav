@@ -146,6 +146,8 @@
     <div class="header-section">
         <div class="title">
             Relatório de Participações
+            <br>
+            Diálogo Semanal de Segurança - DSS
         </div>
 
         @if(!empty($subtitle))
@@ -175,7 +177,7 @@
                 <tr>
                     <th class="col-usuario">Usuário</th>
                     <th class="col-funcao">Função</th>
-                    <th class="col-treinamento">Treinamento</th>
+                    <th class="col-treinamento">DSS</th>
                     <th class="col-tempo">Tempo</th>
                     <th class="col-status">Status</th>
                     <th class="col-datapost">Data Postagem</th>
