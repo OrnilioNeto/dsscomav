@@ -307,7 +307,7 @@
                 porcentagem_assistida: currentProgress
             })
         }).then(r => r.json()).then(data => {
-            if (data.show_assessment || currentProgress >= 90) {
+            if (data.show_assessment || currentProgress >= 99) {
                 unlockAssessmentButton();
             }
         }).catch(e => console.error(e));
@@ -316,7 +316,11 @@
     function handleAssessmentSubmit(e) {
         e.preventDefault();
         const answer = document.querySelector('input[name="answer"]:checked')?.value;
-        if (!answer) return;
+        console.log('[ASSESSMENT] submitindo resposta:', answer);
+        if (!answer) {
+            console.log('[ASSESSMENT] nenhuma resposta selecionada');
+            return;
+        }
 
         fetch(assessmentUrl, {
             method: 'POST',
@@ -325,20 +329,31 @@
                 'X-CSRF-TOKEN': csrfToken
             },
             body: JSON.stringify({ answer })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            console.log('[ASSESSMENT] response status:', r.status);
+            return r.json();
+        }).then(data => {
+            console.log('[ASSESSMENT] response data:', data);
             document.getElementById('assessment-message').textContent = data.message;
-            document.getElementById('assessment-message').className = 'text-sm font-medium text-' + (data.success ? 'green' : 'red') + '-600';
+            document.getElementById('assessment-message').className = 'text-sm font-medium ' + (data.success ? 'text-green-600' : 'text-red-600');
             if (data.success) {
+                console.log('[ASSESSMENT] resposta correta!');
                 setCertificateSuccessMessage();
                 setTimeout(() => closeAssessment(), 900);
+                setTimeout(() => location.reload(), 2000);
                 return;
             }
 
             if (data.reset_required) {
+                console.log('[ASSESSMENT] reset necessário');
                 closeAssessment();
                 setTimeout(() => location.reload(), 1200);
             }
-        }).catch(e => console.error(e));
+        }).catch(e => {
+            console.error('[ASSESSMENT] erro:', e);
+            document.getElementById('assessment-message').textContent = 'Erro ao processar resposta. Tente novamente.';
+            document.getElementById('assessment-message').className = 'text-sm font-medium text-red-600';
+        });
     }
 
     document.getElementById('assessment-form').addEventListener('submit', handleAssessmentSubmit);
