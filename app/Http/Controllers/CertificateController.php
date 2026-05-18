@@ -7,6 +7,7 @@ use App\Models\Training;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 use TCPDF;
 
 class CertificateController extends Controller
@@ -89,19 +90,30 @@ class CertificateController extends Controller
         $dataInicio = $progress->data_inicio ?? $progress->created_at ?? now();
         $dataFinalizacao = $progress->data_conclusao ?? now();
 
-        // Salvar certificado no banco
-        return Certificate::create([
+        $payload = [
             'user_id' => $user->id,
             'training_id' => $training->id,
             'codigo_certificado' => $codigo,
             'data_emissao' => now(),
-            'data_inicio_assistencia' => $dataInicio,
-            'data_finalizacao_assistencia' => $dataFinalizacao,
-            'tempo_assistido_segundos' => (int) $progress->tempo_assistido,
-            'porcentagem_assistida' => (int) $progress->porcentagem_assistida,
             'caminho_arquivo' => null,
             'valido' => true,
-        ]);
+        ];
+
+        // Compatibilidade com ambientes que ainda não rodaram a migration de auditoria.
+        if (Schema::hasColumn('certificates', 'data_inicio_assistencia')) {
+            $payload['data_inicio_assistencia'] = $dataInicio;
+        }
+        if (Schema::hasColumn('certificates', 'data_finalizacao_assistencia')) {
+            $payload['data_finalizacao_assistencia'] = $dataFinalizacao;
+        }
+        if (Schema::hasColumn('certificates', 'tempo_assistido_segundos')) {
+            $payload['tempo_assistido_segundos'] = (int) $progress->tempo_assistido;
+        }
+        if (Schema::hasColumn('certificates', 'porcentagem_assistida')) {
+            $payload['porcentagem_assistida'] = (int) $progress->porcentagem_assistida;
+        }
+
+        return Certificate::create($payload);
     }
 
     private function buildViewData(Certificate $certificate): array

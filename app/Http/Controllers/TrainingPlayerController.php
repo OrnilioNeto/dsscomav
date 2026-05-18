@@ -6,6 +6,8 @@ use App\Models\Training;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class TrainingPlayerController extends Controller
 {
@@ -50,6 +52,7 @@ class TrainingPlayerController extends Controller
     {
         $training = Training::findOrFail($id);
         $user = auth()->user();
+        $isTestUser = $user->isTestUser();
 
         if (!$user->canAccessTraining($training)) {
             return response()->json(['error' => 'Acesso negado'], 403);
@@ -102,9 +105,9 @@ class TrainingPlayerController extends Controller
         $progress->update($updateData);
 
         $fresh = $progress->fresh();
-        $showAssessment = $training->hasAssessment() && $fresh->porcentagem_assistida >= 99 && !$fresh->avaliacao_aprovada;
+        $showAssessment = $training->hasAssessment() && ($isTestUser || $fresh->porcentagem_assistida >= 99) && !$fresh->avaliacao_aprovada;
 
-        if ($fresh->porcentagem_assistida >= 90 && $fresh->avaliacao_aprovada && !$fresh->concluido) {
+        if (($isTestUser || $fresh->porcentagem_assistida >= 99) && $fresh->avaliacao_aprovada && !$fresh->concluido) {
             $conclusionData = ['concluido' => true];
             $conclusionData['data_conclusao'] = now(config('app.timezone'));
 
@@ -126,6 +129,7 @@ class TrainingPlayerController extends Controller
     {
         $training = Training::findOrFail($id);
         $user = auth()->user();
+        $isTestUser = $user->isTestUser();
 
         if (!$user->canAccessTraining($training)) {
             return response()->json(['error' => 'Acesso negado'], 403);
@@ -153,8 +157,8 @@ class TrainingPlayerController extends Controller
         if (!$isCorrect) {
             $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
 
-            if ($tentativas >= 2) {
-                $progress->update([
+            if (!$isTestUser && $tentativas >= 2) {
+                $progress->update($this->filterUserProgressColumns([
                     'avaliacao_tentativas' => 0,
                     'avaliacao_aprovada' => false,
                     'concluido' => false,
@@ -163,7 +167,7 @@ class TrainingPlayerController extends Controller
                     'data_inicio' => now(config('app.timezone')),
                     'data_conclusao' => null,
                     'avaliacao_resposta_usuario' => null,
-                ]);
+                ]));
 
                 return response()->json([
                     'success' => false,
@@ -172,24 +176,26 @@ class TrainingPlayerController extends Controller
                 ], 422);
             }
 
-            $progress->update([
+            $progress->update($this->filterUserProgressColumns([
                 'avaliacao_tentativas' => $tentativas,
-            ]);
+            ]));
 
             return response()->json([
                 'success' => false,
                 'reset_required' => false,
-                'message' => 'Resposta incorreta. Você ainda tem mais uma chance.',
+                'message' => $isTestUser
+                    ? 'Resposta incorreta (modo teste). Pode tentar novamente sem reassistir o vídeo.'
+                    : 'Resposta incorreta. Você ainda tem mais uma chance.',
             ], 422);
         }
 
-        $progress->update([
+        $progress->update($this->filterUserProgressColumns([
             'avaliacao_aprovada' => true,
             'avaliacao_tentativas' => 0,
             'avaliacao_resposta_usuario' => (int) $request->answer,
-        ]);
+        ]));
 
-        if ($progress->porcentagem_assistida >= 99 && !$progress->concluido) {
+        if (($isTestUser || $progress->porcentagem_assistida >= 99) && !$progress->concluido) {
             $progress->update([
                 'concluido' => true,
                 'data_conclusao' => now(config('app.timezone')),
@@ -233,6 +239,28 @@ class TrainingPlayerController extends Controller
             return;
         }
 
-        app(CertificateController::class)->generateCertificate($training, $progress);
+        try {
+            app(CertificateController::class)->generateCertificate($training, $progress);
+        } catch (\Throwable $e) {
+            Log::error('Falha ao gerar certificado apos conclusao de treinamento', [
+                'training_id' => $training->id,
+                'user_id' => $progress->user_id,
+                'progress_id' => $progress->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function filterUserProgressColumns(array $payload): array
+    {
+        $filtered = [];
+
+        foreach ($payload as $column => $value) {
+            if (Schema::hasColumn('user_progress', $column)) {
+                $filtered[$column] = $value;
+            }
+        }
+
+        return $filtered;
     }
 }
