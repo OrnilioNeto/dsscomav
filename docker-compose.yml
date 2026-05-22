@@ -15,6 +15,7 @@ services:
     volumes:
       - .:/var/www/app
       - app_storage:/var/www/app/storage
+      - ./storage/logs:/var/www/app/storage/logs
       - ./public/images:/var/www/app/public/images
 
   db:

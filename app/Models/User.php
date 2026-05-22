@@ -82,6 +82,18 @@ class User extends Authenticatable
             return true;
         }
 
+        // Regra de bloqueio para novos cadastrados:
+        // o usuário só pode acessar conteúdos publicados/liberados a partir
+        // da segunda-feira da semana em que ele foi cadastrado.
+        $cutoffDate = $this->getTrainingCutoffDate();
+        $trainingDate = $training->data_liberacao
+            ?? $training->data_publicacao
+            ?? $training->created_at;
+
+        if ($cutoffDate && $trainingDate && Carbon::parse($trainingDate)->lt($cutoffDate)) {
+            return false;
+        }
+
         if ($training->tipo_usuario_permitido === 'todos') {
             return true;
         }
@@ -91,6 +103,15 @@ class User extends Authenticatable
             : json_decode($training->tipo_usuario_permitido, true) ?? [];
 
         return in_array($this->tipo_usuario, $permitidos);
+    }
+
+    public function getTrainingCutoffDate(): ?Carbon
+    {
+        if (!$this->created_at) {
+            return null;
+        }
+
+        return $this->created_at->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
     }
 
     public function getCpfFormatted()

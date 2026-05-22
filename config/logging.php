@@ -17,8 +17,16 @@ return [
     'channels' => [
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
+            'channels' => ['single', 'system'],
             'ignore_exceptions' => false,
+        ],
+
+        'system' => [
+            'driver' => 'daily',
+            'path' => env('LOG_SYSTEM_PATH', storage_path('logs/system.log')),
+            'level' => env('LOG_SYSTEM_LEVEL', env('LOG_LEVEL', 'debug')),
+            'days' => env('LOG_SYSTEM_DAYS', 30),
+            'replace_placeholders' => true,
         ],
 
         'single' => [
