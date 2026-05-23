@@ -138,6 +138,7 @@ class CertificateManagementController extends Controller
         $statusProgresso = $request->input('status_progresso');
         $somenteFerias = $request->filled('somente_ferias');
         $trainingId = $request->filled('training_id') ? $request->integer('training_id') : null;
+        $trainingFilter = $trainingId ? Training::findOrFail($trainingId) : null;
         $progressos = null;
         $treinamentoNaoIniciado = null;
 
@@ -162,7 +163,8 @@ class CertificateManagementController extends Controller
             }
 
             if ($trainingId) {
-                $treinamentoNaoIniciado = Training::findOrFail($trainingId);
+                $treinamentoNaoIniciado = $trainingFilter;
+                $usersQuery->eligibleForTrainingKpi($treinamentoNaoIniciado);
                 $usersQuery->whereDoesntHave('progress', function ($q) use ($treinamentoNaoIniciado) {
                     $q->where('training_id', $treinamentoNaoIniciado->id);
                 });
@@ -203,6 +205,12 @@ class CertificateManagementController extends Controller
                 $userQuery->kpiEligible();
             });
 
+            if ($trainingFilter) {
+                $query->whereHas('user', function ($q) use ($trainingFilter) {
+                    $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+                });
+            }
+
             if ($request->filled('usuario_id')) {
                 $query->where('user_id', $request->integer('usuario_id'));
             }
@@ -213,8 +221,8 @@ class CertificateManagementController extends Controller
                 });
             }
 
-            if ($request->filled('training_id')) {
-                $query->where('training_id', $request->integer('training_id'));
+            if ($trainingFilter) {
+                $query->where('training_id', $trainingFilter->id);
             }
 
             if ($request->filled('usuario_nome')) {
@@ -303,6 +311,12 @@ class CertificateManagementController extends Controller
                 $userQuery->kpiEligible();
             });
 
+            if ($trainingFilter) {
+                $query->whereHas('user', function ($q) use ($trainingFilter) {
+                    $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+                });
+            }
+
             if ($request->filled('usuario_id')) {
                 $query->where('user_id', $request->integer('usuario_id'));
             }
@@ -313,8 +327,8 @@ class CertificateManagementController extends Controller
                 });
             }
 
-            if ($request->filled('training_id')) {
-                $query->where('training_id', $request->integer('training_id'));
+            if ($trainingFilter) {
+                $query->where('training_id', $trainingFilter->id);
             }
 
             if ($request->filled('usuario_nome')) {
@@ -405,6 +419,7 @@ class CertificateManagementController extends Controller
         $statusProgresso = $request->input('status_progresso');
         $somenteFerias = $request->filled('somente_ferias');
         $trainingId = $request->filled('training_id') ? $request->integer('training_id') : null;
+        $trainingFilter = $trainingId ? Training::findOrFail($trainingId) : null;
 
         if ($statusProgresso === 'nao_iniciado') {
             $usersQuery = User::query()->kpiEligible();
@@ -427,7 +442,8 @@ class CertificateManagementController extends Controller
             }
 
             if ($trainingId) {
-                $treinamentoNaoIniciado = Training::findOrFail($trainingId);
+                $treinamentoNaoIniciado = $trainingFilter;
+                $usersQuery->eligibleForTrainingKpi($treinamentoNaoIniciado);
                 $usersQuery->whereDoesntHave('progress', function ($q) use ($treinamentoNaoIniciado) {
                     $q->where('training_id', $treinamentoNaoIniciado->id);
                 });
@@ -455,6 +471,12 @@ class CertificateManagementController extends Controller
                 $userQuery->kpiEligible();
             });
 
+            if ($trainingFilter) {
+                $query->whereHas('user', function ($q) use ($trainingFilter) {
+                    $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+                });
+            }
+
             if ($request->filled('usuario_id')) {
                 $query->where('user_id', $request->integer('usuario_id'));
             }
@@ -465,8 +487,8 @@ class CertificateManagementController extends Controller
                 });
             }
 
-            if ($request->filled('training_id')) {
-                $query->where('training_id', $request->integer('training_id'));
+            if ($trainingFilter) {
+                $query->where('training_id', $trainingFilter->id);
             }
 
             if ($request->filled('usuario_nome')) {
@@ -768,8 +790,12 @@ class CertificateManagementController extends Controller
         $periodoInicio = $request->input('periodo_inicio');
         $periodoFim = $request->input('periodo_fim');
         $trainingId = $request->filled('training_id') ? $request->integer('training_id') : null;
+        $trainingFilter = $trainingId ? Training::findOrFail($trainingId) : null;
 
         $usuariosBase = User::query()->kpiEligible($periodoInicio, $periodoFim);
+        if ($trainingFilter) {
+            $usuariosBase->eligibleForTrainingKpi($trainingFilter);
+        }
         $this->aplicarEscopoUsuariosComuns($usuariosBase, $user);
         if ($request->filled('tipo_usuario')) {
             $usuariosBase->where('tipo_usuario', $request->input('tipo_usuario'));
@@ -780,8 +806,11 @@ class CertificateManagementController extends Controller
 
         $certificadosBase = Certificate::query();
         $this->aplicarEscopoUsuariosComuns($certificadosBase, $user, 'user');
-        $certificadosBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim) {
+        $certificadosBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim, $trainingFilter) {
             $q->kpiEligible($periodoInicio, $periodoFim);
+            if ($trainingFilter) {
+                $q->eligibleForTrainingKpi($trainingFilter);
+            }
         });
         if ($request->filled('usuario_id')) {
             $certificadosBase->where('user_id', $request->integer('usuario_id'));
@@ -803,8 +832,11 @@ class CertificateManagementController extends Controller
 
         $progressBase = UserProgress::query();
         $this->aplicarEscopoUsuariosComuns($progressBase, $user, 'user');
-        $progressBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim) {
+        $progressBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim, $trainingFilter) {
             $q->kpiEligible($periodoInicio, $periodoFim);
+            if ($trainingFilter) {
+                $q->eligibleForTrainingKpi($trainingFilter);
+            }
         });
         if ($request->filled('tipo_usuario')) {
             $progressBase->whereHas('user', function ($q) use ($request) {
