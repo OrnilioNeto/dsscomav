@@ -114,6 +114,25 @@ class User extends Authenticatable
         return $this->created_at->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
     }
 
+    public function scopeEligibleForTrainingKpi($query, Training $training)
+    {
+        $trainingDate = $training->data_liberacao
+            ?? $training->data_publicacao
+            ?? $training->created_at;
+
+        if (!$trainingDate) {
+            return $query;
+        }
+
+        // Para um treinamento com data fixa, são elegíveis para KPI os usuários
+        // cadastrados até o fim da semana dessa data (domingo 23:59:59).
+        $maxUserCreatedAt = Carbon::parse($trainingDate, config('app.timezone'))
+            ->endOfWeek(Carbon::SUNDAY)
+            ->endOfDay();
+
+        return $query->where('created_at', '<=', $maxUserCreatedAt);
+    }
+
     public function getCpfFormatted()
     {
         return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $this->cpf);

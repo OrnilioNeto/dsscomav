@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\UserProgress;
 use App\Models\Certificate;
+use App\Models\Training;
 use App\Models\User;
 use Illuminate\Support\Arr;
 
@@ -17,18 +18,34 @@ class TrainingAnalyzer
      */
     public function analyze(?int $trainingId = null): array
     {
+        $trainingFilter = $trainingId ? Training::find($trainingId) : null;
+
         // Obter usuários ativos elegíveis (mesma lógica do dashboard)
-        $totalUsuariosAtivos = User::kpiEligible()->where('status', 'ativo')->count();
+        $usuariosAtivosQuery = User::kpiEligible()->where('status', 'ativo');
+        if ($trainingFilter) {
+            $usuariosAtivosQuery->eligibleForTrainingKpi($trainingFilter);
+        }
+        $totalUsuariosAtivos = $usuariosAtivosQuery->count();
 
         // Obter certificados (fonte de verdade para conclusões)
         $certQuery = Certificate::where('valido', true);
         if ($trainingId) $certQuery->where('training_id', $trainingId);
+        if ($trainingFilter) {
+            $certQuery->whereHas('user', function ($q) use ($trainingFilter) {
+                $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+            });
+        }
         
         $certificates = $certQuery->get();
 
         // Obter progressos para métricas complementares
         $progQuery = UserProgress::query();
         if ($trainingId) $progQuery->where('training_id', $trainingId);
+        if ($trainingFilter) {
+            $progQuery->whereHas('user', function ($q) use ($trainingFilter) {
+                $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+            });
+        }
         
         $progressos = $progQuery->get();
 
