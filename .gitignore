@@ -1,6 +1,9 @@
 node_modules/
 vendor/
 .env
+.env.adminer
+.env.example
+.env.production.example
 .env.local
 .env.*.local
 storage/logs/*
