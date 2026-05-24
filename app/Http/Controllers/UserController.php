@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
+    private const TIPOS_USUARIO_VALIDOS = ['motorista', 'funcionario', 'terceirizado'];
+
     private function ensureBaseRoles(): void
     {
         Role::updateOrCreate(
@@ -24,10 +26,30 @@ class UserController extends Controller
         );
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $usuarios = User::with('role')->paginate(15);
-        return view('usuarios.index', compact('usuarios'));
+        $nome = trim((string) $request->input('nome', ''));
+        $tiposSelecionados = collect($request->input('tipos', []))
+            ->filter(fn ($tipo) => in_array($tipo, self::TIPOS_USUARIO_VALIDOS, true))
+            ->values()
+            ->all();
+
+        $usuariosQuery = User::with('role');
+
+        if ($nome !== '') {
+            $usuariosQuery->where('nome', 'like', '%' . $nome . '%');
+        }
+
+        if (! empty($tiposSelecionados)) {
+            $usuariosQuery->whereIn('tipo_usuario', $tiposSelecionados);
+        }
+
+        $usuarios = $usuariosQuery
+            ->orderBy('nome')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('usuarios.index', compact('usuarios', 'nome', 'tiposSelecionados'));
     }
 
     public function create()

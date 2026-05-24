@@ -20,6 +20,57 @@
         </div>
     </div>
 
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <form method="GET" action="{{ route('usuarios.index') }}" class="space-y-4">
+            <div>
+                <label for="nome" class="block text-sm font-semibold text-gray-700 mb-2">Pesquisar por nome</label>
+                <input
+                    type="text"
+                    id="nome"
+                    name="nome"
+                    value="{{ $nome ?? '' }}"
+                    placeholder="Digite o nome do usuário"
+                    class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                >
+            </div>
+
+            <div>
+                <p class="block text-sm font-semibold text-gray-700 mb-2">Filtrar por tipo (selecione 1 ou mais)</p>
+                <div class="flex flex-wrap gap-4">
+                    @php
+                        $tipos = [
+                            'motorista' => 'Motorista',
+                            'funcionario' => 'Funcionário',
+                            'terceirizado' => 'Terceirizado',
+                        ];
+                    @endphp
+
+                    @foreach($tipos as $valor => $label)
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                                type="checkbox"
+                                name="tipos[]"
+                                value="{{ $valor }}"
+                                {{ in_array($valor, $tiposSelecionados ?? [], true) ? 'checked' : '' }}
+                                class="rounded border-gray-300 text-blue-700 focus:ring-blue-500"
+                            >
+                            <span>{{ $label }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3">
+                <button type="submit" class="bg-blue-900 text-white px-5 py-2 rounded-lg hover:bg-blue-800 transition">
+                    <i class="fas fa-filter mr-2"></i>Aplicar filtros
+                </button>
+                <a href="{{ route('usuarios.index') }}" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition">
+                    Limpar
+                </a>
+            </div>
+        </form>
+    </div>
+
     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
         <div class="overflow-x-auto">
         <table class="w-full">
