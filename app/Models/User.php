@@ -33,6 +33,7 @@ class User extends Authenticatable
         'ferias_inicio',
         'ferias_fim',
         'usuario_teste',
+        'foto_perfil',
     ];
 
     protected $hidden = [
@@ -215,5 +216,48 @@ class User extends Authenticatable
                 $rangeQuery->whereNull('ferias_fim')
                     ->orWhereDate('ferias_fim', '>=', $periodStart->toDateString());
             });
+    }
+
+    /**
+     * Retorna a URL da foto de perfil ou um avatar padrão
+     */
+    public function getFotoPerfilUrl(): string
+    {
+        if ($this->foto_perfil && file_exists(public_path("uploads/perfil/{$this->foto_perfil}"))) {
+            return asset("uploads/perfil/{$this->foto_perfil}");
+        }
+
+        // Avatar colorido baseado nas iniciais do nome
+        $initials = $this->getInitials();
+        $color = $this->getAvatarColor();
+
+        return "https://ui-avatars.com/api/?name=" . urlencode($initials) . "&background=" . ltrim($color, '#') . "&color=fff&size=200&bold=true&font-size=0.4";
+    }
+
+    /**
+     * Retorna as iniciais do nome
+     */
+    public function getInitials(): string
+    {
+        $parts = explode(' ', trim($this->nome));
+        $initials = '';
+        foreach ($parts as $part) {
+            if (!empty($part)) {
+                $initials .= strtoupper($part[0]);
+                if (strlen($initials) >= 2) {
+                    break;
+                }
+            }
+        }
+        return $initials ?: 'U';
+    }
+
+    /**
+     * Retorna cor consistente baseada no ID do usuário
+     */
+    public function getAvatarColor(): string
+    {
+        $colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
+        return $colors[$this->id % count($colors)];
     }
 }
