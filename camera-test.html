@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Câmera e Compatibilidade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-center">🎥 Teste de Câmera</h1>
+
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Informações do Dispositivo</h2>
+            <div id="deviceInfo" class="bg-gray-100 p-4 rounded text-sm font-mono whitespace-pre-wrap"></div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Teste de Câmera</h2>
+            
+            <button id="btnTestarCamera" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg mb-4">
+                Testar Câmera
+            </button>
+
+            <div id="videoContainer" class="hidden">
+                <video 
+                    id="testVideo" 
+                    autoplay 
+                    playsinline 
+                    muted
+                    class="w-full bg-black rounded-lg border-2 border-gray-300 mb-4"
+                    style="max-height: 400px; object-fit: cover;"
+                ></video>
+                <div class="flex gap-2">
+                    <button id="btnCapturarTeste" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+                        Capturar
+                    </button>
+                    <button id="btnFecharTeste" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+
+            <div id="testResult" class="mt-4"></div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <h2 class="text-xl font-semibold mb-4">Log de Eventos</h2>
+            <div id="log" class="bg-gray-100 p-4 rounded text-xs font-mono h-64 overflow-y-auto border border-gray-300"></div>
+            <button id="btnLimparLog" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+                Limpar Log
+            </button>
+        </div>
+    </div>
+
+    <canvas id="testCanvas" class="hidden"></canvas>
+
+    <script>
+        const log = document.getElementById('log');
+        const deviceInfo = document.getElementById('deviceInfo');
+        const btnTestarCamera = document.getElementById('btnTestarCamera');
+        const btnCapturarTeste = document.getElementById('btnCapturarTeste');
+        const btnFecharTeste = document.getElementById('btnFecharTeste');
+        const btnLimparLog = document.getElementById('btnLimparLog');
+        const videoContainer = document.getElementById('videoContainer');
+        const testVideo = document.getElementById('testVideo');
+        const testResult = document.getElementById('testResult');
+        const testCanvas = document.getElementById('testCanvas');
+
+        let stream = null;
+
+        // Logging
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const line = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            log.textContent += line;
+            log.scrollTop = log.scrollHeight;
+            console.log(`[${type}] ${message}`);
+        }
+
+        // Obter informações do dispositivo
+        function getDeviceInfo() {
+            const ua = navigator.userAgent;
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+            const isChrome = /Chrome/.test(ua) && !/Edge/.test(ua);
+            const isFirefox = /Firefox/.test(ua);
+            const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
+            const isEdge = /Edge/.test(ua);
+
+            const info = `
+DISPOSITIVO:
+  Tipo de Aparelho: ${isMobile ? 'MÓVEL' : 'DESKTOP'}
+  Largura da tela: ${window.innerWidth}px
+  Altura da tela: ${window.innerHeight}px
+  Proporção pixel: ${window.devicePixelRatio}
+
+NAVEGADOR:
+  User Agent: ${ua}
+  Chrome: ${isChrome ? 'SIM ✓' : 'NÃO'}
+  Firefox: ${isFirefox ? 'SIM ✓' : 'NÃO'}
+  Safari: ${isSafari ? 'SIM ✓' : 'NÃO'}
+  Edge: ${isEdge ? 'SIM ✓' : 'NÃO'}
+
+SUPORTE À CÂMERA:
+  navigator.mediaDevices: ${navigator.mediaDevices ? 'SIM ✓' : 'NÃO ✗'}
+  getUserMedia: ${navigator.mediaDevices?.getUserMedia ? 'SIM ✓' : 'NÃO ✗'}
+  EnumerateDevices: ${navigator.mediaDevices?.enumerateDevices ? 'SIM ✓' : 'NÃO ✗'}
+
+PROTOCOLO:
+  HTTPS: ${window.location.protocol === 'https:' ? 'SIM ✓' : 'NÃO ✗'}
+  URL: ${window.location.href}
+            `;
+            deviceInfo.textContent = info;
+        }
+
+        // Testar câmera
+        async function testarCamera() {
+            try {
+                addLog('Iniciando teste de câmera...');
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    addLog('navigator.mediaDevices não disponível', 'error');
+                    testResult.innerHTML = '<p class="text-red-600">✗ Câmera não é suportada neste navegador</p>';
+                    return;
+                }
+
+                addLog('navigator.mediaDevices disponível');
+
+                // Listar dispositivos
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    addLog(`Câmeras encontradas: ${videoDevices.length}`);
+                    videoDevices.forEach((d, i) => {
+                        addLog(`  ${i + 1}. ${d.label || `Câmera ${i + 1}`} (ID: ${d.deviceId})`);
+                    });
+                } catch (e) {
+                    addLog(`Erro ao enumerar dispositivos: ${e.message}`, 'warn');
+                }
+
+                const constraints = {
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+
+                addLog('Solicitando acesso à câmera com constraints:', 'info');
+                addLog(`Constraints: ${JSON.stringify(constraints)}`);
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                addLog('Acesso à câmera concedido ✓');
+
+                testVideo.srcObject = stream;
+                testVideo.muted = true;
+
+                addLog('Stream atribuído ao elemento video');
+                await testVideo.play();
+                addLog('Vídeo iniciado com sucesso ✓');
+
+                videoContainer.classList.remove('hidden');
+                testResult.innerHTML = '<p class="text-green-600">✓ Câmera funcionando normalmente!</p>';
+                btnTestarCamera.disabled = true;
+
+            } catch (err) {
+                addLog(`ERRO: ${err.name} - ${err.message}`, 'error');
+
+                let mensagem = '';
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    mensagem = 'Permissão negada pelo usuário ou navegador';
+                } else if (err.name === 'NotFoundError') {
+                    mensagem = 'Nenhuma câmera encontrada no dispositivo';
+                } else if (err.name === 'NotReadableError') {
+                    mensagem = 'Câmera já está sendo usada por outro aplicativo';
+                } else if (err.name === 'TypeError') {
+                    mensagem = 'Erro de tipo - possível problema de constraints';
+                } else if (err.name === 'SecurityError') {
+                    mensagem = 'Erro de segurança - site precisa ser HTTPS ou localhost';
+                } else {
+                    mensagem = err.message;
+                }
+
+                testResult.innerHTML = `<p class="text-red-600">✗ Erro: ${mensagem}</p>`;
+            }
+        }
+
+        // Fechar câmera
+        function fecharCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => {
+                    track.stop();
+                    addLog(`Track parado: ${track.kind}`);
+                });
+                stream = null;
+            }
+            videoContainer.classList.add('hidden');
+            testVideo.srcObject = null;
+            testResult.innerHTML = '';
+            btnTestarCamera.disabled = false;
+            addLog('Câmera fechada');
+        }
+
+        // Capturar foto
+        function capturarFoto() {
+            try {
+                addLog('Capturando foto...');
+
+                if (!testVideo.videoWidth || !testVideo.videoHeight) {
+                    addLog('Vídeo ainda não está pronto', 'warn');
+                    return;
+                }
+
+                const ctx = testCanvas.getContext('2d');
+                testCanvas.width = testVideo.videoWidth;
+                testCanvas.height = testVideo.videoHeight;
+                ctx.drawImage(testVideo, 0, 0);
+
+                addLog(`Foto capturada: ${testCanvas.width}x${testCanvas.height}px`);
+
+                testCanvas.toBlob(blob => {
+                    if (blob) {
+                        addLog(`Blob criado: ${(blob.size / 1024).toFixed(2)}KB`);
+                        testResult.innerHTML = `<p class="text-green-600">✓ Foto capturada com sucesso!</p><p class="text-sm text-gray-600 mt-2">Tamanho: ${(blob.size / 1024).toFixed(2)}KB (${testCanvas.width}x${testCanvas.height}px)</p>`;
+                    } else {
+                        addLog('Erro ao criar blob', 'error');
+                    }
+                }, 'image/jpeg', 0.9);
+            } catch (err) {
+                addLog(`Erro ao capturar: ${err.message}`, 'error');
+            }
+        }
+
+        // Event listeners
+        btnTestarCamera.addEventListener('click', testarCamera);
+        btnCapturarTeste.addEventListener('click', capturarFoto);
+        btnFecharTeste.addEventListener('click', fecharCamera);
+        btnLimparLog.addEventListener('click', () => {
+            log.textContent = '';
+            addLog('Log limpo');
+        });
+
+        // Inicializar
+        window.addEventListener('load', () => {
+            addLog('Página carregada');
+            getDeviceInfo();
+        });
+    </script>
+</body>
+</html>
