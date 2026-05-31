@@ -147,6 +147,12 @@
             <h3 class="text-xl font-bold">Consulta de Certificados</h3>
             <p class="text-orange-100 text-sm mt-2">Visualizar certificados e relatórios gerenciais</p>
         </a>
+        
+        <a href="{{ route('admin.ranking.index') }}" class="bg-gradient-to-r from-yellow-700 to-yellow-500 text-white p-6 rounded-lg hover:shadow-lg transition">
+            <i class="fas fa-trophy text-3xl mb-3"></i>
+            <h3 class="text-xl font-bold">Ranking</h3>
+            <p class="text-yellow-100 text-sm mt-2">Visualizar ranking mensal e histórico</p>
+        </a>
     </div>
     </div>
 

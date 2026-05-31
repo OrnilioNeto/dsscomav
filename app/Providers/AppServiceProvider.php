@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use App\Models\Certificate;
+use App\Observers\CertificateObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,6 +17,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->ensureUserOperationalColumns();
+        // Registrar observer para Certificate para acionar recálculo do ranking
+        try {
+            if (class_exists(Certificate::class)) {
+                Certificate::observe(CertificateObserver::class);
+            }
+        } catch (\Throwable $e) {
+            logger()->warning('Falha ao registrar CertificateObserver: ' . $e->getMessage());
+        }
     }
 
     private function ensureUserOperationalColumns(): void

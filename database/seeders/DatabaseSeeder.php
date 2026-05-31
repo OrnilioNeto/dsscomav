@@ -13,6 +13,8 @@ class DatabaseSeeder extends Seeder
             SuperAdminSeeder::class,
             UserSeeder::class,
             TrainingSeeder::class,
+            \Database\Seeders\RankingCriteriaSeeder::class,
+            \Database\Seeders\RankingRulesSeeder::class,
         ]);
     }
 }

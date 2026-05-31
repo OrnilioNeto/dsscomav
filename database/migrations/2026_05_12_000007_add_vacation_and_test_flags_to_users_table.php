@@ -8,10 +8,20 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumns('users', ['ferias_inicio', 'ferias_fim', 'usuario_teste'])) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
-            $table->date('ferias_inicio')->nullable()->after('responsavel');
-            $table->date('ferias_fim')->nullable()->after('ferias_inicio');
-            $table->boolean('usuario_teste')->default(false)->after('ferias_fim');
+            if (!Schema::hasColumn('users', 'ferias_inicio')) {
+                $table->date('ferias_inicio')->nullable()->after('responsavel');
+            }
+            if (!Schema::hasColumn('users', 'ferias_fim')) {
+                $table->date('ferias_fim')->nullable()->after('ferias_inicio');
+            }
+            if (!Schema::hasColumn('users', 'usuario_teste')) {
+                $table->boolean('usuario_teste')->default(false)->after('ferias_fim');
+            }
         });
     }
 
