@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\GdDriver;
 
 class ProfilePhotoController extends Controller
 {
@@ -49,52 +47,56 @@ class ProfilePhotoController extends Controller
             // Gerar nome do arquivo
             $filename = 'perfil_' . $user->id . '_' . time() . '.jpg';
             
-            // Processar a imagem com GD
+            // Em produção, nem sempre GD/WebP está habilitado.
+            // Tenta processar para 300x300; se não for possível, faz fallback para salvar original.
+            $saved = false;
             $tmpPath = $foto->getRealPath();
-            $info = getimagesize($tmpPath);
-            
-            if (!$info) {
-                throw new \Exception('Arquivo de imagem inválido');
+
+            if (
+                function_exists('getimagesize') &&
+                function_exists('imagecreatetruecolor') &&
+                function_exists('imagecopyresampled') &&
+                function_exists('imagejpeg')
+            ) {
+                $info = @getimagesize($tmpPath);
+
+                if ($info && isset($info['mime'])) {
+                    $image = null;
+                    $mime = $info['mime'];
+
+                    if ($mime === 'image/jpeg' && function_exists('imagecreatefromjpeg')) {
+                        $image = @imagecreatefromjpeg($tmpPath);
+                    } elseif ($mime === 'image/png' && function_exists('imagecreatefrompng')) {
+                        $image = @imagecreatefrompng($tmpPath);
+                    } elseif ($mime === 'image/gif' && function_exists('imagecreatefromgif')) {
+                        $image = @imagecreatefromgif($tmpPath);
+                    } elseif ($mime === 'image/webp' && function_exists('imagecreatefromwebp')) {
+                        $image = @imagecreatefromwebp($tmpPath);
+                    }
+
+                    if ($image) {
+                        $width = imagesx($image);
+                        $height = imagesy($image);
+                        $size = min($width, $height);
+
+                        $x = intval(($width - $size) / 2);
+                        $y = intval(($height - $size) / 2);
+
+                        $resized = imagecreatetruecolor(300, 300);
+                        imagecopyresampled($resized, $image, 0, 0, $x, $y, 300, 300, $size, $size);
+
+                        $filePath = $uploadDir . '/' . $filename;
+                        $saved = imagejpeg($resized, $filePath, 80) === true;
+
+                        imagedestroy($image);
+                        imagedestroy($resized);
+                    }
+                }
             }
-            
-            // Criar imagem original
-            $image = null;
-            $mime = $info['mime'];
-            
-            if ($mime === 'image/jpeg') {
-                $image = imagecreatefromjpeg($tmpPath);
-            } elseif ($mime === 'image/png') {
-                $image = imagecreatefrompng($tmpPath);
-            } elseif ($mime === 'image/gif') {
-                $image = imagecreatefromgif($tmpPath);
-            } elseif ($mime === 'image/webp') {
-                $image = imagecreatefromwebp($tmpPath);
-            } else {
-                throw new \Exception('Tipo de imagem não suportado: ' . $mime);
+
+            if (!$saved) {
+                $foto->move($uploadDir, $filename);
             }
-            
-            if (!$image) {
-                throw new \Exception('Não foi possível processar a imagem');
-            }
-            
-            // Redimensionar para 300x300 (mantém proporção e faz crop no centro)
-            $width = imagesx($image);
-            $height = imagesy($image);
-            $size = min($width, $height);
-            
-            $x = intval(($width - $size) / 2);
-            $y = intval(($height - $size) / 2);
-            
-            $resized = imagecreatetruecolor(300, 300);
-            imagecopyresampled($resized, $image, 0, 0, $x, $y, 300, 300, $size, $size);
-            
-            // Salvar como JPEG com qualidade 80%
-            $filePath = $uploadDir . '/' . $filename;
-            imagejpeg($resized, $filePath, 80);
-            
-            // Liberar memória
-            imagedestroy($image);
-            imagedestroy($resized);
             
             // Atualizar usuário
             $user->update(['foto_perfil' => $filename]);
@@ -104,8 +106,11 @@ class ProfilePhotoController extends Controller
                 'message' => 'Foto de perfil atualizada com sucesso!',
                 'fotoUrl' => $user->getFotoPerfilUrl() . '?t=' . time(),
             ]);
-        } catch (\Exception $e) {
-            \Log::error('Erro ao fazer upload de foto: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            \Log::error('Erro ao fazer upload de foto: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
             
             return response()->json([
                 'success' => false,
@@ -133,7 +138,7 @@ class ProfilePhotoController extends Controller
                 'message' => 'Foto de perfil removida!',
                 'fotoUrl' => $user->getFotoPerfilUrl(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             \Log::error('Erro ao remover foto: ' . $e->getMessage());
             
             return response()->json([
