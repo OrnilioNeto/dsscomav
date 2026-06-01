@@ -122,16 +122,16 @@
                     <h3 class="font-semibold text-gray-800 mb-3">Carregar materiais</h3>
                     <div id="material-upload-form-create" class="space-y-3">
                         <div>
-                            <label class="block text-gray-700 text-sm font-semibold mb-2">Nome do Material *</label>
-                            <input type="text" id="material-nome-create" placeholder="Ex: Manual do Motorista" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" required>
+                            <label class="block text-gray-700 text-sm font-semibold mb-2">Nome do Material (opcional)</label>
+                            <input type="text" id="material-nome-create" placeholder="Ex: Manual do Motorista" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
                         </div>
                         <div>
                             <label class="block text-gray-700 text-sm font-semibold mb-2">Descrição (opcional)</label>
                             <textarea id="material-descricao-create" placeholder="Descrição breve do material..." rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"></textarea>
                         </div>
                         <div>
-                            <label class="block text-gray-700 text-sm font-semibold mb-2">Arquivo * (Máx. 100MB)</label>
-                            <input type="file" id="material-arquivo-create" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.zip,.rar,.txt" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" required>
+                            <label class="block text-gray-700 text-sm font-semibold mb-2">Arquivo (Máx. 100MB)</label>
+                            <input type="file" id="material-arquivo-create" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.zip,.rar,.txt" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
                         </div>
                         <button type="button" id="material-adicionar-create" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition text-sm">
                             <i class="fas fa-upload mr-2"></i>Adicionar Material
@@ -186,10 +186,20 @@
                 const materiaisTempStorage = [];
 
                 document.addEventListener('DOMContentLoaded', function() {
+                    // Garante que os campos de material de apoio sejam opcionais no HTML5
+                    const materialNomeInput = document.getElementById('material-nome-create');
+                    const materialArquivoInput = document.getElementById('material-arquivo-create');
+                    if (materialNomeInput) materialNomeInput.removeAttribute('required');
+                    if (materialArquivoInput) materialArquivoInput.removeAttribute('required');
+
                     // Interceptar submit do formulário de treinamento
                     const treinamentoForm = document.getElementById('treinamento-form');
                     treinamentoForm.addEventListener('submit', async function(e) {
                         e.preventDefault();
+
+                        // Se o usuário selecionou um arquivo mas não clicou em "Adicionar Material",
+                        // adiciona automaticamente para não perder o material no envio final.
+                        autoAddPendingMaterial();
 
                         const submitBtn = treinamentoForm.querySelector('button[type="submit"]');
                         const originalText = submitBtn.innerHTML;
@@ -216,15 +226,24 @@
                                 }
                             });
 
+                            const responseText = await response.text();
+
                             if (response.ok) {
-                                // Redirecionar ou mostrar sucesso
+                                // Se o backend devolveu a própria tela de cadastro com erros,
+                                // renderizar a resposta HTML para que a validação fique visível.
+                                const responsePath = new URL(response.url).pathname;
+                                if (responsePath === window.location.pathname) {
+                                    document.open();
+                                    document.write(responseText);
+                                    document.close();
+                                    return;
+                                }
+
+                                // Redirecionar após criação bem-sucedida
                                 const redirectUrl = response.url || '{{ route("treinamentos.index") }}';
                                 window.location.href = redirectUrl;
                             } else {
-                                const text = await response.text();
-                                if (text.includes('error') || text.includes('Error')) {
-                                    alert('Erro ao criar treinamento. Verifique os dados e tente novamente.');
-                                }
+                                alert('Erro ao criar treinamento. Verifique os dados e tente novamente.');
                                 submitBtn.disabled = false;
                                 submitBtn.innerHTML = originalText;
                             }
@@ -255,9 +274,11 @@
                         }
 
                         // Armazenar material temporariamente no array
+                        const nomeFinal = (nome || '').trim() || (arquivo.name || 'Material');
+
                         const materialTemp = {
                             id: 'temp_' + Date.now(),
-                            nome: nome,
+                            nome: nomeFinal,
                             descricao: descricao,
                             arquivo: arquivo,
                             tamanho: arquivo.size,
@@ -269,12 +290,43 @@
                         // Atualizar lista visual
                         updateListaMateriais();
 
-                        // Limpar formulário
-                        form.reset();
+                        // Limpar campos do material sem depender de reset() em um <div>
+                        document.getElementById('material-nome-create').value = '';
+                        document.getElementById('material-descricao-create').value = '';
+                        document.getElementById('material-arquivo-create').value = '';
                         feedback.innerHTML = '<div class="text-green-600 text-sm"><i class="fas fa-check mr-1"></i>Material adicionado! Será enviado ao criar o treinamento.</div>';
 
                         setTimeout(() => feedback.innerHTML = '', 3000);
                     });
+
+                    function autoAddPendingMaterial() {
+                        const nomeEl = document.getElementById('material-nome-create');
+                        const descricaoEl = document.getElementById('material-descricao-create');
+                        const arquivoEl = document.getElementById('material-arquivo-create');
+
+                        if (!arquivoEl || !arquivoEl.files || !arquivoEl.files[0]) {
+                            return;
+                        }
+
+                        const arquivo = arquivoEl.files[0];
+                        const nome = (nomeEl?.value || '').trim() || (arquivo.name || 'Material');
+                        const descricao = descricaoEl?.value || '';
+
+                        materiaisTempStorage.push({
+                            id: 'temp_' + Date.now(),
+                            nome,
+                            descricao,
+                            arquivo,
+                            tamanho: arquivo.size,
+                            tipo: arquivo.name.split('.').pop().toLowerCase()
+                        });
+
+                        updateListaMateriais();
+
+                        if (nomeEl) nomeEl.value = '';
+                        if (descricaoEl) descricaoEl.value = '';
+                        if (arquivoEl) arquivoEl.value = '';
+                    }
                 });
 
                 function getIconeArquivo(extensao) {
