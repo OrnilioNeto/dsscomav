@@ -134,7 +134,7 @@
                     <h3 class="font-semibold text-gray-800 mb-3">Carregar novo material</h3>
                     <div id="material-upload-form" class="space-y-3">
                         <div>
-                            <label class="block text-gray-700 text-sm font-semibold mb-2">Nome do Material</label>
+                            <label class="block text-gray-700 text-sm font-semibold mb-2">Nome do Material (opcional)</label>
                             <input type="text" id="material-nome" placeholder="Ex: Manual do Motorista" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
                         </div>
                         <div>
@@ -195,44 +195,26 @@
                         const descricao = document.getElementById('material-descricao').value;
                         const arquivo = document.getElementById('material-arquivo').files[0];
                         const feedback = document.getElementById('upload-feedback');
+                        const maxFileSize = 250 * 1024 * 1024;
 
                         if (!arquivo) {
                             feedback.innerHTML = '<div class="text-red-600 text-sm">✗ Por favor, selecione um arquivo</div>';
                             return;
                         }
 
-                        const formData = new FormData();
-                        formData.append('nome', nome);
-                        formData.append('descricao', descricao);
-                        formData.append('arquivo', arquivo);
+                        if (arquivo.size > maxFileSize) {
+                            feedback.innerHTML = '<div class="text-red-600 text-sm">✗ O arquivo selecionado ultrapassa 250 MB.</div>';
+                            return;
+                        }
 
                         uploadBtn.disabled = true;
                         uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...';
                         feedback.innerHTML = '';
 
                         try {
-                            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-                            const response = await fetch('{{ route("materiais.upload", $training->id) }}', {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRF-TOKEN': csrfToken
-                                },
-                                body: formData
-                            });
-
-                            const data = await response.json();
-
-                            if (response.ok) {
-                                feedback.innerHTML = '<div class="text-green-600 text-sm"><i class="fas fa-check mr-1"></i>Material enviado com sucesso!</div>';
-                                form.reset();
-                                
-                                setTimeout(() => location.reload(), 1500);
-                            } else {
-                                const errorMsg = data.errors ? Object.values(data.errors).join(', ') : data.error;
-                                feedback.innerHTML = `<div class="text-red-600 text-sm">✗ Erro: ${errorMsg}</div>`;
-                            }
-                        } catch (error) {
-                            feedback.innerHTML = `<div class="text-red-600 text-sm">✗ Erro ao enviar: ${error.message}</div>`;
+                            await uploadFileInChunks(arquivo, nome, descricao, feedback, uploadBtn);
+                        } catch (err) {
+                            feedback.innerHTML = `<div class="text-red-600 text-sm">✗ Erro ao enviar: ${err.message}</div>`;
                         } finally {
                             uploadBtn.disabled = false;
                             uploadBtn.innerHTML = '<i class="fas fa-upload mr-2"></i>Carregar Material';
@@ -242,6 +224,59 @@
                     // Listeners para deletar materiais
                     attachDeleteListeners();
                 });
+
+                async function uploadFileInChunks(file, nome, descricao, feedbackEl, uploadBtn) {
+                    const chunkSize = 1024 * 1024; // 1MB
+                    const chunkCount = Math.ceil(file.size / chunkSize);
+                    const uploadId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+                    let uploaded = 0;
+
+                    for (let i = 0; i < chunkCount; i++) {
+                        const start = i * chunkSize;
+                        const end = Math.min(start + chunkSize, file.size);
+                        const chunkBlob = file.slice(start, end);
+
+                        const fd = new FormData();
+                        fd.append('upload_id', uploadId);
+                        fd.append('chunk_index', i);
+                        fd.append('chunk_count', chunkCount);
+                        fd.append('original_name', file.name);
+                        fd.append('chunk', chunkBlob, file.name);
+
+                        // enviar nome/descricao apenas no último chunk para facilitar
+                        if (i === chunkCount - 1) {
+                            fd.append('nome', nome || file.name);
+                            fd.append('descricao', descricao || '');
+                        }
+
+                        const response = await fetch('{{ route("materiais.upload", $training->id) }}', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrfToken
+                            },
+                            body: fd
+                        });
+
+                        if (!response.ok) {
+                            let text = await response.text();
+                            try { text = JSON.parse(text); } catch(e) {}
+                            throw new Error((text && text.error) ? text.error : 'Falha no upload do chunk ' + i);
+                        }
+
+                        uploaded += (end - start);
+                        const pct = Math.round((uploaded / file.size) * 100);
+                        feedbackEl.innerHTML = `<div class="text-sm text-gray-700">Enviando... ${pct}%</div>`;
+                    }
+
+                    feedbackEl.innerHTML = '<div class="text-green-600 text-sm"><i class="fas fa-check mr-1"></i>Material enviado com sucesso!</div>';
+                    document.getElementById('material-nome').value = '';
+                    document.getElementById('material-descricao').value = '';
+                    document.getElementById('material-arquivo').value = '';
+
+                    setTimeout(() => location.reload(), 1200);
+                }
 
                 function attachDeleteListeners() {
                     document.querySelectorAll('.delete-material').forEach(btn => {

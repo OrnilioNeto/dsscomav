@@ -55,10 +55,110 @@ class TrainingMaterialController extends Controller
 
         $training = Training::findOrFail($trainingId);
 
+        // Log de debug para diagnosticar problemas de upload (arquivo 4.5MB falhando)
+        try {
+            \Log::info('Upload debug start', [
+                'has_file' => $request->hasFile('arquivo'),
+                'request_keys' => array_keys($request->all()),
+                'php_upload_max' => ini_get('upload_max_filesize'),
+                'php_post_max' => ini_get('post_max_size'),
+                'php_tmp_dir' => ini_get('upload_tmp_dir'),
+                'files_superglobal' => isset($_FILES['arquivo']) ? $_FILES['arquivo'] : null,
+            ]);
+        } catch (\Exception $e) {
+            // Não interromper o fluxo em caso de erro de logging
+            \Log::warning('Falha ao logar debug de upload: ' . $e->getMessage());
+        }
+        // Suporte a upload por chunks: se vierem os campos upload_id e chunk_index
+        $isChunk = $request->filled('upload_id') && $request->filled('chunk_index') && $request->hasFile('chunk');
+
+        if ($isChunk) {
+            $uploadId = preg_replace('/[^A-Za-z0-9\-_]/', '', $request->input('upload_id'));
+            $chunkIndex = (int) $request->input('chunk_index');
+            $chunkCount = (int) $request->input('chunk_count');
+            $originalName = $request->input('original_name', 'upload.bin');
+
+            $tmpDir = storage_path('app/tmp/uploads');
+            if (!is_dir($tmpDir)) {
+                mkdir($tmpDir, 0777, true);
+            }
+
+            $tmpPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part';
+
+            $chunkFile = $request->file('chunk');
+            if (! $chunkFile->isValid()) {
+                return response()->json(['error' => $this->getUploadErrorMessage($chunkFile->getError())], 422);
+            }
+
+            // Anexa o conteúdo do chunk ao arquivo temporário
+            try {
+                $contents = file_get_contents($chunkFile->getRealPath());
+                file_put_contents($tmpPath, $contents, FILE_APPEND);
+            } catch (\Exception $e) {
+                return response()->json(['error' => 'Falha ao gravar chunk: ' . $e->getMessage()], 500);
+            }
+
+            // Se for o último chunk, processa como upload completo
+            if ($chunkIndex + 1 >= $chunkCount) {
+                // Criar uma instância simulada para seguir o fluxo de armazenamento
+                try {
+                    $stream = fopen($tmpPath, 'r');
+                    $filename = basename($originalName);
+                    $extensao = pathinfo($filename, PATHINFO_EXTENSION);
+                    $tamanho = filesize($tmpPath);
+
+                    $relativePath = "materiais-apoio/training-{$trainingId}/" . uniqid() . '-' . $filename;
+                    $fullStoragePath = storage_path('app/public/' . $relativePath);
+
+                    // Garante diretório
+                    $dir = dirname($fullStoragePath);
+                    if (!is_dir($dir)) mkdir($dir, 0777, true);
+
+                    // Move o arquivo temporário para o storage público
+                    rename($tmpPath, $fullStoragePath);
+
+                    // Criar registro no banco
+                    $proximaOrdem = TrainingMaterial::where('training_id', $trainingId)->max('ordem') ?? 0;
+                    $nomeMaterial = trim((string) $request->input('nome', ''));
+                    if ($nomeMaterial === '') {
+                        $nomeMaterial = pathinfo($filename, PATHINFO_FILENAME) ?: $filename;
+                    }
+
+                    $material = TrainingMaterial::create([
+                        'training_id' => $trainingId,
+                        'nome' => $nomeMaterial,
+                        'descricao' => $request->input('descricao'),
+                        'arquivo' => $relativePath,
+                        'tipo_arquivo' => $extensao,
+                        'tamanho' => $tamanho,
+                        'ordem' => $proximaOrdem + 1,
+                    ]);
+
+                    return response()->json([
+                        'success' => true,
+                        'material' => $material,
+                        'icone' => $material->getIcone(),
+                        'tamanho_formatado' => $material->getTamanhoFormatado(),
+                    ]);
+                } catch (\Exception $e) {
+                    return response()->json(['error' => 'Falha ao finalizar upload: ' . $e->getMessage()], 500);
+                }
+            }
+
+            // Ainda faltam chunks
+            return response()->json(['success' => true, 'chunk' => $chunkIndex], 200);
+        }
+
         $validator = \Validator::make($request->all(), [
-            'nome' => 'required|string|max:255',
+            'nome' => 'nullable|string|max:255',
             'descricao' => 'nullable|string',
-            'arquivo' => 'required|file|max:102400', // 100MB max
+            'arquivo' => 'required|file|max:256000', // 250MB max
+        ], [
+            'nome.max' => 'O nome do material deve ter no máximo 255 caracteres.',
+            'arquivo.required' => 'Selecione um arquivo para o material de apoio.',
+            'arquivo.file' => 'O arquivo não pôde ser enviado. Verifique se ele não excede o limite do PHP ou se o upload foi concluído corretamente.',
+            'arquivo.uploaded' => 'O arquivo não pôde ser enviado. Verifique se o tamanho permitido no PHP é maior do que o arquivo selecionado.',
+            'arquivo.max' => 'O arquivo deve ter no máximo 250 MB.',
         ]);
 
         if ($validator->fails()) {
@@ -81,9 +181,14 @@ class TrainingMaterialController extends Controller
             $proximaOrdem = TrainingMaterial::where('training_id', $trainingId)->max('ordem') ?? 0;
 
             // Criar registro no banco de dados
+            $nomeMaterial = trim((string) $request->input('nome', ''));
+            if ($nomeMaterial === '') {
+                $nomeMaterial = pathinfo($nomeOriginal, PATHINFO_FILENAME) ?: $nomeOriginal;
+            }
+
             $material = TrainingMaterial::create([
                 'training_id' => $trainingId,
-                'nome' => $request->nome,
+                'nome' => $nomeMaterial,
                 'descricao' => $request->descricao,
                 'arquivo' => $caminhoArmazenado,
                 'tipo_arquivo' => $extensao,
@@ -101,6 +206,20 @@ class TrainingMaterialController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    private function getUploadErrorMessage(?int $errorCode): string
+    {
+        return match ($errorCode) {
+            UPLOAD_ERR_INI_SIZE => 'O arquivo excede o limite configurado no PHP (upload_max_filesize). O limite atual é de 250 MB.',
+            UPLOAD_ERR_FORM_SIZE => 'O arquivo excede o limite permitido pelo formulário.',
+            UPLOAD_ERR_PARTIAL => 'O envio do arquivo foi interrompido antes de concluir.',
+            UPLOAD_ERR_NO_FILE => 'Nenhum arquivo foi enviado.',
+            UPLOAD_ERR_NO_TMP_DIR => 'O servidor não possui diretório temporário para uploads.',
+            UPLOAD_ERR_CANT_WRITE => 'O servidor não conseguiu gravar o arquivo temporário.',
+            UPLOAD_ERR_EXTENSION => 'O upload foi bloqueado por uma extensão do PHP.',
+            default => 'O arquivo não pôde ser enviado. Verifique o limite de upload do servidor.',
+        };
     }
 
     // Deletar material

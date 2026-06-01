@@ -149,43 +149,66 @@ class TrainingController extends Controller
         $training = Training::create($data);
 
         // Processar materiais de apoio enviados durante a criação
-        if ($request->has('materiais') && is_array($request->input('materiais'))) {
+        // Importante: quando nome/descrição são opcionais, pode não existir
+        // payload em input('materiais'), mas os arquivos ainda chegam em file('materiais').
+        $materiaisArquivos = $request->file('materiais', []);
+        if (is_array($materiaisArquivos) && !empty($materiaisArquivos)) {
             $ordem = 0;
-            foreach ($request->input('materiais') as $index => $materialData) {
-                // Verificar se há arquivo para este material
-                if ($request->hasFile("materiais.{$index}.arquivo")) {
-                    $file = $request->file("materiais.{$index}.arquivo");
-                    
-                    // Validar o arquivo
-                    $fileValidator = Validator::make(
-                        ['arquivo' => $file],
-                        ['arquivo' => 'required|file|max:102400'] // 100MB max
-                    );
-                    
-                    if ($fileValidator->fails()) {
-                        continue; // Pular este arquivo se não passar na validação
-                    }
-                    
-                    // Armazenar o arquivo
-                    $storagePath = "materiais-apoio/training-{$training->id}";
-                    $fileName = $file->getClientOriginalName();
-                    $filePath = $file->storeAs($storagePath, $fileName, 'public');
-                    
-                    // Obter informações do arquivo
-                    $fileSize = $file->getSize();
-                    $mimeType = $file->getMimeType();
-                    
-                    // Criar registro no banco de dados
-                    TrainingMaterial::create([
-                        'training_id' => $training->id,
-                        'nome' => $materialData['nome'] ?? 'Material',
-                        'descricao' => $materialData['descricao'] ?? null,
-                        'arquivo' => $filePath,
-                        'tipo_arquivo' => $mimeType,
-                        'tamanho' => $fileSize,
-                        'ordem' => $ordem++,
-                    ]);
+
+            \Log::info('Create training: materiais recebidos', [
+                'training_id' => $training->id,
+                'count' => count($materiaisArquivos),
+                'indices' => array_keys($materiaisArquivos),
+            ]);
+
+            foreach ($materiaisArquivos as $index => $materialArquivoData) {
+                $file = is_array($materialArquivoData) ? ($materialArquivoData['arquivo'] ?? null) : null;
+
+                if (!$file) {
+                    continue;
                 }
+
+                // Validar o arquivo
+                $fileValidator = Validator::make(
+                    ['arquivo' => $file],
+                    ['arquivo' => 'required|file|max:102400'] // 100MB max
+                );
+
+                if ($fileValidator->fails()) {
+                    continue; // Pular este arquivo se não passar na validação
+                }
+
+                // Armazenar o arquivo
+                $storagePath = "materiais-apoio/training-{$training->id}";
+                $fileName = $file->getClientOriginalName();
+                $filePath = $file->storeAs($storagePath, $fileName, 'public');
+
+                // Obter informações do arquivo e metadados opcionais
+                $fileSize = $file->getSize();
+                $mimeType = $file->getMimeType();
+                $materialData = $request->input("materiais.{$index}", []);
+                $nomeMaterial = trim((string) ($materialData['nome'] ?? ''));
+                if ($nomeMaterial === '') {
+                    $nomeMaterial = pathinfo($fileName, PATHINFO_FILENAME) ?: $fileName;
+                }
+
+                // Criar registro no banco de dados
+                TrainingMaterial::create([
+                    'training_id' => $training->id,
+                    'nome' => $nomeMaterial,
+                    'descricao' => $materialData['descricao'] ?? null,
+                    'arquivo' => $filePath,
+                    'tipo_arquivo' => $mimeType,
+                    'tamanho' => $fileSize,
+                    'ordem' => $ordem++,
+                ]);
+
+                \Log::info('Create training: material salvo', [
+                    'training_id' => $training->id,
+                    'arquivo' => $filePath,
+                    'nome' => $nomeMaterial,
+                    'tamanho' => $fileSize,
+                ]);
             }
         }
 
@@ -194,13 +217,13 @@ class TrainingController extends Controller
 
     public function show($id)
     {
-        $training = Training::findOrFail($id);
+        $training = Training::with('materials')->findOrFail($id);
         return view('treinamentos.show', compact('training'));
     }
 
     public function edit($id)
     {
-        $training = Training::findOrFail($id);
+        $training = Training::with('materials')->findOrFail($id);
         return view('treinamentos.edit', compact('training'));
     }
 
