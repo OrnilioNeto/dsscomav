@@ -8,6 +8,7 @@ use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\TrainingPlayerController;
 use App\Http\Controllers\TrainingMaterialController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ProfilePhotoController;
 use App\Http\Middleware\CheckRole;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,11 @@ Route::get('/validar/{codigo}', [CertificateController::class, 'validateCertific
 Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Perfil do Usuário
+    Route::get('/perfil/editar', [ProfilePhotoController::class, 'edit'])->name('profile.edit');
+    Route::post('/perfil/foto/upload', [ProfilePhotoController::class, 'upload'])->name('profile.photo.upload');
+    Route::delete('/perfil/foto/delete', [ProfilePhotoController::class, 'delete'])->name('profile.photo.delete');
 
     // Página de Certificação / Conformidade (acessível a todos os usuários autenticados)
     Route::get('/certificacao-conformidade', function () {

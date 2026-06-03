@@ -113,18 +113,35 @@
                         </a>
 
                         <div class="relative">
-                            <button id="user-desktop-toggle" class="flex items-center site-link-hover">
-                                <i class="fas fa-user-circle text-xl"></i>
-                                <span class="ml-2 hidden sm:inline">{{ Auth::user()->nome }}</span>
+                            <button id="user-desktop-toggle" class="flex items-center gap-2 site-link-hover hover:opacity-80 transition">
+                                @component('components.user-avatar', ['user' => Auth::user(), 'size' => 'sm'])
+                                @endcomponent
+                                <span class="ml-1 hidden sm:inline text-sm font-medium">{{ Auth::user()->nome }}</span>
                             </button>
-                            <div id="user-desktop-menu" class="hidden absolute right-0 mt-0 w-44 bg-white text-gray-800 rounded shadow-lg z-50">
-                                <a href="{{ route('dashboard') }}" class="block px-4 py-2 hover:bg-gray-100">
+                            <div id="user-desktop-menu" class="hidden absolute right-0 mt-1 w-56 bg-white text-gray-800 rounded-lg shadow-lg z-50 border border-gray-200">
+                                <div class="px-4 py-3 border-b border-gray-200">
+                                    <div class="flex items-center gap-3">
+                                        <img 
+                                            src="{{ Auth::user()->getFotoPerfilUrl() }}" 
+                                            alt="{{ Auth::user()->nome }}"
+                                            class="w-12 h-12 rounded-full object-cover border-2 border-blue-900"
+                                        >
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-semibold text-gray-900 truncate">{{ Auth::user()->nome }}</p>
+                                            <p class="text-xs text-gray-500 truncate capitalize">{{ Auth::user()->tipo_usuario }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <a href="{{ route('profile.edit') }}" class="block px-4 py-2 hover:bg-gray-100 text-sm">
+                                    <i class="fas fa-camera mr-2 text-blue-600"></i> Editar Perfil
+                                </a>
+                                <a href="{{ route('dashboard') }}" class="block px-4 py-2 hover:bg-gray-100 text-sm">
                                     <i class="fas fa-user mr-2"></i> Meu Perfil
                                 </a>
-                                <form action="{{ route('logout') }}" method="POST" class="block">
+                                <form action="{{ route('logout') }}" method="POST" class="block border-t border-gray-200">
                                     @csrf
-                                    <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100">
-                                        <i class="fas fa-sign-out-alt mr-2"></i> Sair
+                                    <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
+                                        <i class="fas fa-sign-out-alt mr-2 text-red-600"></i> Sair
                                     </button>
                                 </form>
                             </div>
@@ -151,10 +168,17 @@
                                 <a href="{{ route('certificacao.conformidade') }}" class="block px-3 py-2 rounded text-white site-link-hover">Transparência</a>
 
                         <div class="border-t border-white/20 mt-2 pt-2">
-                            <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white">Meu Perfil</a>
+                            <a href="{{ route('profile.edit') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                <i class="fas fa-camera mr-1"></i> Editar Perfil
+                            </a>
+                            <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                <i class="fas fa-user mr-1"></i> Meu Perfil
+                            </a>
                             <form action="{{ route('logout') }}" method="POST" class="block px-3 py-2">
                                 @csrf
-                                <button type="submit" class="w-full text-left">Sair</button>
+                                <button type="submit" class="w-full text-left text-white site-link-hover">
+                                    <i class="fas fa-sign-out-alt mr-1"></i> Sair
+                                </button>
                             </form>
                         </div>
                     </div>

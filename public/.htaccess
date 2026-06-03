@@ -41,3 +41,12 @@
     ExpiresByType text/css "access plus 1 month"
     ExpiresByType application/javascript "access plus 1 month"
 </IfModule>
+
+# Limites de upload para hospedagens Apache com mod_php
+<IfModule mod_php.c>
+    php_value file_uploads On
+    php_value upload_max_filesize 250M
+    php_value post_max_size 300M
+    php_value memory_limit 512M
+    php_value max_file_uploads 20
+</IfModule>

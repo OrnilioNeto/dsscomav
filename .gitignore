@@ -1,11 +1,16 @@
+# Dependências
 node_modules/
 vendor/
+
+# Arquivos de ambiente
 .env
 .env.adminer
 .env.example
 .env.production.example
 .env.local
 .env.*.local
+
+# Logs e cache
 storage/logs/*
 !storage/logs/.gitkeep
 storage/framework/cache/*
@@ -14,17 +19,33 @@ storage/framework/sessions/*
 !storage/framework/sessions/.gitkeep
 storage/framework/views/*
 !storage/framework/views/.gitkeep
+*.log
+
+# Public storage
 public/storage
+
+# Arquivos de configuração locais
+.user.ini
+public/.user.ini
+docker/php/
+serve_with_limits.bat
+serve_with_limits.sh
+
+# Banco de dados local
+database/database.sqlite
+
+# Arquivos temporários e IDEs
 .DS_Store
 Thumbs.db
-*.log
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
+
+# PHPUnit cache
 .phpunit.result.cache
+
+# Bootstrap cache
 !bootstrap/cache/.gitkeep
 bootstrap/cache/*.php
-
-database/database.sqlite
