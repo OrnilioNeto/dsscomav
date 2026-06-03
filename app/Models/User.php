@@ -223,7 +223,9 @@ class User extends Authenticatable
      */
     public function getFotoPerfilUrl(): string
     {
-        if ($this->foto_perfil && file_exists(public_path("uploads/perfil/{$this->foto_perfil}"))) {
+        $path = $this->foto_perfil ? public_path("uploads/perfil/{$this->foto_perfil}") : null;
+        
+        if ($path && file_exists($path)) {
             return asset("uploads/perfil/{$this->foto_perfil}");
         }
 
