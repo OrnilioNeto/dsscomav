@@ -23,6 +23,7 @@ storage/framework/views/*
 
 # Public storage
 public/storage
+public/uploads
 
 # Arquivos de configuração locais
 .user.ini

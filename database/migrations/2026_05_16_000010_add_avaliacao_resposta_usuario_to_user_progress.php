@@ -13,6 +13,10 @@ return new class extends Migration
      */
     public function up()
     {
+        if (Schema::hasColumn('user_progress', 'avaliacao_resposta_usuario')) {
+            return;
+        }
+
         Schema::table('user_progress', function (Blueprint $table) {
             $table->integer('avaliacao_resposta_usuario')->nullable()->after('avaliacao_tentativas');
         });

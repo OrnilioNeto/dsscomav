@@ -85,4 +85,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/relatorios/auditoria', [CertificateManagementController::class, 'relatorioAuditoria'])->name('relatorios.auditoria');
         Route::get('/certificados/exportar', [CertificateManagementController::class, 'exportarCertificados'])->name('certificados.exportar');
     });
+
+    // Roteamento exclusivo para Super Admin: Ranking
+    Route::middleware([CheckRole::class . ':super_admin'])->group(function () {
+        Route::get('/admin/ranking', [\App\Http\Controllers\Admin\RankingController::class, 'index'])->name('admin.ranking.index');
+        Route::post('/admin/ranking/recalculate', [\App\Http\Controllers\Admin\RankingController::class, 'recalculate'])->name('admin.ranking.recalculate');
+        Route::get('/admin/ranking/historico', [\App\Http\Controllers\Admin\RankingController::class, 'history'])->name('admin.ranking.history');
+        Route::get('/admin/ranking/breakdown/{user}', [\App\Http\Controllers\Admin\RankingController::class, 'breakdown'])->name('admin.ranking.breakdown');
+        Route::get('/admin/ranking/configuracoes', [\App\Http\Controllers\Admin\RankingSettingsController::class, 'index'])->name('admin.ranking.settings');
+        Route::post('/admin/ranking/configuracoes', [\App\Http\Controllers\Admin\RankingSettingsController::class, 'update'])->name('admin.ranking.settings.update');
+        Route::post('/admin/ranking/criterios/{criterion}/regras', [\App\Http\Controllers\Admin\RankingSettingsController::class, 'storeRule'])->name('admin.ranking.rules.store'); // Store new rule
+        Route::put('/admin/ranking/regras/{rule}', [\App\Http\Controllers\Admin\RankingSettingsController::class, 'updateRule'])->name('admin.ranking.rules.update'); // Update existing rule
+        Route::delete('/admin/ranking/regras/{rule}', [\App\Http\Controllers\Admin\RankingSettingsController::class, 'destroyRule'])->name('admin.ranking.rules.destroy'); // Delete rule
+    });
 });
