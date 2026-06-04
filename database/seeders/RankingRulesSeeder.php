@@ -17,11 +17,11 @@ class RankingRulesSeeder extends Seeder
 
         if ($startTimeCriteria) {
             $rules = [
-                ['label' => '0-1 hora', 'min_value' => 0, 'max_value' => 1, 'points' => 50, 'sort_order' => 1],
-                ['label' => '1-6 horas', 'min_value' => 1, 'max_value' => 6, 'points' => 40, 'sort_order' => 2],
-                ['label' => '6-12 horas', 'min_value' => 6, 'max_value' => 12, 'points' => 30, 'sort_order' => 3],
-                ['label' => '12-24 horas', 'min_value' => 12, 'max_value' => 24, 'points' => 20, 'sort_order' => 4],
-                ['label' => '24-72 horas', 'min_value' => 24, 'max_value' => 72, 'points' => 10, 'sort_order' => 5],
+                ['label' => 'Elite (até 1h)', 'min_value' => 0, 'max_value' => 1, 'points' => 150, 'sort_order' => 1], // Play entre 08:30 e 09:30
+                ['label' => 'Prontidão Máxima (1h a 4h)', 'min_value' => 1.0001, 'max_value' => 4, 'points' => 100, 'sort_order' => 2], // Play até 12:30
+                ['label' => 'Proativo (4h a 12h)', 'min_value' => 4.0001, 'max_value' => 12, 'points' => 70, 'sort_order' => 3], // Tarde de segunda
+                ['label' => 'Mesmo Dia (12h a 24h)', 'min_value' => 12.0001, 'max_value' => 24, 'points' => 40, 'sort_order' => 4], // Noite de segunda
+                ['label' => 'Tardio (após 24h)', 'min_value' => 24.0001, 'max_value' => 9999, 'points' => 10, 'sort_order' => 5], // A partir de terça
             ];
 
             foreach ($rules as $r) {
@@ -34,11 +34,11 @@ class RankingRulesSeeder extends Seeder
 
         if ($completionCriteria) {
             $rules = [
-                ['label' => 'Mesmo dia', 'min_value' => 0, 'max_value' => 0, 'points' => 40, 'sort_order' => 1],
-                ['label' => '+1 dia', 'min_value' => 1, 'max_value' => 1, 'points' => 30, 'sort_order' => 2],
-                ['label' => '+2 dias', 'min_value' => 2, 'max_value' => 2, 'points' => 20, 'sort_order' => 3],
-                ['label' => '+3 dias', 'min_value' => 3, 'max_value' => 3, 'points' => 10, 'sort_order' => 4],
-                ['label' => '+4 dias ou mais', 'min_value' => 4, 'max_value' => 9999, 'points' => 5, 'sort_order' => 5],
+                ['label' => 'Mesmo dia (0 dias)', 'min_value' => 0, 'max_value' => 0, 'points' => 60, 'sort_order' => 1],
+                ['label' => 'Até 1 dia', 'min_value' => 0.0001, 'max_value' => 1, 'points' => 45, 'sort_order' => 2],
+                ['label' => 'Até 3 dias', 'min_value' => 1.0001, 'max_value' => 3, 'points' => 25, 'sort_order' => 3],
+                ['label' => 'Até 7 dias', 'min_value' => 3.0001, 'max_value' => 7, 'points' => 10, 'sort_order' => 4],
+                ['label' => 'Mais de 7 dias', 'min_value' => 7.0001, 'max_value' => 9999, 'points' => 5, 'sort_order' => 5],
             ];
 
             foreach ($rules as $r) {
@@ -51,9 +51,9 @@ class RankingRulesSeeder extends Seeder
 
         if ($quizCriteria) {
             $rules = [
-                ['label' => 'Primeira tentativa', 'min_value' => 1, 'max_value' => 1, 'points' => 50, 'sort_order' => 1],
-                ['label' => 'Segunda tentativa', 'min_value' => 2, 'max_value' => 2, 'points' => 25, 'sort_order' => 2],
-                ['label' => 'Reassistiu conteúdo', 'min_value' => 3, 'max_value' => 9999, 'points' => 5, 'sort_order' => 3],
+                ['label' => '1ª Tentativa', 'min_value' => 1, 'max_value' => 1, 'points' => 70, 'sort_order' => 1],
+                ['label' => '2ª Tentativa', 'min_value' => 2, 'max_value' => 2, 'points' => 30, 'sort_order' => 2],
+                ['label' => '3+ Tentativas', 'min_value' => 3, 'max_value' => 9999, 'points' => 10, 'sort_order' => 3],
             ];
 
             foreach ($rules as $r) {

@@ -2,14 +2,19 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class RankingSetting extends Model
 {
-    protected $table = 'ranking_settings';
+    use HasFactory;
 
     protected $fillable = [
         'is_active',
         'default_period',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 }

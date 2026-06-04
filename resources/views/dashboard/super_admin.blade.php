@@ -129,7 +129,7 @@
     </div>
 
     <!-- Links de Ação -->
-    <div class="mt-8 grid md:grid-cols-2 gap-6">
+    <div class="mt-8 grid md:grid-cols-3 gap-6">
         <a href="{{ route('usuarios.index') }}" class="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 rounded-lg hover:shadow-lg transition">
             <i class="fas fa-users text-3xl mb-3"></i>
             <h3 class="text-xl font-bold">Gerenciar Usuários</h3>
@@ -148,10 +148,22 @@
             <p class="text-orange-100 text-sm mt-2">Visualizar certificados e relatórios gerenciais</p>
         </a>
         
-        <a href="{{ route('admin.ranking.index') }}" class="bg-gradient-to-r from-yellow-700 to-yellow-500 text-white p-6 rounded-lg hover:shadow-lg transition">
-            <i class="fas fa-trophy text-3xl mb-3"></i>
-            <h3 class="text-xl font-bold">Ranking</h3>
-            <p class="text-yellow-100 text-sm mt-2">Visualizar ranking mensal e histórico</p>
+        <a href="{{ route('admin.ranking.index') }}" class="bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-500 text-white p-6 rounded-lg hover:shadow-xl transition-all shadow-amber-200 border-2 border-amber-400/30 group">
+            <i class="fas fa-award text-3xl mb-3 group-hover:scale-110 transition-transform"></i>
+            <h3 class="text-xl font-bold">Gestão de Engajamento (Elite)</h3>
+            <p class="text-amber-50 text-sm mt-2 opacity-90">Análise comportamental e BI de prontidão da equipe</p>
+        </a>
+
+        <a href="{{ route('relatorios.ia') }}" class="bg-gradient-to-r from-cyan-600 to-blue-500 text-white p-6 rounded-lg hover:shadow-lg transition">
+            <i class="fas fa-robot text-3xl mb-3"></i>
+            <h3 class="text-xl font-bold">Análise com IA</h3>
+            <p class="text-cyan-100 text-sm mt-2">Resumos executivos e insights preditivos</p>
+        </a>
+
+        <a href="{{ route('admin.ranking.settings') }}" class="bg-gradient-to-r from-slate-700 to-slate-500 text-white p-6 rounded-lg hover:shadow-lg transition">
+            <i class="fas fa-cog text-3xl mb-3"></i>
+            <h3 class="text-xl font-bold">Configurações</h3>
+            <p class="text-slate-100 text-sm mt-2">Ajustar pesos e critérios de pontuação</p>
         </a>
     </div>
     </div>

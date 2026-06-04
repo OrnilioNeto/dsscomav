@@ -2,22 +2,22 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class RankingCriterion extends Model
 {
-    protected $table = 'ranking_criteria';
+    use HasFactory;
 
     protected $fillable = [
         'name',
         'slug',
         'description',
-        'is_active',
         'sort_order',
     ];
 
     public function rules()
     {
-        return $this->hasMany(RankingRule::class, 'criterion_id');
+        return $this->hasMany(RankingRule::class, 'criterion_id')->orderBy('sort_order');
     }
 }

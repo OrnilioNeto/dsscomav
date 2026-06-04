@@ -93,7 +93,7 @@
                             <a href="{{ route('certificados.gerencial') }}" class="site-link-hover nav-link flex items-center">
                                 <i class="fas fa-certificate mr-1"></i><span class="hidden sm:inline">Consulta Certificados</span>
                             </a>
-                            <a href="{{ route('admin.ranking.index') }}" class="site-link-hover nav-link flex items-center">
+                            <a href="{{ route('admin.ranking.index') }}" class="site-link-hover nav-link flex items-center text-yellow-400 hover:text-yellow-300">
                                 <i class="fas fa-trophy mr-1"></i><span class="hidden sm:inline">Ranking</span>
                             </a>
                             <a href="{{ route('admin.ranking.settings') }}" class="site-link-hover nav-link flex items-center">
