@@ -26,9 +26,55 @@
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4 py-8">
+    <style>
+        .profile-moldura {
+            position: relative;
+            padding: 4px;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+        }
+        .tier-mythic { background: linear-gradient(135deg, #7c3aed, #db2777); box-shadow: 0 0 15px rgba(124, 58, 237, 0.5); }
+        .tier-master { background: linear-gradient(135deg, #ef4444, #f97316); }
+        .tier-diamond { background: linear-gradient(135deg, #0ea5e9, #2dd4bf); }
+        .tier-platinum { background: linear-gradient(135deg, #94a3b8, #f1f5f9); }
+        .tier-gold { background: linear-gradient(135deg, #eab308, #fef08a); }
+        .tier-silver { background: linear-gradient(135deg, #94a3b8, #cbd5e1); }
+        .tier-bronze { background: linear-gradient(135deg, #b45309, #d97706); }
+    </style>
+
     <h1 class="text-4xl font-bold text-gray-800 mb-8">
         <i class="fas fa-tachometer-alt text-blue-900 mr-3"></i>Meu Dashboard
     </h1>
+
+    <!-- Perfil e Nível -->
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 flex flex-col md:flex-row items-center gap-6 border border-gray-100">
+        <div class="profile-moldura {{ $rankingLevel['class'] }}">
+            <img src="{{ Auth::user()->getFotoPerfilUrl() }}" class="w-24 h-24 rounded-full object-cover border-4 border-white">
+            <div class="absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-md">
+                <i class="fas {{ $rankingLevel['icon'] }}" style="color: {{ $rankingLevel['color'] }}"></i>
+            </div>
+        </div>
+        <div class="flex-1 text-center md:text-left">
+            <h2 class="text-2xl font-black text-gray-900">Olá, {{ explode(' ', Auth::user()->nome)[0] }}!</h2>
+            <p class="text-gray-500 font-medium">Seu nível atual: <span class="font-bold" style="color: {{ $rankingLevel['color'] }}">{{ $rankingLevel['name'] }}</span></p>
+            <p class="text-sm text-gray-400 mt-1 italic">"{{ $rankingLevel['msg'] }}"</p>
+        </div>
+        <div class="text-center">
+            <div class="flex gap-4 md:gap-8 justify-center mb-1">
+                <div>
+                    <p class="text-xs uppercase font-bold text-gray-400 tracking-widest mb-1">Posição</p>
+                    <p class="text-4xl font-black text-blue-900">{{ $userRank > 0 ? $userRank . 'º' : '--' }}</p>
+                </div>
+                <div>
+                    <p class="text-xs uppercase font-bold text-gray-400 tracking-widest mb-1">Pontos</p>
+                    <p class="text-4xl font-black text-blue-900">{{ number_format($totalPoints, 0) }}</p>
+                </div>
+            </div>
+            <a href="{{ route('profile.stats') }}" class="mt-2 inline-block text-sm font-bold text-blue-600 hover:underline">
+                Como ganhei esses pontos? <i class="fas fa-arrow-right ml-1 text-xs"></i>
+            </a>
+        </div>
+    </div>
 
     <!-- Resumo -->
     <div class="grid md:grid-cols-4 gap-6 mb-8">

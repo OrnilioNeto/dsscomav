@@ -37,6 +37,7 @@ Route::middleware('auth')->group(function () {
 
     // Perfil do Usuário
     Route::get('/perfil/editar', [ProfilePhotoController::class, 'edit'])->name('profile.edit');
+    Route::get('/perfil/estatisticas', [DashboardController::class, 'profileStats'])->name('profile.stats');
     Route::post('/perfil/foto/upload', [ProfilePhotoController::class, 'upload'])->name('profile.photo.upload');
     Route::delete('/perfil/foto/delete', [ProfilePhotoController::class, 'delete'])->name('profile.photo.delete');
 

@@ -7,6 +7,8 @@ use App\Models\Training;
 use App\Models\User;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
+use App\Models\RankingMonthlyScore;
+use App\Services\RankingRuleResolverService;
 
 class DashboardController extends Controller
 {
@@ -140,6 +142,31 @@ class DashboardController extends Controller
             }
         }
 
+        // Cálculo de pontos e rank em tempo real para o dashboard
+        $month = now()->month;
+        $year = now()->year;
+        $resolver = app(RankingRuleResolverService::class);
+        
+        // Reutilizamos a lógica do RankingController para pegar a pontuação real atualizada
+        $rankingController = app(\App\Http\Controllers\Admin\RankingController::class);
+        $request = new Request(['month' => $month, 'year' => $year]);
+        $breakdownData = $rankingController->breakdown($request, $user->id, $resolver)->getData();
+        
+        $totalPoints = collect($breakdownData->trainings ?? [])->sum('raw_score');
+        $rankingLevel = $this->calculateLevel($totalPoints);
+
+        // Rank baseado na última consolidação
+        $userRank = 0;
+        if (!$user->usuario_teste && $totalPoints > 0) {
+            $userRank = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
+                ->where('users.usuario_teste', false)
+                ->where('users.status', 'ativo')
+                ->where('ranking_monthly_scores.month_reference', $month)
+                ->where('ranking_monthly_scores.year_reference', $year)
+                ->where('ranking_monthly_scores.average_score', '>', $totalPoints)
+                ->count() + 1;
+        }
+
         return view('dashboard.usuario', [
             'treinamentosDisponíveis' => $treinamentosDisponíveis,
             'treinamentosBloqueados' => $treinamentosBloqueados,
@@ -150,6 +177,65 @@ class DashboardController extends Controller
             'certificados' => $certificados,
             'tempoTotal' => $tempoFormatado,
             'treinamentosCompletos' => $treinamentosCompletos,
+            'rankingLevel' => $rankingLevel,
+            'totalPoints' => $totalPoints,
+            'userRank' => $userRank
         ]);
+    }
+
+    public function profileStats(RankingRuleResolverService $resolver)
+    {
+        $user = auth()->user();
+        $month = now()->month;
+        $year = now()->year;
+
+        // Reutilizamos a lógica de breakdown do RankingController, mas para o próprio usuário
+        $controller = app(\App\Http\Controllers\Admin\RankingController::class);
+        $request = new Request(['month' => $month, 'year' => $year]);
+        $breakdownData = $controller->breakdown($request, $user->id, $resolver)->getData();
+        $trainings = $breakdownData->trainings ?? [];
+
+        $score = collect($trainings)->sum('raw_score');
+        $rankingLevel = $this->calculateLevel($score);
+
+        $userRank = 0;
+        if (!$user->usuario_teste && $score > 0) {
+            $userRank = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
+                ->where('users.usuario_teste', false)
+                ->where('users.status', 'ativo')
+                ->where('ranking_monthly_scores.month_reference', $month)
+                ->where('ranking_monthly_scores.year_reference', $year)
+                ->where('ranking_monthly_scores.average_score', '>', $score)
+                ->count() + 1;
+        }
+
+        return view('dashboard.profile-stats', [
+            'user' => $user,
+            'rankingLevel' => $rankingLevel,
+            'totalPoints' => $score,
+            'userRank' => $userRank,
+            'trainings' => $trainings,
+            'month' => $month,
+            'year' => $year
+        ]);
+    }
+
+    private function calculateLevel($score)
+    {
+        if ($score >= 1000) {
+            return ['name' => 'Mítico', 'class' => 'tier-mythic', 'color' => '#7c3aed', 'icon' => 'fa-dragon', 'msg' => 'Você é uma lenda da segurança! Sua dedicação salva vidas e inspira a todos.'];
+        } elseif ($score >= 750) {
+            return ['name' => 'Mestre', 'class' => 'tier-master', 'color' => '#ef4444', 'icon' => 'fa-crown', 'msg' => 'Excelente desempenho! Seu compromisso com o aprendizado é exemplar.'];
+        } elseif ($score >= 500) {
+            return ['name' => 'Diamante', 'class' => 'tier-diamond', 'color' => '#0ea5e9', 'icon' => 'fa-gem', 'msg' => 'Brilhante! Você está entre os profissionais mais qualificados da frota.'];
+        } elseif ($score >= 350) {
+            return ['name' => 'Platina', 'class' => 'tier-platinum', 'color' => '#94a3b8', 'icon' => 'fa-award', 'msg' => 'Parabéns pela evolução constante! Continue acelerando seu conhecimento.'];
+        } elseif ($score >= 200) {
+            return ['name' => 'Ouro', 'class' => 'tier-gold', 'color' => '#eab308', 'icon' => 'fa-medal', 'msg' => 'Ótimo trabalho! Você está no caminho certo para a elite.'];
+        } elseif ($score >= 100) {
+            return ['name' => 'Prata', 'class' => 'tier-silver', 'color' => '#94a3b8', 'icon' => 'fa-certificate', 'msg' => 'Bom começo! Continue assistindo aos conteúdos para subir de nível.'];
+        }
+        
+        return ['name' => 'Bronze', 'class' => 'tier-bronze', 'color' => '#b45309', 'icon' => 'fa-shield-alt', 'msg' => 'Inicie seus treinamentos para conquistar sua primeira medalha!'];
     }
 }

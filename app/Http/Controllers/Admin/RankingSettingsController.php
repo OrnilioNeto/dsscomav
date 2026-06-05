@@ -8,9 +8,106 @@ use App\Models\RankingRule;
 use App\Models\RankingSetting;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 
 class RankingSettingsController extends Controller
 {
+    public function __construct()
+    {
+        $this->ensureRankingTablesExist();
+    }
+
+    /**
+     * Verifica se as tabelas de parâmetros e dados de ranking existem, se não, as cria.
+     */
+    private function ensureRankingTablesExist()
+    {
+        // 1. Tabela de Configurações Gerais
+        if (!Schema::hasTable('ranking_settings')) {
+            Schema::create('ranking_settings', function (Blueprint $table) {
+                $table->id();
+                $table->boolean('is_active')->default(true);
+                $table->string('default_period')->default('monthly');
+                $table->timestamps();
+            });
+        }
+
+        // 2. Tabela de Critérios (Início, Conclusão, Quiz)
+        if (!Schema::hasTable('ranking_criteria')) {
+            Schema::create('ranking_criteria', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('slug')->unique();
+                $table->text('description')->nullable();
+                $table->integer('sort_order')->default(0);
+                $table->timestamps();
+            });
+
+            // Popular com os critérios base se a tabela foi recém criada
+            DB::table('ranking_criteria')->insert([
+                [
+                    'name' => 'Velocidade de Início', 
+                    'slug' => 'start_time', 
+                    'description' => 'Tempo entre a liberação do conteúdo e o início da assistência (horas).', 
+                    'sort_order' => 1, 'created_at' => now(), 'updated_at' => now()
+                ],
+                [
+                    'name' => 'Tempo de Conclusão', 
+                    'slug' => 'completion_time', 
+                    'description' => 'Tempo total para concluir o treinamento após o início (dias).', 
+                    'sort_order' => 2, 'created_at' => now(), 'updated_at' => now()
+                ],
+                [
+                    'name' => 'Resultado do Quiz', 
+                    'slug' => 'quiz_result', 
+                    'description' => 'Performance na avaliação final baseada em tentativas.', 
+                    'sort_order' => 3, 'created_at' => now(), 'updated_at' => now()
+                ],
+            ]);
+        }
+
+        // 3. Tabela de Regras de Pontuação
+        if (!Schema::hasTable('ranking_rules')) {
+            Schema::create('ranking_rules', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('criterion_id');
+                $table->string('label');
+                $table->float('min_value')->nullable();
+                $table->float('max_value')->nullable();
+                $table->integer('points')->default(0);
+                $table->integer('sort_order')->default(0);
+                $table->timestamps();
+                $table->foreign('criterion_id')->references('id')->on('ranking_criteria')->onDelete('cascade');
+            });
+        }
+
+        // 4. Tabelas de Resultados (Onde o recálculo salva os dados)
+        if (!Schema::hasTable('ranking_scores')) {
+            Schema::create('ranking_scores', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('user_id');
+                $table->unsignedBigInteger('training_id');
+                $table->float('raw_score');
+                $table->integer('month_reference');
+                $table->integer('year_reference');
+                $table->timestamps();
+            });
+        }
+
+        if (!Schema::hasTable('ranking_monthly_scores')) {
+            Schema::create('ranking_monthly_scores', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('user_id');
+                $table->float('average_score');
+                $table->integer('month_reference');
+                $table->integer('year_reference');
+                $table->timestamps();
+            });
+        }
+    }
+
     /**
      * Exibe a página de configurações do ranking.
      *
