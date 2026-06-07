@@ -90,6 +90,27 @@ class DashboardController extends Controller
                 ->filter(fn($t) => $user->canAccessTraining($t));
         }
 
+        // Cálculo de pontos e rank em tempo real para o admin (visão pessoal)
+        $month = now()->month;
+        $year = now()->year;
+        $resolver = app(RankingRuleResolverService::class);
+        $rankingController = app(\App\Http\Controllers\Admin\RankingController::class);
+        $requestObj = new Request(['month' => $month, 'year' => $year]);
+        $breakdownData = $rankingController->breakdown($requestObj, $user->id, $resolver)->getData();
+        $totalPoints = collect($breakdownData->trainings ?? [])->sum('raw_score');
+        $rankingLevel = $this->calculateLevel($totalPoints);
+
+        $userRank = 0;
+        if (!$user->usuario_teste && $totalPoints > 0) {
+            $userRank = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
+                ->where('users.usuario_teste', false)
+                ->where('users.status', 'ativo')
+                ->where('ranking_monthly_scores.month_reference', $month)
+                ->where('ranking_monthly_scores.year_reference', $year)
+                ->where('ranking_monthly_scores.average_score', '>', $totalPoints)
+                ->count() + 1;
+        }
+
         return view('dashboard.admin', [
             'totalUsuarios' => $totalUsuarios,
             'totalTreinamentos' => $totalTreinamentos,
@@ -98,6 +119,9 @@ class DashboardController extends Controller
             'treinamentosRecentes' => $treinamentosRecentes,
             'usuariosRecentes' => $usuariosRecentes,
             'treinamentosDisponíveis' => $treinamentosDisponíveis,
+            'rankingLevel' => $rankingLevel,
+            'totalPoints' => $totalPoints,
+            'userRank' => $userRank
         ]);
     }
 
