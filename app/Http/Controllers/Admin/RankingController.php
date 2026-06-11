@@ -141,180 +141,72 @@ class RankingController extends Controller
         $driver = DB::getDriverName();
         $isSqlite = $driver === 'sqlite';
 
-        // Subconsulta para critério de desempate: Média do tempo de início no período
+        // 1. Subconsulta para critério de desempate: Média do tempo de início no período selecionado
         $avgStartRaw = $isSqlite ? 'AVG(strftime("%s", data_inicio))' : 'AVG(UNIX_TIMESTAMP(data_inicio))';
         $avgStartSub = UserProgress::select('user_id', DB::raw("$avgStartRaw as avg_start_time"))
             ->groupBy('user_id');
-
         if (!$isGeneral) {
             $avgStartSub->whereYear('data_inicio', $year)->whereMonth('data_inicio', $month);
         }
 
-        // --- PONTUAÇÃO GERAL ACUMULADA (Tabela Principal) ---
+        // --- CARREGAMENTO DO RANKING CONSOLIDADO ---
         try {
-            // 1. Subconsulta de certificados válidos no período filtrado.
-            // Filtramos aqui para garantir que o ranking considere apenas o que foi concluído no período.
-            $validCertsSub = Certificate::select('user_id', 'training_id')
-                ->where('valido', true);
-            
-            if (!$isGeneral) {
-                $validCertsSub->whereMonth('data_emissao', $month)
-                              ->whereYear('data_emissao', $year);
-            }
-            $validCertsSub->groupBy('user_id', 'training_id');
-
-            // 2. Subconsulta de scores sincronizada com o período.
-            // IMPORTANTE: Quando filtramos por mês, limitamos a busca apenas aos pontos registrados naquele período.
-            // Isso impede que pontuações maiores de meses passados sobrescrevam os dados atuais.
-            $scoresSub = RankingScore::select('user_id', 'training_id', DB::raw('MAX(raw_score) as single_raw_score'))
-                ->groupBy('user_id', 'training_id');
-            
-            if (!$isGeneral) {
-                $scoresSub->where('month_reference', $month)
-                          ->where('year_reference', $year);
-            }
-
-            // 3. Montagem da Query Principal vinculando Certificados + Scores do mesmo contexto.
-            $baseQuery = User::query()
-                ->joinSub($validCertsSub, 'vc', 'users.id', '=', 'vc.user_id')
-                ->joinSub($scoresSub, 'us', function($join) {
-                    $join->on('vc.user_id', '=', 'us.user_id')
-                         ->on('vc.training_id', '=', 'us.training_id');
-                })
+            $query = RankingMonthlyScore::query()
+                ->join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
                 ->leftJoinSub($avgStartSub, 'st', 'users.id', '=', 'st.user_id')
                 ->where('users.usuario_teste', false)
                 ->where('users.status', 'ativo');
 
             if ($type !== 'all') {
-                $baseQuery->where('users.tipo_usuario', $type);
+                $query->where('users.tipo_usuario', $type);
             }
 
-            $rows = $baseQuery
-                ->select(
-                    'users.id as user_id',
-                    'users.nome',
-                    'users.tipo_usuario',
+            if (!$isGeneral) {
+                // Ranking Mensal: Busca direta do mês selecionado
+                $query->where('ranking_monthly_scores.month_reference', $month)
+                      ->where('ranking_monthly_scores.year_reference', $year)
+                      ->select(
+                          'users.id as user_id', 'users.nome', 'users.tipo_usuario',
+                          'st.avg_start_time',
+                          'ranking_monthly_scores.average_score'
+                      );
+            } else {
+                // Ranking Geral (Acumulado): Soma de todos os meses consolidados na tabela
+                $query->select(
+                    'users.id as user_id', 'users.nome', 'users.tipo_usuario',
                     'st.avg_start_time',
-                    DB::raw('SUM(us.single_raw_score) as average_score') // Soma real baseada em certificados
+                    DB::raw('SUM(ranking_monthly_scores.average_score) as average_score')
                 )
-                ->groupBy('users.id', 'users.nome', 'users.tipo_usuario', 'st.avg_start_time')
-                ->orderByDesc('average_score')
+                ->groupBy('users.id', 'users.nome', 'users.tipo_usuario', 'st.avg_start_time');
+            }
+
+            $rows = $query->orderByDesc('average_score')
                 ->orderBy(DB::raw('COALESCE(st.avg_start_time, 9999999999)'), 'asc')
                 ->orderBy('users.nome', 'asc')
                 ->limit($top > 0 ? $top : 100)
                 ->get();
 
-            // Vinculamos o objeto User para manter a compatibilidade com a View
-            $rows->each(function($row) {
+            // Obter contagem de certificados para a tabela (Participações)
+            $userIds = $rows->pluck('user_id')->toArray();
+            $certsQuery = Certificate::whereIn('user_id', $userIds)->where('valido', true);
+            if (!$isGeneral) {
+                $certsQuery->whereMonth('data_emissao', $month)->whereYear('data_emissao', $year);
+            }
+            $certsMap = $certsQuery->select('user_id', DB::raw('COUNT(DISTINCT training_id) as total'))
+                ->groupBy('user_id')->pluck('total', 'user_id');
+
+            $rows->each(function($row) use ($certsMap) {
                 $user = new User();
-                $user->id = $row->user_id;
-                $user->nome = $row->nome;
-                $user->tipo_usuario = $row->tipo_usuario;
+                $user->id = $row->user_id; $user->nome = $row->nome; $user->tipo_usuario = $row->tipo_usuario;
                 $row->setRelation('user', $user);
+                $row->real_content_count = $certsMap->get($row->user_id) ?? 0;
             });
-
             $hasRealRanking = $rows->isNotEmpty();
-
-            // --- SINCRONIZAÇÃO EM TEMPO REAL ---
-            // Garante paridade total entre a tabela principal e o popup de detalhes (breakdown).
-            // Recalculamos a soma real dos pontos em PHP para os usuários exibidos na página.
-            if ($hasRealRanking && $rows->isNotEmpty()) {
-                $userIds = $rows->pluck('user_id')->toArray();
-                
-                // Carrega certificados e progresso de uma vez para os usuários do Top para evitar lentidão (N+1)
-                $certsQuery = Certificate::with('training')
-                    ->whereIn('user_id', $userIds)
-                    ->where('valido', true);
-                
-                if (!$isGeneral) {
-                    $certsQuery->whereMonth('data_emissao', $month)->whereYear('data_emissao', $year);
-                }
-                
-                $allCerts = $certsQuery->get()->groupBy('user_id');
-                $allProgress = UserProgress::whereIn('user_id', $userIds)->get()->groupBy('user_id');
-
-                foreach ($rows as $row) {
-                    $userCerts = ($allCerts->get($row->user_id) ?? collect())->unique('training_id');
-                    $totalScore = 0;
-
-                    foreach ($userCerts as $cert) {
-                        $training = $cert->training;
-                        if (!$training) continue;
-                        
-                        // Lógica de cálculo idêntica à do método breakdown()
-                        $startHours = null;
-                        $releaseDate = $training->data_liberacao ?? $training->created_at;
-                        if ($releaseDate && $cert->data_inicio_assistencia) {
-                            $diffInMinutes = $releaseDate->diffInMinutes($cert->data_inicio_assistencia, false);
-                            $startHours = round($diffInMinutes / 60, 1);
-                        }
-
-                        $completionDays = null;
-                        if ($cert->data_inicio_assistencia && $cert->data_finalizacao_assistencia) {
-                            $completionDays = $cert->data_inicio_assistencia->diffInDays($cert->data_finalizacao_assistencia);
-                        }
-
-                        $attempts = 1;
-                        $prog = ($allProgress->get($row->user_id) ?? collect())
-                            ->where('training_id', $training->id)
-                            ->sortByDesc('updated_at')
-                            ->first();
-                        if ($prog && isset($prog->avaliacao_tentativas)) {
-                            $attempts = ($prog->avaliacao_tentativas > 0) ? ($prog->avaliacao_tentativas + 1) : 1;
-                        }
-
-                        $totalScore += $resolver->resolvePoints('start_time', $startHours ?? 9999) ?? 0;
-                        $totalScore += $resolver->resolvePoints('completion_time', $completionDays ?? 9999) ?? 0;
-                        $totalScore += $resolver->resolvePoints('quiz_result', $attempts) ?? 0;
-                    }
-
-                    $row->average_score = $totalScore; // Substitui o valor do banco pelo cálculo em tempo real
-                    $row->real_content_count = $userCerts->count();
-                }
-                
-                // Re-ordenar a coleção pela pontuação recalculada (para o caso de o cache do banco estar muito errado)
-                $rows = $rows->sortByDesc('average_score')->values();
-            }
-
-            // Fallback: If no consolidated ranking data, calculate real-time from certificates
-            if ($rows->isEmpty() && $top !== 0) { // Only fallback if $rows is empty AND not "Ver Tudo" (which might be intentionally empty)
-                $fallbackQuery = User::kpiEligible()->where('users.status', 'ativo')
-                    ->leftJoinSub($avgStartSub, 'st', 'users.id', '=', 'st.user_id')
-                    ->select('users.*', 'st.avg_start_time'); // Select avg_start_time for ordering
-
-                if ($type !== 'all') {
-                    $fallbackQuery->where('users.tipo_usuario', $type);
-                }
-
-                $fallbackQuery->withCount(['certificates as real_content_count' => function($q) use ($month, $year, $isGeneral) {
-                    $q->where('valido', true);
-                    if (!$isGeneral) {
-                        $q->whereMonth('data_emissao', $month)->whereYear('data_emissao', $year);
-                    }
-                    $q->select(DB::raw('COUNT(DISTINCT training_id)')); // Ensure distinct count
-                }]);
-
-                $rows = $fallbackQuery->having('real_content_count', '>', 0)
-                    ->orderByDesc('real_content_count')
-                    ->orderBy(DB::raw('COALESCE(st.avg_start_time, 9999999999)'), 'asc') // Desempate por média de início
-                    ->orderBy('users.nome', 'asc') // Desempate por nome
-                    ->limit($top > 0 ? $top : 20)
-                    ->get();
-
-                // Normalizar para que a view exiba corretamente como se fosse a tabela de ranking
-                $rows->each(function($r) {
-                    $r->average_score = $r->real_content_count * 10; // Assign a dummy score for fallback display
-                    $r->fallback_source = true;
-                    $r->setRelation('user', $r); // Set user relation for compatibility
-                });
-            }
-
         } catch (\Throwable $e) {
-            \Log::error("Erro no ranking: " . $e->getMessage() . " em " . $e->getFile() . ":" . $e->getLine());
+            \Log::error("Erro ao carregar ranking consolidado: " . $e->getMessage());
             $rows = collect();
             $hasRealRanking = false;
         }
-
         // --- MÉTRICAS DE ADESÃO PARA O PAINEL DE BI ---
         // 1. Definimos a base de usuários elegíveis (exclui testes, admins não participantes e férias atuais)
         $totalUsuariosElegiveis = User::kpiEligible()->count();
@@ -420,15 +312,78 @@ class RankingController extends Controller
     }
 
     /**
-     * Dispara o comando de recálculo de ranking via interface web.
+     * Processa o recálculo de todos os usuários elegíveis e salva na tabela de scores mensais.
      */
-    public function recalculate()
-    {
+    public function recalculate(Request $request, RankingRuleResolverService $resolver)
+    {   
+        $month = $request->input('month', now()->month);
+        $year = $request->input('year', now()->year);
+
         try {
-            Artisan::call('ranking:recalculate');
+            // 1. Obter todos os usuários elegíveis para KPI
+            $users = User::kpiEligible()->where('status', 'ativo')->get();
+            $processedCount = 0;
+            
+            $isGeneral = ($month === 0); // Definir isGeneral também para o método recalculate
+
+            foreach ($users as $user) {
+                // 2. Buscar certificados válidos no período
+                $certificates = Certificate::with('training')
+                    ->where('user_id', $user->id)
+                    ->where('valido', true)
+                    ->whereMonth('data_emissao', $month)
+                    ->whereYear('data_emissao', $year)
+                    ->get()
+                    ->unique('training_id');
+
+                $totalScore = 0;
+                
+                // 3. Calcular pontos para cada certificado (Lógica idêntica ao breakdown/index)
+                foreach ($certificates as $cert) {
+                    $training = $cert->training;
+                    if (!$training) continue;
+
+                    $startHours = null;
+                    $releaseDate = $training->data_liberacao ?? $training->created_at;
+                    if ($releaseDate && $cert->data_inicio_assistencia) {
+                        $diffInMinutes = $releaseDate->diffInMinutes($cert->data_inicio_assistencia, false);
+                        $startHours = round($diffInMinutes / 60, 1);
+                    }
+
+                    $completionDays = null;
+                    if ($cert->data_inicio_assistencia && $cert->data_finalizacao_assistencia) {
+                        $completionDays = $cert->data_inicio_assistencia->diffInDays($cert->data_finalizacao_assistencia);
+                    }
+
+                    $attempts = 1;
+                    $prog = UserProgress::where('user_id', $user->id)
+                        ->where('training_id', $training->id)
+                        ->orderByDesc('updated_at')
+                        ->first();
+                    if ($prog && isset($prog->avaliacao_tentativas)) {
+                        $attempts = ($prog->avaliacao_tentativas > 0) ? ($prog->avaliacao_tentativas + 1) : 1;
+                    }
+
+                    $totalScore += $resolver->resolvePoints('start_time', $startHours ?? 9999) ?? 0;
+                    $totalScore += $resolver->resolvePoints('completion_time', $completionDays ?? 9999) ?? 0;
+                    $totalScore += $resolver->resolvePoints('quiz_result', $attempts) ?? 0;
+                }
+
+                // 4. Salvar ou atualizar na tabela consolidada
+                // Apenas persiste se for um mês específico (não "Ranking Geral").
+                if (!$isGeneral) {
+                    \Log::info("RankingController@recalculate: Tentando salvar RankingMonthlyScore para user {$user->id}, mês {$month}/{$year} com score {$totalScore}");
+                    RankingMonthlyScore::updateOrCreate(
+                        ['user_id' => $user->id, 'month_reference' => $month, 'year_reference' => $year],
+                        ['average_score' => $totalScore]
+                    );
+                    \Log::info("RankingController@recalculate: RankingMonthlyScore salvo para user {$user->id}");
+                    $processedCount++;
+                }
+            }
             
             return redirect()->route('admin.ranking.index')
-                ->with('success', 'Ranking recalculado com sucesso! Os dados históricos foram processados.');
+                ->with('success', "Ranking recalculado com sucesso! {$processedCount} usuários foram atualizados para o período {$month}/{$year}.");
         } catch (\Throwable $e) {
             \Log::error('Erro ao recalcular ranking web: ' . $e->getMessage());
             return redirect()->route('admin.ranking.index')
