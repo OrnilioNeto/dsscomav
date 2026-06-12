@@ -33,13 +33,12 @@
             border-radius: 9999px;
             background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
         }
-        .tier-mythic { background: linear-gradient(135deg, #7c3aed, #db2777); box-shadow: 0 0 15px rgba(124, 58, 237, 0.5); }
-        .tier-master { background: linear-gradient(135deg, #ef4444, #f97316); }
-        .tier-diamond { background: linear-gradient(135deg, #0ea5e9, #2dd4bf); }
-        .tier-platinum { background: linear-gradient(135deg, #94a3b8, #f1f5f9); }
-        .tier-gold { background: linear-gradient(135deg, #eab308, #fef08a); }
-        .tier-silver { background: linear-gradient(135deg, #94a3b8, #cbd5e1); }
-        .tier-bronze { background: linear-gradient(135deg, #b45309, #d97706); }
+        .tier-mythic  { background: linear-gradient(135deg, #7c3aed, #db2777); box-shadow: 0 0 18px rgba(124,58,237,0.6); }
+        .tier-titan   { background: linear-gradient(135deg, #ef4444, #f97316); box-shadow: 0 0 12px rgba(239,68,68,0.5); }
+        .tier-imperial{ background: linear-gradient(135deg, #f97316, #facc15); }
+        .tier-elite   { background: linear-gradient(135deg, #0ea5e9, #2dd4bf); }
+        .tier-silver  { background: linear-gradient(135deg, #64748b, #94a3b8); }
+        .tier-bronze  { background: linear-gradient(135deg, #b45309, #d97706); }
     </style>
 
     <h1 class="text-4xl font-bold text-gray-800 mb-8">
@@ -56,7 +55,11 @@
         </div>
         <div class="flex-1 text-center md:text-left">
             <h2 class="text-2xl font-black text-gray-900">Olá, {{ explode(' ', Auth::user()->nome)[0] }}!</h2>
-            <p class="text-gray-500 font-medium">Seu nível atual: <span class="font-bold" style="color: {{ $rankingLevel['color'] }}">{{ $rankingLevel['name'] }}</span></p>
+            <p class="text-gray-500 font-medium">
+                Seu nível: 
+                <span class="font-bold" style="color: {{ $rankingLevel['color'] }}">{{ $rankingLevel['name'] }}</span>
+                <span class="text-gray-400 font-normal">— {{ $rankingLevel['sub'] }}</span>
+            </p>
             <p class="text-sm text-gray-400 mt-1 italic">"{{ $rankingLevel['msg'] }}"</p>
         </div>
         <div class="text-center">

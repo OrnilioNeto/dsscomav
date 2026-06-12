@@ -98,18 +98,31 @@ class DashboardController extends Controller
         $requestObj = new Request(['month' => $month, 'year' => $year]);
         $breakdownData = $rankingController->breakdown($requestObj, $user->id, $resolver)->getData();
         $totalPoints = collect($breakdownData->trainings ?? [])->sum('raw_score');
-        $rankingLevel = $this->calculateLevel($totalPoints);
 
         $userRank = 0;
         if (!$user->usuario_teste && $totalPoints > 0) {
-            $userRank = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
-                ->where('users.usuario_teste', false)
-                ->where('users.status', 'ativo')
+            $monthlyScore = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
+                ->where('ranking_monthly_scores.user_id', $user->id)
                 ->where('ranking_monthly_scores.month_reference', $month)
                 ->where('ranking_monthly_scores.year_reference', $year)
-                ->where('ranking_monthly_scores.average_score', '>', $totalPoints)
-                ->count() + 1;
+                ->where('users.usuario_teste', false)
+                ->where('users.status', 'ativo')
+                ->value('ranking_monthly_scores.position');
+
+            if ($monthlyScore) {
+                $userRank = $monthlyScore;
+            } else {
+                $userRank = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
+                    ->where('users.usuario_teste', false)
+                    ->where('users.status', 'ativo')
+                    ->where('ranking_monthly_scores.month_reference', $month)
+                    ->where('ranking_monthly_scores.year_reference', $year)
+                    ->where('ranking_monthly_scores.average_score', '>', $totalPoints)
+                    ->count() + 1;
+            }
         }
+
+        $rankingLevel = $this->calculateLevel($userRank);
 
         return view('dashboard.admin', [
             'totalUsuarios' => $totalUsuarios,
@@ -177,19 +190,33 @@ class DashboardController extends Controller
         $breakdownData = $rankingController->breakdown($request, $user->id, $resolver)->getData();
         
         $totalPoints = collect($breakdownData->trainings ?? [])->sum('raw_score');
-        $rankingLevel = $this->calculateLevel($totalPoints);
 
-        // Rank baseado na última consolidação
+        // Rank baseado na última consolidação (usa position já calculado com desempate)
         $userRank = 0;
         if (!$user->usuario_teste && $totalPoints > 0) {
-            $userRank = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
-                ->where('users.usuario_teste', false)
-                ->where('users.status', 'ativo')
+            $monthlyScore = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
+                ->where('ranking_monthly_scores.user_id', $user->id)
                 ->where('ranking_monthly_scores.month_reference', $month)
                 ->where('ranking_monthly_scores.year_reference', $year)
-                ->where('ranking_monthly_scores.average_score', '>', $totalPoints)
-                ->count() + 1;
+                ->where('users.usuario_teste', false)
+                ->where('users.status', 'ativo')
+                ->value('ranking_monthly_scores.position');
+
+            if ($monthlyScore) {
+                $userRank = $monthlyScore;
+            } else {
+                // Fallback: se o registro ainda não foi consolidado, conta por score
+                $userRank = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
+                    ->where('users.usuario_teste', false)
+                    ->where('users.status', 'ativo')
+                    ->where('ranking_monthly_scores.month_reference', $month)
+                    ->where('ranking_monthly_scores.year_reference', $year)
+                    ->where('ranking_monthly_scores.average_score', '>', $totalPoints)
+                    ->count() + 1;
+            }
         }
+
+        $rankingLevel = $this->calculateLevel($userRank);
 
         return view('dashboard.usuario', [
             'treinamentosDisponíveis' => $treinamentosDisponíveis,
@@ -220,18 +247,31 @@ class DashboardController extends Controller
         $trainings = $breakdownData->trainings ?? [];
 
         $score = collect($trainings)->sum('raw_score');
-        $rankingLevel = $this->calculateLevel($score);
 
         $userRank = 0;
         if (!$user->usuario_teste && $score > 0) {
-            $userRank = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
-                ->where('users.usuario_teste', false)
-                ->where('users.status', 'ativo')
+            $monthlyScore = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
+                ->where('ranking_monthly_scores.user_id', $user->id)
                 ->where('ranking_monthly_scores.month_reference', $month)
                 ->where('ranking_monthly_scores.year_reference', $year)
-                ->where('ranking_monthly_scores.average_score', '>', $score)
-                ->count() + 1;
+                ->where('users.usuario_teste', false)
+                ->where('users.status', 'ativo')
+                ->value('ranking_monthly_scores.position');
+
+            if ($monthlyScore) {
+                $userRank = $monthlyScore;
+            } else {
+                $userRank = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
+                    ->where('users.usuario_teste', false)
+                    ->where('users.status', 'ativo')
+                    ->where('ranking_monthly_scores.month_reference', $month)
+                    ->where('ranking_monthly_scores.year_reference', $year)
+                    ->where('ranking_monthly_scores.average_score', '>', $score)
+                    ->count() + 1;
+            }
         }
+
+        $rankingLevel = $this->calculateLevel($userRank);
 
         return view('dashboard.profile-stats', [
             'user' => $user,
@@ -244,22 +284,67 @@ class DashboardController extends Controller
         ]);
     }
 
-    private function calculateLevel($score)
+    /**
+     * Calcula o nível do usuário baseado na sua posição no ranking do mês.
+     * $position = 0 significa sem posição (ainda não consolidado ou sem pontos).
+     */
+    private function calculateLevel(int $position)
     {
-        if ($score >= 1000) {
-            return ['name' => 'Mítico', 'class' => 'tier-mythic', 'color' => '#7c3aed', 'icon' => 'fa-dragon', 'msg' => 'Você é uma lenda da segurança! Sua dedicação salva vidas e inspira a todos.'];
-        } elseif ($score >= 750) {
-            return ['name' => 'Mestre', 'class' => 'tier-master', 'color' => '#ef4444', 'icon' => 'fa-crown', 'msg' => 'Excelente desempenho! Seu compromisso com o aprendizado é exemplar.'];
-        } elseif ($score >= 500) {
-            return ['name' => 'Diamante', 'class' => 'tier-diamond', 'color' => '#0ea5e9', 'icon' => 'fa-gem', 'msg' => 'Brilhante! Você está entre os profissionais mais qualificados da frota.'];
-        } elseif ($score >= 350) {
-            return ['name' => 'Platina', 'class' => 'tier-platinum', 'color' => '#94a3b8', 'icon' => 'fa-award', 'msg' => 'Parabéns pela evolução constante! Continue acelerando seu conhecimento.'];
-        } elseif ($score >= 200) {
-            return ['name' => 'Ouro', 'class' => 'tier-gold', 'color' => '#eab308', 'icon' => 'fa-medal', 'msg' => 'Ótimo trabalho! Você está no caminho certo para a elite.'];
-        } elseif ($score >= 100) {
-            return ['name' => 'Prata', 'class' => 'tier-silver', 'color' => '#94a3b8', 'icon' => 'fa-certificate', 'msg' => 'Bom começo! Continue assistindo aos conteúdos para subir de nível.'];
+        if ($position === 1) {
+            return [
+                'name'  => 'Mítico',
+                'sub'   => 'Comandante da Segurança',
+                'class' => 'tier-mythic',
+                'color' => '#7c3aed',
+                'icon'  => 'fa-dragon',
+                'msg'   => 'Você é o Comandante da Segurança! Parabéns por liderar o ranking — sua dedicação protege vidas e inspira toda a frota.',
+            ];
+        } elseif ($position <= 3) {
+            return [
+                'name'  => 'Titã',
+                'sub'   => 'Mestre da Prevenção',
+                'class' => 'tier-titan',
+                'color' => '#ef4444',
+                'icon'  => 'fa-crown',
+                'msg'   => 'Incrível! Você está entre os 3 primeiros como Mestre da Prevenção. Continue assim e conquiste o topo!',
+            ];
+        } elseif ($position <= 10) {
+            return [
+                'name'  => 'Imperial',
+                'sub'   => 'Defensor Supremo',
+                'class' => 'tier-imperial',
+                'color' => '#f97316',
+                'icon'  => 'fa-shield-halved',
+                'msg'   => 'Excelente! Você é um Defensor Supremo no top 10. Seu comprometimento com a segurança faz a diferença todos os dias.',
+            ];
+        } elseif ($position <= 20) {
+            return [
+                'name'  => 'Elite',
+                'sub'   => 'Embaixador da Segurança',
+                'class' => 'tier-elite',
+                'color' => '#0ea5e9',
+                'icon'  => 'fa-star',
+                'msg'   => 'Parabéns! Você está no top 20 como Embaixador da Segurança. Mais um esforço e você entra para o grupo Imperial!',
+            ];
+        } elseif ($position <= 35) {
+            return [
+                'name'  => 'Prata',
+                'sub'   => 'Agente Preventivo',
+                'class' => 'tier-silver',
+                'color' => '#64748b',
+                'icon'  => 'fa-certificate',
+                'msg'   => 'Bom trabalho, Agente Preventivo! Você está crescendo no ranking. Foque nos treinamentos e suba para o nível Elite!',
+            ];
         }
-        
-        return ['name' => 'Bronze', 'class' => 'tier-bronze', 'color' => '#b45309', 'icon' => 'fa-shield-alt', 'msg' => 'Inicie seus treinamentos para conquistar sua primeira medalha!'];
+
+        // Posição 36+ ou sem posição ainda
+        return [
+            'name'  => 'Bronze',
+            'sub'   => 'Observador de Segurança',
+            'class' => 'tier-bronze',
+            'color' => '#b45309',
+            'icon'  => 'fa-shield-alt',
+            'msg'   => 'Todo grande campeão começa aqui! Complete os treinamentos, ganhe pontos e suba para o nível Prata.',
+        ];
     }
 }

@@ -13,6 +13,7 @@ class RankingMonthlyScore extends Model
         'month_reference',
         'year_reference',
         'average_score',
+        'tiebreaker_value',
         'position',
     ];
 

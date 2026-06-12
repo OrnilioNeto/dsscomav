@@ -313,21 +313,41 @@ class RankingController extends Controller
 
     /**
      * Processa o recálculo de todos os usuários elegíveis e salva na tabela de scores mensais.
+     * Inclui o tiebreaker_value (média do timestamp de data_inicio) e a position final com desempate.
      */
     public function recalculate(Request $request, RankingRuleResolverService $resolver)
     {   
-        $month = $request->input('month', now()->month);
-        $year = $request->input('year', now()->year);
+        $month = (int) $request->input('month', now()->month);
+        $year = (int) $request->input('year', now()->year);
+        $isGeneral = ($month === 0);
+
+        if ($isGeneral) {
+            return redirect()->route('admin.ranking.index')
+                ->with('error', 'O recálculo manual não está disponível para o Ranking Geral.');
+        }
 
         try {
             // 1. Obter todos os usuários elegíveis para KPI
             $users = User::kpiEligible()->where('status', 'ativo')->get();
             $processedCount = 0;
-            
-            $isGeneral = ($month === 0); // Definir isGeneral também para o método recalculate
+            $scores = []; // ['user_id' => ['score' => X, 'tiebreaker' => Y]]
+
+            $driver = DB::getDriverName();
+            $isSqlite = $driver === 'sqlite';
+
+            // 2. Pré-carregar os tiebreakers de todos os usuários de uma vez (eficiência)
+            $avgStartRaw = $isSqlite
+                ? 'AVG(strftime("%s", data_inicio))'
+                : 'AVG(UNIX_TIMESTAMP(data_inicio))';
+
+            $tiebreakers = UserProgress::select('user_id', DB::raw("$avgStartRaw as avg_start_time"))
+                ->whereYear('data_inicio', $year)
+                ->whereMonth('data_inicio', $month)
+                ->groupBy('user_id')
+                ->pluck('avg_start_time', 'user_id');
 
             foreach ($users as $user) {
-                // 2. Buscar certificados válidos no período
+                // 3. Buscar certificados válidos no período
                 $certificates = Certificate::with('training')
                     ->where('user_id', $user->id)
                     ->where('valido', true)
@@ -337,8 +357,8 @@ class RankingController extends Controller
                     ->unique('training_id');
 
                 $totalScore = 0;
-                
-                // 3. Calcular pontos para cada certificado (Lógica idêntica ao breakdown/index)
+
+                // 4. Calcular pontos para cada certificado (lógica idêntica ao breakdown/index)
                 foreach ($certificates as $cert) {
                     $training = $cert->training;
                     if (!$training) continue;
@@ -369,21 +389,62 @@ class RankingController extends Controller
                     $totalScore += $resolver->resolvePoints('quiz_result', $attempts) ?? 0;
                 }
 
-                // 4. Salvar ou atualizar na tabela consolidada
-                // Apenas persiste se for um mês específico (não "Ranking Geral").
-                if (!$isGeneral) {
-                    \Log::info("RankingController@recalculate: Tentando salvar RankingMonthlyScore para user {$user->id}, mês {$month}/{$year} com score {$totalScore}");
-                    RankingMonthlyScore::updateOrCreate(
-                        ['user_id' => $user->id, 'month_reference' => $month, 'year_reference' => $year],
-                        ['average_score' => $totalScore]
-                    );
-                    \Log::info("RankingController@recalculate: RankingMonthlyScore salvo para user {$user->id}");
-                    $processedCount++;
-                }
+                $scores[$user->id] = [
+                    'score'       => $totalScore,
+                    'tiebreaker'  => isset($tiebreakers[$user->id]) ? (float) $tiebreakers[$user->id] : null,
+                    'nome'        => $user->nome,
+                ];
             }
-            
+
+            // 5. Ordenar com a mesma lógica da página admin para calcular positions corretas:
+            //    1º maior score, 2º menor tiebreaker (iniciou mais cedo), 3º ordem alfabética
+            uasort($scores, function ($a, $b) {
+                if ($b['score'] !== $a['score']) {
+                    return $b['score'] <=> $a['score'];
+                }
+                $ta = $a['tiebreaker'] ?? PHP_INT_MAX;
+                $tb = $b['tiebreaker'] ?? PHP_INT_MAX;
+                if ($ta !== $tb) {
+                    return $ta <=> $tb;
+                }
+                return strcmp($a['nome'], $b['nome']);
+            });
+
+            // 6. Atribuir posições respeitando empates verdadeiros
+            //    (mesma posição apenas se score E tiebreaker E nome forem iguais — na prática, só score e tiebreaker)
+            $position = 0;
+            $rankPos = 0;
+            $lastScore = null;
+            $lastTiebreaker = null;
+
+            foreach ($scores as $userId => $data) {
+                $rankPos++;
+                if (
+                    $lastScore === null
+                    || $data['score'] !== $lastScore
+                    || $data['tiebreaker'] !== $lastTiebreaker
+                ) {
+                    $position = $rankPos;
+                }
+
+                \Log::info("RankingController@recalculate: user {$userId}, score {$data['score']}, tiebreaker {$data['tiebreaker']}, position {$position}");
+
+                RankingMonthlyScore::updateOrCreate(
+                    ['user_id' => $userId, 'month_reference' => $month, 'year_reference' => $year],
+                    [
+                        'average_score'    => $data['score'],
+                        'tiebreaker_value' => $data['tiebreaker'],
+                        'position'         => $position,
+                    ]
+                );
+
+                $lastScore = $data['score'];
+                $lastTiebreaker = $data['tiebreaker'];
+                $processedCount++;
+            }
+
             return redirect()->route('admin.ranking.index')
-                ->with('success', "Ranking recalculado com sucesso! {$processedCount} usuários foram atualizados para o período {$month}/{$year}.");
+                ->with('success', "Ranking recalculado com sucesso! {$processedCount} usuários atualizados para {$month}/{$year}.");
         } catch (\Throwable $e) {
             \Log::error('Erro ao recalcular ranking web: ' . $e->getMessage());
             return redirect()->route('admin.ranking.index')

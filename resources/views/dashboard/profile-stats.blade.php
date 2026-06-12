@@ -25,7 +25,8 @@
                 </div>
             </div>
             <div class="flex-1 text-center md:text-left">
-                <h2 class="text-3xl font-black text-slate-900 mb-4">Obrigado pela sua dedicação!</h2>
+                <h2 class="text-3xl font-black text-slate-900 mb-1">{{ $rankingLevel['name'] }}: {{ $rankingLevel['sub'] }}</h2>
+                <p class="text-slate-400 font-medium mb-4">Obrigado pela sua dedicação!</p>
                 <p class="text-lg text-slate-600 leading-relaxed mb-6">
                     {{ $rankingLevel['msg'] }}
                 </p>
