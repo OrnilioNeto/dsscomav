@@ -21,7 +21,7 @@ class TrainingAnalyzer
         $trainingFilter = $trainingId ? Training::find($trainingId) : null;
 
         // Obter usuários ativos elegíveis (mesma lógica do dashboard)
-        $usuariosAtivosQuery = User::kpiEligible()->where('status', 'ativo');
+        $usuariosAtivosQuery = User::kpiEligible();
         if ($trainingFilter) {
             $usuariosAtivosQuery->eligibleForTrainingKpi($trainingFilter);
         }

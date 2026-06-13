@@ -125,110 +125,85 @@
     </div>
 
     <!-- Treinamentos Disponíveis -->
-    <div class="space-y-8">
+    <div class="space-y-4" id="secoes-treinamentos">
 
-        <!-- AINDA NÃO LIBERADOS -->
-        @if(count($treinamentosBloqueados) > 0)
-            <div class="bg-white p-8 rounded-lg shadow-lg border-l-4 border-gray-400">
-                <h2 class="text-2xl font-bold mb-6 flex items-center">
-                    <i class="fas fa-lock text-gray-500 mr-3"></i>Ainda não liberados ({{ count($treinamentosBloqueados) }})
-                </h2>
+        @php
+            // Define qual seção fica no topo (expandida por padrão)
+            // Prioridade: pendentes > não iniciados > concluídos > bloqueados
+            $secaoPrincipal = null;
+            if (count($treinamentosPendentes) > 0) $secaoPrincipal = 'pendentes';
+            elseif (count($treinamentosNaoIniciados) > 0) $secaoPrincipal = 'nao_iniciados';
+            elseif (count($treinamentosConcluidos) > 0) $secaoPrincipal = 'concluidos';
+            elseif (count($treinamentosBloqueados) > 0) $secaoPrincipal = 'bloqueados';
+        @endphp
 
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    @foreach($treinamentosBloqueados as $training)
-                        <div class="border-2 border-gray-200 rounded-lg overflow-hidden bg-gradient-to-br from-gray-50 to-white opacity-80 cursor-not-allowed locked-training-card"
-                             data-release-local="{{ optional($training->data_liberacao)->format('d/m/Y, H:i') }}"
-                             title="Carregando data de liberação...">
-                            <div class="bg-gradient-to-r from-gray-500 to-gray-600 h-40 flex items-center justify-center text-white relative">
-                                <i class="fas fa-lock text-5xl opacity-70"></i>
-                                <div class="absolute top-2 right-2 bg-gray-800 text-white px-2 py-1 rounded-full text-xs font-bold">
-                                    BLOQUEADO
-                                </div>
-                            </div>
-
-                            <div class="p-4">
-                                <div class="flex items-start justify-between mb-2">
-                                    <h3 class="font-bold text-gray-800">{{ $training->titulo }}</h3>
-                                    <span class="text-xs bg-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-100 text-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-900 px-2 py-1 rounded">
-                                        {{ strtoupper($training->tipo) }}
-                                    </span>
-                                </div>
-
-                                <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
-
-                                <div class="flex gap-2 text-sm text-gray-600 mb-3">
-                                    <span><i class="fas fa-clock text-gray-500"></i> {{ $training->carga_horaria }} min</span>
-                                    <span class="text-gray-500"><i class="fas fa-lock"></i> Aguardando liberação</span>
-                                </div>
-
-                                <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600 locked-release-label">
-                                    Libera em breve
-                                </div>
-
-                                <button type="button" disabled class="mt-3 block w-full bg-gray-400 text-white text-center py-2 rounded font-semibold cursor-not-allowed">
-                                    <i class="fas fa-lock mr-2"></i>Ainda não liberado
-                                </button>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-        
-        <!-- PENDENTES -->
+        {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- PENDENTES                                                   --}}
+        {{-- ═══════════════════════════════════════════════════════════ --}}
         @if(count($treinamentosPendentes) > 0)
-            <div class="bg-white p-8 rounded-lg shadow-lg border-l-4 border-orange-500">
-                <h2 class="text-2xl font-bold mb-6 flex items-center">
-                    <i class="fas fa-hourglass-half text-orange-500 mr-3"></i>Pendentes ({{ count($treinamentosPendentes) }})
-                </h2>
+        @php $isPrincipal = $secaoPrincipal === 'pendentes'; @endphp
+        <div class="bg-white rounded-xl shadow-md border-l-4 border-orange-500 overflow-hidden secao-treinamento"
+             id="secao-pendentes">
 
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {{-- Cabeçalho clicável --}}
+            <button type="button"
+                    onclick="toggleSecao('pendentes')"
+                    class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-orange-50 transition-colors focus:outline-none group">
+                <div class="flex items-center gap-3">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-full bg-orange-100">
+                        <i class="fas fa-hourglass-half text-orange-500 text-lg"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            Em Andamento
+                            <span class="text-sm font-bold bg-orange-500 text-white px-2 py-0.5 rounded-full">{{ count($treinamentosPendentes) }}</span>
+                            @if($isPrincipal)
+                                <span class="text-xs font-semibold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Continue de onde parou</span>
+                            @endif
+                        </h2>
+                        <p class="text-xs text-gray-500">Você já iniciou {{ count($treinamentosPendentes) === 1 ? 'este conteúdo' : 'estes conteúdos' }} — finalize para ganhar pontos</p>
+                    </div>
+                </div>
+                <i id="icon-pendentes" class="fas fa-chevron-{{ $isPrincipal ? 'up' : 'down' }} text-gray-400 group-hover:text-orange-500 transition-transform text-lg"></i>
+            </button>
+
+            {{-- Conteúdo da seção --}}
+            <div id="body-pendentes" class="{{ $isPrincipal ? '' : 'hidden' }} px-6 pb-6">
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
                     @foreach($treinamentosPendentes as $training)
                         @php
                             $userProgress = $progresso->where('training_id', $training->id)->first();
                             $porcentagem = $userProgress->porcentagem_assistida ?? 0;
                         @endphp
-                        
-                        <div class="border-2 border-orange-200 rounded-lg overflow-hidden hover:shadow-lg transition bg-gradient-to-br from-orange-50 to-white">
-                            <div class="bg-gradient-to-r from-orange-500 to-orange-600 h-40 flex items-center justify-center text-white relative">
+                        <div class="border-2 border-orange-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow bg-gradient-to-br from-orange-50 to-white">
+                            <div class="bg-gradient-to-r from-orange-500 to-orange-600 h-36 flex items-center justify-center text-white relative">
                                 <i class="fas fa-play-circle text-5xl opacity-50"></i>
                                 <div class="absolute top-2 right-2 bg-orange-700 text-white px-2 py-1 rounded-full text-xs font-bold">
                                     {{ $porcentagem }}%
                                 </div>
                             </div>
-
                             <div class="p-4">
                                 <div class="flex items-start justify-between mb-2">
-                                    <h3 class="font-bold text-gray-800">{{ $training->titulo }}</h3>
-                                    <span class="text-xs bg-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-100 text-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-900 px-2 py-1 rounded">
+                                    <h3 class="font-bold text-gray-800 leading-snug">{{ $training->titulo }}</h3>
+                                    <span class="ml-2 shrink-0 text-xs bg-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-100 text-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-900 px-2 py-1 rounded">
                                         {{ strtoupper($training->tipo) }}
                                     </span>
                                 </div>
-
                                 <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
-
                                 <div class="mb-3">
                                     <div class="flex justify-between text-xs text-gray-600 mb-1">
-                                        <span>Progresso</span>
-                                        <span>{{ $porcentagem }}%</span>
+                                        <span>Progresso</span><span>{{ $porcentagem }}%</span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div 
-                                            class="bg-orange-500 h-2 rounded-full transition-all" 
-                                            style="width: {{ $porcentagem }}%"
-                                        ></div>
+                                        <div class="bg-orange-500 h-2 rounded-full" style="width: {{ $porcentagem }}%"></div>
                                     </div>
                                 </div>
-
                                 <div class="flex gap-2 text-sm text-gray-600 mb-3">
                                     <span><i class="fas fa-clock text-orange-500"></i> {{ $training->carga_horaria }} min</span>
                                     <span><i class="fas fa-{{ $training->obrigatorio ? 'exclamation-circle text-orange-600' : 'check text-green-600' }}"></i> {{ $training->obrigatorio ? 'Obrigatório' : 'Opcional' }}</span>
                                 </div>
-
-                                <a 
-                                    href="{{ route('treinamentos.player', $training->id) }}"
-                                    class="block w-full bg-orange-500 text-white text-center py-2 rounded hover:bg-orange-600 transition font-semibold"
-                                >
+                                <a href="{{ route('treinamentos.player', $training->id) }}"
+                                   class="block w-full bg-orange-500 text-white text-center py-2 rounded hover:bg-orange-600 transition font-semibold">
                                     <i class="fas fa-play mr-2"></i>Continuar
                                 </a>
                             </div>
@@ -236,64 +211,43 @@
                     @endforeach
                 </div>
             </div>
+        </div>
         @endif
 
-        <!-- CONCLUÍDOS -->
-        @if(count($treinamentosConcluidos) > 0)
-            <div class="bg-white p-8 rounded-lg shadow-lg border-l-4 border-green-500">
-                <h2 class="text-2xl font-bold mb-6 flex items-center">
-                    <i class="fas fa-check-circle text-green-500 mr-3"></i>Concluídos ({{ count($treinamentosConcluidos) }})
-                </h2>
-
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    @foreach($treinamentosConcluidos as $training)
-                        <div class="border-2 border-green-200 rounded-lg overflow-hidden hover:shadow-lg transition bg-gradient-to-br from-green-50 to-white">
-                            <div class="bg-gradient-to-r from-green-500 to-green-600 h-40 flex items-center justify-center text-white relative">
-                                <i class="fas fa-check-circle text-5xl opacity-70"></i>
-                                <div class="absolute top-2 right-2 bg-green-700 text-white px-2 py-1 rounded-full text-xs font-bold">
-                                    100%
-                                </div>
-                            </div>
-
-                            <div class="p-4">
-                                <div class="flex items-start justify-between mb-2">
-                                    <h3 class="font-bold text-gray-800">{{ $training->titulo }}</h3>
-                                    <span class="text-xs bg-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-100 text-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-900 px-2 py-1 rounded">
-                                        {{ strtoupper($training->tipo) }}
-                                    </span>
-                                </div>
-
-                                <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
-
-                                <div class="flex gap-2 text-sm text-gray-600 mb-3">
-                                    <span><i class="fas fa-clock text-green-500"></i> {{ $training->carga_horaria }} min</span>
-                                    <span class="text-green-600"><i class="fas fa-check-circle"></i> Concluído</span>
-                                </div>
-
-                                <a 
-                                    href="{{ route('treinamentos.player', $training->id) }}"
-                                    class="block w-full bg-green-500 text-white text-center py-2 rounded hover:bg-green-600 transition font-semibold"
-                                >
-                                    <i class="fas fa-redo mr-2"></i>Reabrir
-                                </a>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-
-        <!-- NÃO INICIADOS -->
+        {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- NÃO INICIADOS                                               --}}
+        {{-- ═══════════════════════════════════════════════════════════ --}}
         @if(count($treinamentosNaoIniciados) > 0)
-            <div class="bg-white p-8 rounded-lg shadow-lg border-l-4 border-blue-500">
-                <h2 class="text-2xl font-bold mb-6 flex items-center">
-                    <i class="fas fa-play-circle text-blue-500 mr-3"></i>Não Iniciados ({{ count($treinamentosNaoIniciados) }})
-                </h2>
+        @php $isPrincipal = $secaoPrincipal === 'nao_iniciados'; @endphp
+        <div class="bg-white rounded-xl shadow-md border-l-4 border-blue-500 overflow-hidden secao-treinamento"
+             id="secao-nao_iniciados">
 
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <button type="button"
+                    onclick="toggleSecao('nao_iniciados')"
+                    class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-blue-50 transition-colors focus:outline-none group">
+                <div class="flex items-center gap-3">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100">
+                        <i class="fas fa-play-circle text-blue-500 text-lg"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            Não Iniciados
+                            <span class="text-sm font-bold bg-blue-500 text-white px-2 py-0.5 rounded-full">{{ count($treinamentosNaoIniciados) }}</span>
+                            @if($isPrincipal)
+                                <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Novo para você</span>
+                            @endif
+                        </h2>
+                        <p class="text-xs text-gray-500">Conteúdos disponíveis aguardando seu início</p>
+                    </div>
+                </div>
+                <i id="icon-nao_iniciados" class="fas fa-chevron-{{ $isPrincipal ? 'up' : 'down' }} text-gray-400 group-hover:text-blue-500 transition-transform text-lg"></i>
+            </button>
+
+            <div id="body-nao_iniciados" class="{{ $isPrincipal ? '' : 'hidden' }} px-6 pb-6">
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
                     @foreach($treinamentosNaoIniciados as $training)
-                        <div class="border-2 border-blue-200 rounded-lg overflow-hidden hover:shadow-lg transition bg-gradient-to-br from-blue-50 to-white">
-                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-40 flex items-center justify-center text-white relative">
+                        <div class="border-2 border-blue-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow bg-gradient-to-br from-blue-50 to-white">
+                            <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-36 flex items-center justify-center text-white relative">
                                 <i class="fas fa-play-circle text-5xl opacity-50"></i>
                                 @if($training->obrigatorio)
                                     <div class="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
@@ -301,26 +255,20 @@
                                     </div>
                                 @endif
                             </div>
-
                             <div class="p-4">
                                 <div class="flex items-start justify-between mb-2">
-                                    <h3 class="font-bold text-gray-800">{{ $training->titulo }}</h3>
-                                    <span class="text-xs bg-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-100 text-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-900 px-2 py-1 rounded">
+                                    <h3 class="font-bold text-gray-800 leading-snug">{{ $training->titulo }}</h3>
+                                    <span class="ml-2 shrink-0 text-xs bg-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-100 text-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-900 px-2 py-1 rounded">
                                         {{ strtoupper($training->tipo) }}
                                     </span>
                                 </div>
-
                                 <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
-
                                 <div class="flex gap-2 text-sm text-gray-600 mb-3">
                                     <span><i class="fas fa-clock text-blue-500"></i> {{ $training->carga_horaria }} min</span>
                                     <span><i class="fas fa-{{ $training->obrigatorio ? 'exclamation-circle text-red-600' : 'check text-green-600' }}"></i> {{ $training->obrigatorio ? 'Obrigatório' : 'Opcional' }}</span>
                                 </div>
-
-                                <a 
-                                    href="{{ route('treinamentos.player', $training->id) }}"
-                                    class="block w-full bg-blue-900 text-white text-center py-2 rounded hover:bg-blue-800 transition font-semibold"
-                                >
+                                <a href="{{ route('treinamentos.player', $training->id) }}"
+                                   class="block w-full bg-blue-900 text-white text-center py-2 rounded hover:bg-blue-800 transition font-semibold">
                                     <i class="fas fa-play mr-2"></i>Iniciar
                                 </a>
                             </div>
@@ -328,10 +276,136 @@
                     @endforeach
                 </div>
             </div>
+        </div>
         @endif
 
-        @if(count($treinamentosDisponíveis) === 0)
-            <div class="bg-gray-50 p-8 rounded text-center border-2 border-gray-200">
+        {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- CONCLUÍDOS                                                  --}}
+        {{-- ═══════════════════════════════════════════════════════════ --}}
+        @if(count($treinamentosConcluidos) > 0)
+        @php $isPrincipal = $secaoPrincipal === 'concluidos'; @endphp
+        <div class="bg-white rounded-xl shadow-md border-l-4 border-green-500 overflow-hidden secao-treinamento"
+             id="secao-concluidos">
+
+            <button type="button"
+                    onclick="toggleSecao('concluidos')"
+                    class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-green-50 transition-colors focus:outline-none group">
+                <div class="flex items-center gap-3">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-full bg-green-100">
+                        <i class="fas fa-check-circle text-green-500 text-lg"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            Concluídos
+                            <span class="text-sm font-bold bg-green-500 text-white px-2 py-0.5 rounded-full">{{ count($treinamentosConcluidos) }}</span>
+                        </h2>
+                        <p class="text-xs text-gray-500">Parabéns! Conteúdos que você já finalizou</p>
+                    </div>
+                </div>
+                <i id="icon-concluidos" class="fas fa-chevron-{{ $isPrincipal ? 'up' : 'down' }} text-gray-400 group-hover:text-green-500 transition-transform text-lg"></i>
+            </button>
+
+            <div id="body-concluidos" class="{{ $isPrincipal ? '' : 'hidden' }} px-6 pb-6">
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                    @foreach($treinamentosConcluidos as $training)
+                        <div class="border-2 border-green-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow bg-gradient-to-br from-green-50 to-white">
+                            <div class="bg-gradient-to-r from-green-500 to-green-600 h-36 flex items-center justify-center text-white relative">
+                                <i class="fas fa-check-circle text-5xl opacity-70"></i>
+                                <div class="absolute top-2 right-2 bg-green-700 text-white px-2 py-1 rounded-full text-xs font-bold">
+                                    100%
+                                </div>
+                            </div>
+                            <div class="p-4">
+                                <div class="flex items-start justify-between mb-2">
+                                    <h3 class="font-bold text-gray-800 leading-snug">{{ $training->titulo }}</h3>
+                                    <span class="ml-2 shrink-0 text-xs bg-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-100 text-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-900 px-2 py-1 rounded">
+                                        {{ strtoupper($training->tipo) }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
+                                <div class="flex gap-2 text-sm text-gray-600 mb-3">
+                                    <span><i class="fas fa-clock text-green-500"></i> {{ $training->carga_horaria }} min</span>
+                                    <span class="text-green-600"><i class="fas fa-check-circle"></i> Concluído</span>
+                                </div>
+                                <a href="{{ route('treinamentos.player', $training->id) }}"
+                                   class="block w-full bg-green-500 text-white text-center py-2 rounded hover:bg-green-600 transition font-semibold">
+                                    <i class="fas fa-redo mr-2"></i>Reabrir
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
+
+        {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- BLOQUEADOS                                                  --}}
+        {{-- ═══════════════════════════════════════════════════════════ --}}
+        @if(count($treinamentosBloqueados) > 0)
+        @php $isPrincipal = $secaoPrincipal === 'bloqueados'; @endphp
+        <div class="bg-white rounded-xl shadow-md border-l-4 border-gray-400 overflow-hidden secao-treinamento"
+             id="secao-bloqueados">
+
+            <button type="button"
+                    onclick="toggleSecao('bloqueados')"
+                    class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 transition-colors focus:outline-none group">
+                <div class="flex items-center gap-3">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100">
+                        <i class="fas fa-lock text-gray-500 text-lg"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            Ainda não liberados
+                            <span class="text-sm font-bold bg-gray-400 text-white px-2 py-0.5 rounded-full">{{ count($treinamentosBloqueados) }}</span>
+                        </h2>
+                        <p class="text-xs text-gray-500">Conteúdos com data de liberação futura</p>
+                    </div>
+                </div>
+                <i id="icon-bloqueados" class="fas fa-chevron-{{ $isPrincipal ? 'up' : 'down' }} text-gray-400 group-hover:text-gray-600 transition-transform text-lg"></i>
+            </button>
+
+            <div id="body-bloqueados" class="{{ $isPrincipal ? '' : 'hidden' }} px-6 pb-6">
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                    @foreach($treinamentosBloqueados as $training)
+                        <div class="border-2 border-gray-200 rounded-lg overflow-hidden bg-gradient-to-br from-gray-50 to-white opacity-80 cursor-not-allowed locked-training-card"
+                             data-release-local="{{ optional($training->data_liberacao)->format('d/m/Y, H:i') }}"
+                             title="Carregando data de liberação...">
+                            <div class="bg-gradient-to-r from-gray-500 to-gray-600 h-36 flex items-center justify-center text-white relative">
+                                <i class="fas fa-lock text-5xl opacity-70"></i>
+                                <div class="absolute top-2 right-2 bg-gray-800 text-white px-2 py-1 rounded-full text-xs font-bold">
+                                    BLOQUEADO
+                                </div>
+                            </div>
+                            <div class="p-4">
+                                <div class="flex items-start justify-between mb-2">
+                                    <h3 class="font-bold text-gray-800 leading-snug">{{ $training->titulo }}</h3>
+                                    <span class="ml-2 shrink-0 text-xs bg-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-100 text-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-900 px-2 py-1 rounded">
+                                        {{ strtoupper($training->tipo) }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
+                                <div class="flex gap-2 text-sm text-gray-600 mb-3">
+                                    <span><i class="fas fa-clock text-gray-500"></i> {{ $training->carga_horaria }} min</span>
+                                    <span class="text-gray-500"><i class="fas fa-lock"></i> Aguardando liberação</span>
+                                </div>
+                                <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600 locked-release-label mb-3">
+                                    Libera em breve
+                                </div>
+                                <button type="button" disabled
+                                        class="block w-full bg-gray-400 text-white text-center py-2 rounded font-semibold cursor-not-allowed">
+                                    <i class="fas fa-lock mr-2"></i>Ainda não liberado
+                                </button>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
+
+        @if(count($treinamentosDisponíveis) === 0 && count($treinamentosBloqueados) === 0)
+            <div class="bg-gray-50 p-8 rounded-xl text-center border-2 border-gray-200">
                 <i class="fas fa-video text-6xl text-gray-300 mb-4"></i>
                 <p class="text-gray-600 text-lg">Nenhum treinamento disponível para seu perfil no momento.</p>
             </div>
@@ -371,16 +445,25 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.locked-training-card').forEach(function(card) {
+        // ── Exibir/ocultar seções ─────────────────────────────────────
+        function toggleSecao(id) {
+            const body = document.getElementById('body-' + id);
+            const icon = document.getElementById('icon-' + id);
+            if (!body || !icon) return;
+
+            const aberto = !body.classList.contains('hidden');
+            body.classList.toggle('hidden', aberto);
+            icon.classList.toggle('fa-chevron-up', !aberto);
+            icon.classList.toggle('fa-chevron-down', aberto);
+        }
+
+        // ── Data de liberação nos cards bloqueados ────────────────────
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.locked-training-card').forEach(function (card) {
                 const formatted = card.getAttribute('data-release-local');
                 if (!formatted) return;
-
                 const label = card.querySelector('.locked-release-label');
-                if (label) {
-                    label.textContent = 'Libera em ' + formatted;
-                }
-
+                if (label) label.textContent = 'Libera em ' + formatted;
                 card.setAttribute('title', 'Libera em ' + formatted);
             });
         });
