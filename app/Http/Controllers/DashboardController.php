@@ -42,7 +42,7 @@ class DashboardController extends Controller
     {
         $totalUsuarios = User::kpiEligible()->count();
         $totalTreinamentos = Training::count();
-        $usuariosAtivos = User::kpiEligible()->where('status', 'ativo')->count();
+        $usuariosAtivos = User::kpiEligible()->count();
         $certificadosEmitidos = Certificate::whereHas('user', function ($query) {
             $query->kpiEligible();
         })->count();
@@ -74,7 +74,7 @@ class DashboardController extends Controller
         
         $totalUsuarios = User::kpiEligible()->where('role_id', '<>', 1)->count();
         $totalTreinamentos = Training::count();
-        $usuariosAtivos = User::kpiEligible()->where('status', 'ativo')->count();
+        $usuariosAtivos = User::kpiEligible()->where('role_id', '<>', 1)->count();
         $certificadosEmitidos = Certificate::whereHas('user', function ($query) {
             $query->kpiEligible();
         })->count();

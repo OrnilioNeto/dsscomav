@@ -328,7 +328,7 @@ class RankingController extends Controller
 
         try {
             // 1. Obter todos os usuários elegíveis para KPI
-            $users = User::kpiEligible()->where('status', 'ativo')->get();
+            $users = User::kpiEligible()->get();
             $processedCount = 0;
             $scores = []; // ['user_id' => ['score' => X, 'tiebreaker' => Y]]
 

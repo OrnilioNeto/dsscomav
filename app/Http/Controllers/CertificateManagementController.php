@@ -914,9 +914,12 @@ class CertificateManagementController extends Controller
             ->get();
 
         $taxaConclusao = [];
-        $treinamentosComProgressos = Training::withCount(['progress'])
+        $treinamentosComProgressos = Training::withCount(['progress' => function ($q) {
+                $q->whereHas('user', function ($u) { $u->kpiEligible(); });
+            }])
             ->withCount(['progress as concluidos_count' => function ($q) {
-                $q->where('concluido', true);
+                $q->where('concluido', true)
+                  ->whereHas('user', function ($u) { $u->kpiEligible(); });
             }])
             ->get();
 

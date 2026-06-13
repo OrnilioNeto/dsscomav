@@ -170,10 +170,11 @@ class User extends Authenticatable
 
     public function scopeKpiEligible($query, $periodStart = null, $periodEnd = null)
     {
-        // SEMPRE excluir: super_admin, usuario_teste, admin sem participação e usuários em férias (agora)
+        // SEMPRE excluir: super_admin, usuario_teste, admin sem participação, usuários em férias (agora) e inativos
         $now = Carbon::now(config('app.timezone'));
 
         return $query
+            ->where('status', 'ativo')
             ->where(function ($roleQuery) {
                 $roleQuery->whereNull('role_id')
                     ->orWhereHas('role', function ($role) {

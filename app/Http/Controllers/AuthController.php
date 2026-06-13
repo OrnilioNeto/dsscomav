@@ -35,6 +35,8 @@ class AuthController extends Controller
         try {
             if (Auth::attempt(['cpf' => $cpf, 'password' => $request->password])) {
                 $request->session()->regenerate();
+                // Flag para exibir o splash da Copa do Mundo no primeiro acesso da sessão
+                $request->session()->put('show_copa_splash', true);
                 return redirect()->route('dashboard');
             }
         } catch (\Throwable $e) {
