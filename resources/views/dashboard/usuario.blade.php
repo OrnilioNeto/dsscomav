@@ -25,6 +25,164 @@
 @endsection
 
 @section('content')
+
+{{-- ══════════════════════════════════════════════════════════════════════
+     SPLASH — Copa do Mundo 2026 · Aparece apenas no primeiro acesso da sessão
+══════════════════════════════════════════════════════════════════════ --}}
+@if(session()->pull('show_copa_splash'))
+<div id="copa-splash"
+     aria-modal="true" role="dialog" aria-label="Bem-vindo à Copa do Mundo 2026"
+     class="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden select-none"
+     style="background: linear-gradient(160deg, #009c3b 0%, #006622 40%, #ffdf00 100%);">
+
+    {{-- Confetes --}}
+    <canvas id="copa-confetti" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+
+    {{-- Conteúdo central --}}
+    <div class="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
+
+        {{-- Bola girando --}}
+        <div id="copa-ball" style="font-size: 7rem; line-height:1; animation: ballSpin 1.8s linear infinite, ballBounce 0.9s ease-in-out infinite alternate;">
+            ⚽
+        </div>
+
+        {{-- Bandeira + título --}}
+        <div style="animation: fadeSlideUp .6s ease .2s both;">
+            <p class="text-5xl md:text-6xl font-black text-white drop-shadow-lg tracking-tight leading-none">
+                🇧🇷 BRASIL NA COPA! 🇧🇷
+            </p>
+            <p class="mt-3 text-xl md:text-2xl font-bold text-yellow-300 drop-shadow">
+                Copa do Mundo 2026 · EUA · CAN · MEX
+            </p>
+        </div>
+
+        {{-- Mensagem motivacional --}}
+        <div style="animation: fadeSlideUp .6s ease .45s both;"
+             class="bg-white/15 backdrop-blur-sm border border-white/30 rounded-2xl px-8 py-4 max-w-lg">
+            <p class="text-lg md:text-xl font-semibold text-white leading-relaxed">
+                "Assim como o Brasil busca o hexa com dedicação e trabalho em equipe, 
+                <span class="text-yellow-300 font-black">você também faz a diferença</span> 
+                na segurança da nossa frota!"
+            </p>
+        </div>
+
+        {{-- Botão fechar --}}
+        <button id="copa-close-btn"
+                onclick="fecharCopaSplash()"
+                style="animation: fadeSlideUp .6s ease .7s both;"
+                class="mt-2 flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-green-900 font-black text-lg px-8 py-3 rounded-full shadow-xl transition-all focus:outline-none focus:ring-4 focus:ring-yellow-200">
+            <i class="fas fa-futbol"></i>
+            Vamos que vamos!
+        </button>
+
+        {{-- Barra de progresso auto-close --}}
+        <div class="w-56 h-1.5 bg-white/25 rounded-full overflow-hidden" style="animation: fadeSlideUp .6s ease .8s both;">
+            <div id="copa-progress" class="h-full bg-yellow-400 rounded-full"
+                 style="width:100%; transition: width 4s linear;"></div>
+        </div>
+        <p class="text-white/70 text-xs -mt-4" style="animation: fadeSlideUp .6s ease .9s both;">Fechando automaticamente em 4s</p>
+    </div>
+
+    <style>
+        @keyframes ballSpin   { to { transform: rotate(360deg); } }
+        @keyframes ballBounce { to { transform: translateY(-18px); } }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(22px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes splashOut {
+            to { opacity: 0; transform: scale(1.04); pointer-events: none; }
+        }
+        #copa-splash.closing {
+            animation: splashOut .45s ease forwards;
+        }
+    </style>
+
+    <script>
+        // ── Confetes ───────────────────────────────────────────────────
+        (function () {
+            const canvas = document.getElementById('copa-confetti');
+            const ctx    = canvas.getContext('2d');
+            const colors = ['#ffdf00','#009c3b','#ffffff','#3e9bdc','#f4a500','#aee571'];
+            let pieces   = [];
+
+            function resize() {
+                canvas.width  = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            for (let i = 0; i < 140; i++) {
+                pieces.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight - window.innerHeight,
+                    w: Math.random() * 10 + 5,
+                    h: Math.random() * 6 + 3,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    rot: Math.random() * 360,
+                    vx: (Math.random() - .5) * 1.5,
+                    vy: Math.random() * 2.5 + 1.2,
+                    vr: (Math.random() - .5) * 4,
+                });
+            }
+
+            let rafId;
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                pieces.forEach(p => {
+                    ctx.save();
+                    ctx.translate(p.x + p.w / 2, p.y + p.h / 2);
+                    ctx.rotate(p.rot * Math.PI / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                    ctx.restore();
+                    p.x  += p.vx;
+                    p.y  += p.vy;
+                    p.rot += p.vr;
+                    if (p.y > canvas.height) {
+                        p.y = -p.h;
+                        p.x = Math.random() * canvas.width;
+                    }
+                });
+                rafId = requestAnimationFrame(draw);
+            }
+            draw();
+            window._copaCancelRaf = () => { cancelAnimationFrame(rafId); ctx.clearRect(0,0,canvas.width,canvas.height); };
+        })();
+
+        // ── Barra de progresso → fecha em 4s ─────────────────────────
+        window.addEventListener('DOMContentLoaded', function () {
+            setTimeout(() => {
+                const bar = document.getElementById('copa-progress');
+                if (bar) bar.style.width = '0%';
+            }, 50);
+
+            setTimeout(fecharCopaSplash, 4500);
+        });
+
+        // ── Fechar splash ─────────────────────────────────────────────
+        function fecharCopaSplash() {
+            const splash = document.getElementById('copa-splash');
+            if (!splash || splash.classList.contains('closing')) return;
+            if (window._copaCancelRaf) window._copaCancelRaf();
+            splash.classList.add('closing');
+            setTimeout(() => splash.remove(), 460);
+        }
+
+        // Fechar ao clicar fora do conteúdo central (no fundo)
+        document.getElementById('copa-splash').addEventListener('click', function (e) {
+            if (e.target === this) fecharCopaSplash();
+        });
+
+        // Fechar com Escape
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') fecharCopaSplash();
+        });
+    </script>
+</div>
+@endif
+
 <div class="max-w-7xl mx-auto px-4 py-8">
     <style>
         .profile-moldura {
