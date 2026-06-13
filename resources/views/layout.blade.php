@@ -242,7 +242,7 @@
                     🇧🇷 BRASIL NA COPA! 🇧🇷
                 </p>
                 <p class="mt-3 text-xl md:text-2xl font-bold text-yellow-300 drop-shadow">
-                    Copa do Mundo 2026 · EUA · CAN · MEX
+                    Copa do Mundo 2026
                 </p>
             </div>
 
@@ -264,10 +264,10 @@
 
             <div class="w-56 h-1.5 bg-white/25 rounded-full overflow-hidden" style="animation:fadeSlideUp .6s ease .8s both;">
                 <div id="copa-progress" class="h-full bg-yellow-400 rounded-full"
-                     style="width:100%;transition:width 4s linear;"></div>
+                     style="width:100%;transition:width 8s linear;"></div>
             </div>
             <p class="text-white/70 text-xs -mt-4" style="animation:fadeSlideUp .6s ease .9s both;">
-                Fechando automaticamente em 4s
+                Fechando automaticamente em 8s
             </p>
         </div>
 
@@ -330,7 +330,7 @@
             })();
 
             setTimeout(() => { const b = document.getElementById('copa-progress'); if (b) b.style.width = '0%'; }, 50);
-            setTimeout(fecharCopaSplash, 4500);
+            setTimeout(fecharCopaSplash, 8500);
 
             function fecharCopaSplash() {
                 const splash = document.getElementById('copa-splash');
