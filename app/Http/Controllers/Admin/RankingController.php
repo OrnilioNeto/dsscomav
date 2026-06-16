@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Repositories\RankingRepository;
 use Illuminate\Http\Request;
 use App\Services\RankingRuleResolverService;
+use App\Services\RankingMonthlyConsolidationService;
 use App\Models\Certificate;
 use App\Models\UserProgress;
 use App\Models\User;
@@ -313,12 +314,13 @@ class RankingController extends Controller
 
     /**
      * Processa o recálculo de todos os usuários elegíveis e salva na tabela de scores mensais.
-     * Inclui o tiebreaker_value (média do timestamp de data_inicio) e a position final com desempate.
+     * Delega para RankingMonthlyConsolidationService — mesma lógica usada automaticamente
+     * pelo CertificateObserver quando um novo certificado é gerado.
      */
-    public function recalculate(Request $request, RankingRuleResolverService $resolver)
-    {   
-        $month = (int) $request->input('month', now()->month);
-        $year = (int) $request->input('year', now()->year);
+    public function recalculate(Request $request, RankingMonthlyConsolidationService $consolidation)
+    {
+        $month    = (int) $request->input('month', now()->month);
+        $year     = (int) $request->input('year', now()->year);
         $isGeneral = ($month === 0);
 
         if ($isGeneral) {
@@ -327,121 +329,7 @@ class RankingController extends Controller
         }
 
         try {
-            // 1. Obter todos os usuários elegíveis para KPI
-            $users = User::kpiEligible()->get();
-            $processedCount = 0;
-            $scores = []; // ['user_id' => ['score' => X, 'tiebreaker' => Y]]
-
-            $driver = DB::getDriverName();
-            $isSqlite = $driver === 'sqlite';
-
-            // 2. Pré-carregar os tiebreakers de todos os usuários de uma vez (eficiência)
-            $avgStartRaw = $isSqlite
-                ? 'AVG(strftime("%s", data_inicio))'
-                : 'AVG(UNIX_TIMESTAMP(data_inicio))';
-
-            $tiebreakers = UserProgress::select('user_id', DB::raw("$avgStartRaw as avg_start_time"))
-                ->whereYear('data_inicio', $year)
-                ->whereMonth('data_inicio', $month)
-                ->groupBy('user_id')
-                ->pluck('avg_start_time', 'user_id');
-
-            foreach ($users as $user) {
-                // 3. Buscar certificados válidos no período
-                $certificates = Certificate::with('training')
-                    ->where('user_id', $user->id)
-                    ->where('valido', true)
-                    ->whereMonth('data_emissao', $month)
-                    ->whereYear('data_emissao', $year)
-                    ->get()
-                    ->unique('training_id');
-
-                $totalScore = 0;
-
-                // 4. Calcular pontos para cada certificado (lógica idêntica ao breakdown/index)
-                foreach ($certificates as $cert) {
-                    $training = $cert->training;
-                    if (!$training) continue;
-
-                    $startHours = null;
-                    $releaseDate = $training->data_liberacao ?? $training->created_at;
-                    if ($releaseDate && $cert->data_inicio_assistencia) {
-                        $diffInMinutes = $releaseDate->diffInMinutes($cert->data_inicio_assistencia, false);
-                        $startHours = round($diffInMinutes / 60, 1);
-                    }
-
-                    $completionDays = null;
-                    if ($cert->data_inicio_assistencia && $cert->data_finalizacao_assistencia) {
-                        $completionDays = $cert->data_inicio_assistencia->diffInDays($cert->data_finalizacao_assistencia);
-                    }
-
-                    $attempts = 1;
-                    $prog = UserProgress::where('user_id', $user->id)
-                        ->where('training_id', $training->id)
-                        ->orderByDesc('updated_at')
-                        ->first();
-                    if ($prog && isset($prog->avaliacao_tentativas)) {
-                        $attempts = ($prog->avaliacao_tentativas > 0) ? ($prog->avaliacao_tentativas + 1) : 1;
-                    }
-
-                    $totalScore += $resolver->resolvePoints('start_time', $startHours ?? 9999) ?? 0;
-                    $totalScore += $resolver->resolvePoints('completion_time', $completionDays ?? 9999) ?? 0;
-                    $totalScore += $resolver->resolvePoints('quiz_result', $attempts) ?? 0;
-                }
-
-                $scores[$user->id] = [
-                    'score'       => $totalScore,
-                    'tiebreaker'  => isset($tiebreakers[$user->id]) ? (float) $tiebreakers[$user->id] : null,
-                    'nome'        => $user->nome,
-                ];
-            }
-
-            // 5. Ordenar com a mesma lógica da página admin para calcular positions corretas:
-            //    1º maior score, 2º menor tiebreaker (iniciou mais cedo), 3º ordem alfabética
-            uasort($scores, function ($a, $b) {
-                if ($b['score'] !== $a['score']) {
-                    return $b['score'] <=> $a['score'];
-                }
-                $ta = $a['tiebreaker'] ?? PHP_INT_MAX;
-                $tb = $b['tiebreaker'] ?? PHP_INT_MAX;
-                if ($ta !== $tb) {
-                    return $ta <=> $tb;
-                }
-                return strcmp($a['nome'], $b['nome']);
-            });
-
-            // 6. Atribuir posições respeitando empates verdadeiros
-            //    (mesma posição apenas se score E tiebreaker E nome forem iguais — na prática, só score e tiebreaker)
-            $position = 0;
-            $rankPos = 0;
-            $lastScore = null;
-            $lastTiebreaker = null;
-
-            foreach ($scores as $userId => $data) {
-                $rankPos++;
-                if (
-                    $lastScore === null
-                    || $data['score'] !== $lastScore
-                    || $data['tiebreaker'] !== $lastTiebreaker
-                ) {
-                    $position = $rankPos;
-                }
-
-                \Log::info("RankingController@recalculate: user {$userId}, score {$data['score']}, tiebreaker {$data['tiebreaker']}, position {$position}");
-
-                RankingMonthlyScore::updateOrCreate(
-                    ['user_id' => $userId, 'month_reference' => $month, 'year_reference' => $year],
-                    [
-                        'average_score'    => $data['score'],
-                        'tiebreaker_value' => $data['tiebreaker'],
-                        'position'         => $position,
-                    ]
-                );
-
-                $lastScore = $data['score'];
-                $lastTiebreaker = $data['tiebreaker'];
-                $processedCount++;
-            }
+            $processedCount = $consolidation->consolidate($month, $year);
 
             return redirect()->route('admin.ranking.index')
                 ->with('success', "Ranking recalculado com sucesso! {$processedCount} usuários atualizados para {$month}/{$year}.");
