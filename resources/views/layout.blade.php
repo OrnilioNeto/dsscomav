@@ -90,6 +90,9 @@
                         </a>
 
                         @if(Auth::user()->isSuperAdmin())
+                            <a href="{{ route('usuarios.index') }}" class="site-link-hover nav-link flex items-center">
+                                <i class="fas fa-id-card mr-1"></i><span class="hidden sm:inline">Fichas (EPI/NR)</span>
+                            </a>
                             <a href="{{ route('certificados.gerencial') }}" class="site-link-hover nav-link flex items-center">
                                 <i class="fas fa-certificate mr-1"></i><span class="hidden sm:inline">Consulta Certificados</span>
                             </a>
@@ -158,6 +161,7 @@
                         @endif
                         <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover">Dashboard</a>
                         @if(Auth::user()->isSuperAdmin())
+                            <a href="{{ route('usuarios.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Fichas (EPI/NR)</a>
                             <a href="{{ route('certificados.gerencial') }}" class="block px-3 py-2 rounded text-white site-link-hover">Consulta Certificados</a>
                             <a href="{{ route('admin.ranking.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Ranking</a>
                             <a href="{{ route('admin.ranking.settings') }}" class="block px-3 py-2 rounded text-white site-link-hover">Parâmetros</a>

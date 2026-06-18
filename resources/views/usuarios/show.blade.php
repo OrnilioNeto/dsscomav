@@ -6,9 +6,14 @@
 <div class="max-w-4xl mx-auto px-4 py-8">
     <div class="flex items-start justify-between mb-6">
         <h1 class="text-4xl font-bold text-gray-800">{{ $usuario->nome }}</h1>
-        <a href="{{ route('usuarios.edit', $usuario) }}" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition">
-            <i class="fas fa-edit mr-2"></i>Editar
-        </a>
+        <div class="flex gap-2">
+            <a href="{{ route('usuarios.ficha.manage', $usuario->id) }}" class="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition">
+                <i class="fas fa-id-card mr-2"></i>Ficha (EPI/Treinamentos)
+            </a>
+            <a href="{{ route('usuarios.edit', $usuario) }}" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition">
+                <i class="fas fa-edit mr-2"></i>Editar
+            </a>
+        </div>
     </div>
 
     <div class="flex flex-wrap gap-2 mb-6">
@@ -20,7 +25,7 @@
         @endif
     </div>
 
-    <div class="grid md:grid-cols-2 gap-6 mb-8">
+    <div class="grid md:grid-cols-3 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <h2 class="text-xl font-bold mb-4">Informações Pessoais</h2>
             <div class="space-y-3">
@@ -80,6 +85,31 @@
                     <p class="text-gray-600 text-sm font-semibold">Cadastro em</p>
                     <p class="text-lg">{{ $usuario->created_at->format('d/m/Y H:i') }}</p>
                 </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center justify-between">
+            <h2 class="text-xl font-bold mb-4 text-center w-full">QR Code da Ficha</h2>
+            <div class="flex flex-col items-center justify-center flex-grow">
+                @if($usuario->qrcode_token)
+                    <img src="{{ $usuario->ficha_qr_code_url }}" alt="QR Code da Ficha" class="w-40 h-40 border p-2 bg-gray-50 rounded mb-4">
+                    <p class="text-[10px] text-center text-gray-500 mb-2 font-mono break-all max-w-[180px]">{{ $usuario->ficha_url }}</p>
+                @else
+                    <div class="text-center p-4 text-gray-500">
+                        <i class="fas fa-qrcode text-4xl mb-2"></i>
+                        <p class="text-xs">Nenhum QR Code gerado.</p>
+                    </div>
+                @endif
+            </div>
+            <div class="w-full mt-2 space-y-2">
+                @if($usuario->qrcode_token)
+                    <a href="{{ $usuario->ficha_url }}" target="_blank" class="block text-center text-sm font-semibold text-blue-900 hover:text-blue-800 hover:underline">
+                        <i class="fas fa-external-link-alt mr-1"></i>Visualizar Ficha Pública
+                    </a>
+                @endif
+                <a href="{{ route('usuarios.ficha.manage', $usuario->id) }}" class="block text-center text-sm font-semibold text-orange-600 hover:text-orange-700 hover:underline">
+                    <i class="fas fa-cog mr-1"></i>Gerenciar Dados da Ficha
+                </a>
             </div>
         </div>
     </div>
