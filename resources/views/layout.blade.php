@@ -351,6 +351,113 @@
     </div>
     @endif
 
+    {{-- ══════════════════════════════════════════════════════════════════
+         SPLASH MANAGER - Conteúdos dinâmicos configurados pelo Super Admin
+    ══════════════════════════════════════════════════════════════════════ --}}
+    @if(session()->has('splash_contents'))
+        <div id="splash-manager-modal"
+             aria-modal="true" role="dialog" aria-label="Mensagem de Boas-vindas"
+             class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden relative">
+                <button onclick="closeSplashManagerModal()"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+
+                <div id="splash-content-carousel" class="relative">
+                    @foreach(session('splash_contents') as $index => $content)
+                        <div class="splash-item {{ $index === 0 ? '' : 'hidden' }}" data-index="{{ $index }}">
+                            @if($content->material_path)
+                                @if($content->isImage())
+                                    <img src="{{ $content->url }}" alt="{{ $content->titulo }}" class="w-full h-auto object-cover rounded-t-2xl">
+                                @elseif($content->isPdf())
+                                    <div class="bg-gray-100 p-6 flex flex-col items-center justify-center rounded-t-2xl">
+                                        <i class="fas fa-file-pdf text-red-500 text-6xl mb-4"></i>
+                                        <p class="text-lg font-bold text-gray-800 mb-2">{{ $content->titulo }}</p>
+                                        <a href="{{ $content->url }}" target="_blank" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
+                                            <i class="fas fa-eye mr-2"></i>Visualizar PDF
+                                        </a>
+                                    </div>
+                                @endif
+                            @endif
+                            <div class="p-6">
+                                <h3 class="text-2xl font-bold text-gray-800 mb-3">{{ $content->titulo }}</h3>
+                                @if($content->texto_conteudo)
+                                    <p class="text-gray-700 leading-relaxed">{{ $content->texto_conteudo }}</p>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                @if(session('splash_contents')->count() > 1)
+                    <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2 p-2">
+                        @foreach(session('splash_contents') as $index => $content)
+                            <button class="splash-dot w-3 h-3 rounded-full bg-gray-300 {{ $index === 0 ? 'bg-blue-600' : '' }}"
+                                    onclick="showSplashItem({{ $index }})"></button>
+                        @endforeach
+                    </div>
+                @endif
+
+                <div class="p-4 border-t border-gray-200 flex justify-end">
+                    <button onclick="nextSplashItem()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <span id="splash-next-btn-text">Próximo</span> <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let currentSplashIndex = 0;
+            const splashItems = document.querySelectorAll('.splash-item');
+            const splashDots = document.querySelectorAll('.splash-dot');
+            const splashNextBtnText = document.getElementById('splash-next-btn-text');
+            const totalSplashItems = splashItems.length;
+
+            function showSplashManagerModal() {
+                document.getElementById('splash-manager-modal').classList.remove('hidden');
+                document.getElementById('splash-manager-modal').classList.add('flex');
+            }
+
+            function closeSplashManagerModal() {
+                document.getElementById('splash-manager-modal').classList.add('hidden');
+                document.getElementById('splash-manager-modal').classList.remove('flex');
+            }
+
+            function showSplashItem(index) {
+                splashItems.forEach((item, i) => {
+                    item.classList.toggle('hidden', i !== index);
+                });
+                splashDots.forEach((dot, i) => {
+                    dot.classList.toggle('bg-blue-600', i === index);
+                    dot.classList.toggle('bg-gray-300', i !== index);
+                });
+                currentSplashIndex = index;
+                if (currentSplashIndex === totalSplashItems - 1) {
+                    splashNextBtnText.textContent = 'Entendi';
+                } else {
+                    splashNextBtnText.textContent = 'Próximo';
+                }
+            }
+
+            function nextSplashItem() {
+                if (currentSplashIndex < totalSplashItems - 1) {
+                    showSplashItem(currentSplashIndex + 1);
+                } else {
+                    closeSplashManagerModal();
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                if (totalSplashItems > 0) {
+                    showSplashManagerModal();
+                    showSplashItem(0); // Garante que o primeiro item é exibido
+                }
+            });
+        </script>
+    @endif
+
         <div class="max-w-7xl mx-auto px-4 text-center">
             <p>&copy; 2026 64 Bits Soluções. Todos os direitos reservados.</p>
         </div>

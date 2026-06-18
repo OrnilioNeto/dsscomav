@@ -10,6 +10,7 @@ use App\Http\Controllers\TrainingMaterialController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProfilePhotoController;
 use App\Http\Middleware\CheckRole;
+use App\Http\Controllers\Admin\SplashContentController;
 use Illuminate\Support\Facades\Route;
 
 // Rota inicial
@@ -98,5 +99,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/admin/ranking/criterios/{criterion}/regras', [\App\Http\Controllers\Admin\RankingSettingsController::class, 'storeRule'])->name('admin.ranking.rules.store'); // Store new rule
         Route::put('/admin/ranking/regras/{rule}', [\App\Http\Controllers\Admin\RankingSettingsController::class, 'updateRule'])->name('admin.ranking.rules.update'); // Update existing rule
         Route::delete('/admin/ranking/regras/{rule}', [\App\Http\Controllers\Admin\RankingSettingsController::class, 'destroyRule'])->name('admin.ranking.rules.destroy'); // Delete rule
+
+        // Gerenciador de Conteúdos Splash
+        Route::get('/admin/splash', [SplashContentController::class, 'index'])->name('admin.splash.index');
+        Route::post('/admin/splash', [SplashContentController::class, 'store'])->name('admin.splash.store');
+        Route::put('/admin/splash/{id}', [SplashContentController::class, 'update'])->name('admin.splash.update');
+        Route::delete('/admin/splash/{id}', [SplashContentController::class, 'destroy'])->name('admin.splash.destroy');
+        Route::patch('/admin/splash/{id}/toggle', [SplashContentController::class, 'toggleStatus'])->name('admin.splash.toggle');
+        Route::post('/admin/splash/reorder', [SplashContentController::class, 'reorder'])->name('admin.splash.reorder');
     });
 });
