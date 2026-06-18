@@ -31,6 +31,9 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 // Validação pública de certificado
 Route::get('/validar/{codigo}', [CertificateController::class, 'validateCertificate'])->name('validar.certificado');
 
+// Ficha pública do colaborador (via QR Code)
+Route::get('/ficha/{token}', [App\Http\Controllers\EmployeeFichaController::class, 'showPublic'])->name('ficha.publica');
+
 // Rotas protegidas por autenticação
 Route::middleware('auth')->group(function () {
     // Dashboard
@@ -66,6 +69,14 @@ Route::middleware('auth')->group(function () {
         // Usuários
         Route::get('/usuarios/excluidos-kpi', [UserController::class, 'relatorioExcluidosKPI'])->name('usuarios.exclus-kpi');
         Route::resource('usuarios', UserController::class);
+
+        // Ficha do Funcionário (EPIs e Treinamentos Externos)
+        Route::get('/usuarios/{id}/ficha', [App\Http\Controllers\EmployeeFichaController::class, 'manage'])->name('usuarios.ficha.manage');
+        Route::post('/usuarios/{id}/ficha/treinamento', [App\Http\Controllers\EmployeeFichaController::class, 'storeTraining'])->name('usuarios.ficha.storeTraining');
+        Route::delete('/usuarios/ficha/treinamento/{id}', [App\Http\Controllers\EmployeeFichaController::class, 'destroyTraining'])->name('usuarios.ficha.destroyTraining');
+        Route::post('/usuarios/{id}/ficha/epi', [App\Http\Controllers\EmployeeFichaController::class, 'storeEpi'])->name('usuarios.ficha.storeEpi');
+        Route::delete('/usuarios/ficha/epi/{id}', [App\Http\Controllers\EmployeeFichaController::class, 'destroyEpi'])->name('usuarios.ficha.destroyEpi');
+        Route::post('/usuarios/{id}/ficha/regenerar-token', [App\Http\Controllers\EmployeeFichaController::class, 'regenerateToken'])->name('usuarios.ficha.regenerateToken');
 
         // Treinamentos
         Route::resource('treinamentos', TrainingController::class);

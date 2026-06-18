@@ -34,6 +34,7 @@ class User extends Authenticatable
         'ferias_fim',
         'usuario_teste',
         'foto_perfil',
+        'qrcode_token',
     ];
 
     protected $hidden = [
@@ -50,6 +51,15 @@ class User extends Authenticatable
         'usuario_teste' => 'boolean',
     ];
 
+    protected static function booted()
+    {
+        static::creating(function ($user) {
+            if (empty($user->qrcode_token)) {
+                $user->qrcode_token = \Illuminate\Support\Str::random(32);
+            }
+        });
+    }
+
     // Relacionamentos
     public function role()
     {
@@ -64,6 +74,26 @@ class User extends Authenticatable
     public function certificates()
     {
         return $this->hasMany(Certificate::class);
+    }
+
+    public function employeeTrainings()
+    {
+        return $this->hasMany(EmployeeTraining::class);
+    }
+
+    public function employeeEpis()
+    {
+        return $this->hasMany(EmployeeEpi::class);
+    }
+
+    public function getFichaUrlAttribute(): string
+    {
+        return route('ficha.publica', $this->qrcode_token ?? '');
+    }
+
+    public function getFichaQrCodeUrlAttribute(): string
+    {
+        return 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($this->ficha_url);
     }
 
     // Métodos auxiliares
