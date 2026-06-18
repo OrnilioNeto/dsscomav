@@ -165,6 +165,12 @@
             <h3 class="text-xl font-bold">Configurações</h3>
             <p class="text-slate-100 text-sm mt-2">Ajustar pesos e critérios de pontuação</p>
         </a>
+
+        <a href="{{ route('admin.splash.index') }}" class="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6 rounded-lg hover:shadow-lg transition">
+            <i class="fas fa-bullhorn text-3xl mb-3"></i>
+            <h3 class="text-xl font-bold">Gerenciar Conteúdo Splash</h3>
+            <p class="text-blue-100 text-sm mt-2">Configurar mensagens de boas-vindas e comunicados</p>
+        </a>
     </div>
     </div>
 
