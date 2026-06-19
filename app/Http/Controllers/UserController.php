@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:users,view')->only(['index', 'show', 'relatorioExcluidosKPI']);
+        $this->middleware('permission:users,edit')->except(['index', 'show', 'relatorioExcluidosKPI']);
+    }
+
     private const TIPOS_USUARIO_VALIDOS = ['motorista', 'funcionario', 'terceirizado'];
 
     private function ensureBaseRoles(): void
@@ -56,7 +62,7 @@ class UserController extends Controller
     {
         $this->ensureBaseRoles();
 
-        $roles = Role::whereIn('nome', ['admin', 'usuario'])
+        $roles = Role::where('nome', '!=', 'super_admin')
             ->orderBy('nome')
             ->get();
 
@@ -109,7 +115,7 @@ class UserController extends Controller
         $usuario = User::findOrFail($id);
         $this->ensureBaseRoles();
 
-        $roles = Role::whereIn('nome', ['admin', 'usuario'])
+        $roles = Role::where('nome', '!=', 'super_admin')
             ->orderBy('nome')
             ->get();
 
@@ -133,6 +139,10 @@ class UserController extends Controller
             'usuario_teste' => 'nullable|boolean',
         ];
 
+        if (!$usuario->isSuperAdmin()) {
+            $rules['role_id'] = 'required|exists:roles,id';
+        }
+
         // Se super_admin, permitir alteração de senha
         if (auth()->user()->isSuperAdmin()) {
             $rules['password'] = 'nullable|string|min:8|confirmed';
@@ -148,6 +158,10 @@ class UserController extends Controller
         $data['ferias_inicio'] = $request->filled('ferias_inicio') ? $request->input('ferias_inicio') : null;
         $data['ferias_fim'] = $request->filled('ferias_fim') ? $request->input('ferias_fim') : null;
         $data['usuario_teste'] = $request->boolean('usuario_teste');
+
+        if ($usuario->isSuperAdmin()) {
+            unset($data['role_id']);
+        }
         
         // Se super_admin e preencheu nova senha, hashear e incluir na atualização
         if (auth()->user()->isSuperAdmin() && $request->filled('password')) {

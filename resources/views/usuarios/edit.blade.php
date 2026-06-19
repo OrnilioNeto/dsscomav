@@ -56,13 +56,30 @@
                 </div>
             @endif
 
-            <div class="grid md:grid-cols-2 gap-4">
+            <div class="grid md:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">Status *</label>
                     <select name="status" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                         <option value="ativo" {{ $usuario->status === 'ativo' ? 'selected' : '' }}>Ativo</option>
                         <option value="inativo" {{ $usuario->status === 'inativo' ? 'selected' : '' }}>Inativo</option>
                     </select>
+                </div>
+
+                <div>
+                    @if($usuario->isSuperAdmin())
+                        <label class="block text-gray-700 font-semibold mb-2">Role (Perfil)</label>
+                        <input type="text" value="Super Admin" disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                        <input type="hidden" name="role_id" value="{{ $usuario->role_id }}">
+                    @else
+                        <label class="block text-gray-700 font-semibold mb-2">Role (Perfil) *</label>
+                        <select name="role_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                            @foreach($roles as $role)
+                                <option value="{{ $role->id }}" {{ $usuario->role_id == $role->id ? 'selected' : '' }}>
+                                    {{ $role->descricao ?: ucfirst(str_replace('_', ' ', $role->nome)) }}
+                                </option>
+                            @endforeach
+                        </select>
+                    @endif
                 </div>
 
                 <div>

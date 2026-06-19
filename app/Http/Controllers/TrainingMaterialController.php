@@ -15,6 +15,9 @@ class TrainingMaterialController extends Controller
     {
         // Garantir que a tabela de materiais existe quando o controller for carregado
         $this->ensureTrainingMaterialsTableExists();
+
+        // Middleware de permissões
+        $this->middleware('permission:trainings,edit')->except('download');
     }
 
     /**

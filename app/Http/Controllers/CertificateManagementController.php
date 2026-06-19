@@ -16,6 +16,11 @@ use App\Services\AiSummarizer;
 
 class CertificateManagementController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:certificates,view');
+    }
+
     /**
      * Página de gerenciamento de certificados (ADM/Super ADM)
      */

@@ -197,18 +197,38 @@ Dashboard Administrador
         </div>
 
         <!-- Botões de Ação -->
-        <div class="mt-8 grid md:grid-cols-2 gap-6">
-            <a href="{{ route('usuarios.create') }}" class="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 rounded-lg hover:shadow-lg transition">
-                <i class="fas fa-user-plus text-3xl mb-3"></i>
-                <h3 class="text-xl font-bold">Novo Usuário</h3>
-                <p class="text-blue-100 text-sm mt-2">Adicionar um novo usuário ao sistema</p>
-            </a>
+        <div class="mt-8 grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            @if(auth()->user()->hasPermission('users', 'edit'))
+                <a href="{{ route('usuarios.create') }}" class="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 rounded-lg hover:shadow-lg transition">
+                    <i class="fas fa-user-plus text-3xl mb-3"></i>
+                    <h3 class="text-xl font-bold">Novo Usuário</h3>
+                    <p class="text-blue-100 text-sm mt-2">Adicionar um novo usuário ao sistema</p>
+                </a>
+            @endif
 
-            <a href="{{ route('treinamentos.create') }}" class="bg-gradient-to-r from-purple-900 to-purple-700 text-white p-6 rounded-lg hover:shadow-lg transition">
-                <i class="fas fa-plus text-3xl mb-3"></i>
-                <h3 class="text-xl font-bold">Novo Treinamento</h3>
-                <p class="text-purple-100 text-sm mt-2">Criar um novo treinamento ou DSS</p>
-            </a>
+            @if(auth()->user()->hasPermission('trainings', 'edit'))
+                <a href="{{ route('treinamentos.create') }}" class="bg-gradient-to-r from-purple-900 to-purple-700 text-white p-6 rounded-lg hover:shadow-lg transition">
+                    <i class="fas fa-plus text-3xl mb-3"></i>
+                    <h3 class="text-xl font-bold">Novo Treinamento</h3>
+                    <p class="text-purple-100 text-sm mt-2">Criar um novo treinamento ou DSS</p>
+                </a>
+            @endif
+
+            @if(auth()->user()->hasPermission('rankings', 'view'))
+                <a href="{{ route('admin.ranking.index') }}" class="bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-500 text-white p-6 rounded-lg hover:shadow-xl transition-all shadow-amber-200 border-2 border-amber-400/30 group">
+                    <i class="fas fa-award text-3xl mb-3 group-hover:scale-110 transition-transform"></i>
+                    <h3 class="text-xl font-bold">Gestão de Engajamento</h3>
+                    <p class="text-amber-50 text-sm mt-2 opacity-90">Análise comportamental e BI de prontidão da equipe</p>
+                </a>
+            @endif
+
+            @if(auth()->user()->hasPermission('splash', 'view'))
+                <a href="{{ route('admin.splash.index') }}" class="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6 rounded-lg hover:shadow-lg transition">
+                    <i class="fas fa-bullhorn text-3xl mb-3"></i>
+                    <h3 class="text-xl font-bold">Gerenciar Conteúdo Splash</h3>
+                    <p class="text-blue-100 text-sm mt-2">Configurar mensagens de boas-vindas e comunicados</p>
+                </a>
+            @endif
         </div>
     </div>
 

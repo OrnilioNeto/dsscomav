@@ -18,6 +18,10 @@ class TrainingController extends Controller
         $this->ensureTrainingMaterialsTableExists();
         $this->ensureTrainingReleaseColumnExists();
         $this->ensureTrainingMandatoryColumnExists();
+
+        // Middleware de permissões
+        $this->middleware('permission:trainings,view')->only(['index', 'show']);
+        $this->middleware('permission:trainings,edit')->except(['index', 'show']);
     }
 
     /**

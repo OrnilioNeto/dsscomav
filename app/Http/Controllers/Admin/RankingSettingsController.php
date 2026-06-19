@@ -17,6 +17,8 @@ class RankingSettingsController extends Controller
     public function __construct()
     {
         $this->ensureRankingTablesExist();
+        $this->middleware('permission:rankings,view')->only(['index']);
+        $this->middleware('permission:rankings,edit')->except(['index']);
     }
 
     /**
