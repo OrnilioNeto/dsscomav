@@ -10,6 +10,11 @@ use Illuminate\Support\Str;
 
 class EmployeeFichaController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:users,edit')->except('showPublic');
+    }
+
     public function showPublic($token)
     {
         $usuario = User::with([

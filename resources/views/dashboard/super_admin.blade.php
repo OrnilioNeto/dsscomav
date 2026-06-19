@@ -177,6 +177,12 @@
             <h3 class="text-xl font-bold">Fichas dos Funcionários</h3>
             <p class="text-teal-100 text-sm mt-2">Cadastrar NRs, EPIs e gerenciar QR Codes dos colaboradores</p>
         </a>
+
+        <a href="{{ route('admin.permissoes.index') }}" class="bg-gradient-to-r from-red-700 to-red-500 text-white p-6 rounded-lg hover:shadow-lg transition">
+            <i class="fas fa-user-shield text-3xl mb-3"></i>
+            <h3 class="text-xl font-bold">Controle de Acesso</h3>
+            <p class="text-red-100 text-sm mt-2">Gerenciar perfis e matriz de permissões dinâmicas</p>
+        </a>
     </div>
     </div>
 

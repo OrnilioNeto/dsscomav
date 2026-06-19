@@ -17,16 +17,21 @@ class CheckSplashContent
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Apenas para usuários autenticados e que não sejam Super Admin
-        if ($request->user() && !$request->user()->isSuperAdmin()) {
-            $activeSplashContents = SplashContent::where('status', 'ativo')
-                ->whereDate('data_inicio', '<=', Carbon::now())
-                ->whereDate('data_fim', '>=', Carbon::now())
-                ->orderBy('ordem')
-                ->get();
+        // Apenas para requisições HTML GET, usuários autenticados e não super_admin
+        if ($request->isMethod('get') && !$request->ajax() && !$request->wantsJson() && $request->user() && !$request->user()->isSuperAdmin()) {
+            if (!$request->session()->has('splash_shown')) {
+                $activeSplashContents = SplashContent::where('status', 'ativo')
+                    ->whereDate('data_inicio', '<=', Carbon::now())
+                    ->whereDate('data_fim', '>=', Carbon::now())
+                    ->orderBy('ordem')
+                    ->get();
 
-            if ($activeSplashContents->isNotEmpty()) {
-                $request->session()->flash('splash_contents', $activeSplashContents);
+                if ($activeSplashContents->isNotEmpty()) {
+                    $request->session()->flash('splash_contents', $activeSplashContents);
+                }
+                
+                // Marca que o splash foi exibido nesta sessão
+                $request->session()->put('splash_shown', true);
             }
         }
 

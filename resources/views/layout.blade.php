@@ -77,12 +77,28 @@
                     <!-- Desktop menu -->
                     <div class="hidden md:flex items-center space-x-6 text-sm">
                         @if(Auth::user()->isAdmin())
-                            <a href="{{ route('usuarios.index') }}" class="site-link-hover nav-link flex items-center">
-                                <i class="fas fa-users mr-1"></i><span class="hidden sm:inline">Usuários</span>
-                            </a>
-                            <a href="{{ route('treinamentos.index') }}" class="site-link-hover nav-link flex items-center">
-                                <i class="fas fa-video mr-1"></i><span class="hidden sm:inline">Treinamentos</span>
-                            </a>
+                            @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('users', 'view'))
+                                <a href="{{ route('usuarios.index') }}" class="site-link-hover nav-link flex items-center">
+                                    <i class="fas fa-users mr-1"></i><span class="hidden sm:inline">Usuários</span>
+                                </a>
+                            @endif
+                            @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
+                                <a href="{{ route('treinamentos.index') }}" class="site-link-hover nav-link flex items-center">
+                                    <i class="fas fa-video mr-1"></i><span class="hidden sm:inline">Treinamentos</span>
+                                </a>
+                            @endif
+                            @if(!Auth::user()->isSuperAdmin())
+                                @if(Auth::user()->hasPermission('rankings', 'view'))
+                                    <a href="{{ route('admin.ranking.index') }}" class="site-link-hover nav-link flex items-center text-yellow-400 hover:text-yellow-300">
+                                        <i class="fas fa-trophy mr-1"></i><span class="hidden sm:inline">Ranking</span>
+                                    </a>
+                                @endif
+                                @if(Auth::user()->hasPermission('splash', 'view'))
+                                    <a href="{{ route('admin.splash.index') }}" class="site-link-hover nav-link flex items-center">
+                                        <i class="fas fa-bullhorn mr-1"></i><span class="hidden sm:inline">Splash</span>
+                                    </a>
+                                @endif
+                            @endif
                         @endif
 
                         <a href="{{ route('dashboard') }}" class="site-link-hover nav-link flex items-center">
@@ -104,6 +120,9 @@
                             </a>
                             <a href="{{ route('relatorios.ia') }}" class="site-link-hover nav-link flex items-center">
                                 <i class="fas fa-chart-line mr-1"></i><span class="hidden sm:inline">Relatórios IA</span>
+                            </a>
+                            <a href="{{ route('admin.permissoes.index') }}" class="site-link-hover nav-link flex items-center">
+                                <i class="fas fa-user-shield mr-1"></i><span class="hidden sm:inline">Permissões</span>
                             </a>
                         @else
                             <a href="{{ route('certificados.meus') }}" class="site-link-hover nav-link flex items-center">
@@ -156,8 +175,20 @@
                 <div id="mobile-menu" class="hidden md:hidden mt-2 pb-4">
                     <div class="px-2 space-y-1">
                         @if(Auth::user()->isAdmin())
-                            <a href="{{ route('usuarios.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Usuários</a>
-                            <a href="{{ route('treinamentos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Treinamentos</a>
+                            @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('users', 'view'))
+                                <a href="{{ route('usuarios.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Usuários</a>
+                            @endif
+                            @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
+                                <a href="{{ route('treinamentos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Treinamentos</a>
+                            @endif
+                            @if(!Auth::user()->isSuperAdmin())
+                                @if(Auth::user()->hasPermission('rankings', 'view'))
+                                    <a href="{{ route('admin.ranking.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Ranking</a>
+                                @endif
+                                @if(Auth::user()->hasPermission('splash', 'view'))
+                                    <a href="{{ route('admin.splash.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Splash</a>
+                                @endif
+                            @endif
                         @endif
                         <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover">Dashboard</a>
                         @if(Auth::user()->isSuperAdmin())
@@ -166,6 +197,7 @@
                             <a href="{{ route('admin.ranking.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Ranking</a>
                             <a href="{{ route('admin.ranking.settings') }}" class="block px-3 py-2 rounded text-white site-link-hover">Parâmetros</a>
                             <a href="{{ route('relatorios.ia') }}" class="block px-3 py-2 rounded text-white site-link-hover">Relatórios IA</a>
+                            <a href="{{ route('admin.permissoes.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Permissões</a>
                         @else
                             <a href="{{ route('certificados.meus') }}" class="block px-3 py-2 rounded text-white site-link-hover">Certificados</a>
                         @endif

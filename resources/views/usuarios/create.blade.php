@@ -51,7 +51,7 @@
                     <select name="role_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                         @foreach($roles as $role)
                             @if($role->nome !== 'super_admin')
-                                <option value="{{ $role->id }}">{{ ucfirst(str_replace('_', ' ', $role->nome)) }}</option>
+                                <option value="{{ $role->id }}">{{ $role->descricao ?: ucfirst(str_replace('_', ' ', $role->nome)) }}</option>
                             @endif
                         @endforeach
                     </select>

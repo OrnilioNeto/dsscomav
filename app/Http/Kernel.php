@@ -64,13 +64,12 @@ class Kernel extends HttpKernel
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+        'permission' => \App\Http\Middleware\CheckPermission::class,
+        'admin' => \App\Http\Middleware\CheckAdmin::class,
     ];
 
     /**
      * The application's middleware aliases.
-     *
-     * Laravel 10+ resolves middleware through this property, so keep it in
-     * sync with the legacy routeMiddleware map for production compatibility.
      *
      * @var array<string, class-string|string>
      */
@@ -85,5 +84,7 @@ class Kernel extends HttpKernel
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+        'permission' => \App\Http\Middleware\CheckPermission::class,
+        'admin' => \App\Http\Middleware\CheckAdmin::class,
     ];
 }

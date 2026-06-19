@@ -14,6 +14,8 @@ class SplashContentController extends Controller
     public function __construct()
     {
         $this->ensureSplashTableExists();
+        $this->middleware('permission:splash,view')->only(['index']);
+        $this->middleware('permission:splash,edit')->except(['index']);
     }
 
     private function ensureSplashTableExists()

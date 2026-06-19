@@ -24,6 +24,8 @@ class RankingController extends Controller
     public function __construct(RankingRepository $repo)
     {
         $this->repo = $repo;
+        $this->middleware('permission:rankings,view')->only(['index', 'breakdown', 'history']);
+        $this->middleware('permission:rankings,edit')->except(['index', 'breakdown', 'history']);
     }
 
     /**

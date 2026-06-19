@@ -104,7 +104,37 @@ class User extends Authenticatable
 
     public function isAdmin()
     {
-        return in_array($this->role?->nome, ['super_admin', 'admin']);
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (!$this->role) {
+            return false;
+        }
+
+        return $this->role->nome !== 'usuario';
+    }
+
+    public function hasPermission(string $module, string $action = 'view'): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (!$this->role) {
+            return false;
+        }
+
+        $permission = $this->role->permissions()->where('module', $module)->first();
+        if (!$permission) {
+            return false;
+        }
+
+        if ($action === 'edit') {
+            return (bool) $permission->can_edit;
+        }
+
+        return (bool) $permission->can_view;
     }
 
     public function canAccessTraining(Training $training)
