@@ -18,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->autoMigrate();
         $this->ensureUserOperationalColumns();
         $this->ensureRankingTablesExist();
         $this->seedDefaultRankingCriteria();
@@ -181,6 +182,46 @@ class AppServiceProvider extends ServiceProvider
             logger()->info('Dados mestres de ranking semeados automaticamente.');
         } catch (\Throwable $e) {
             logger()->warning('Falha ao semear critérios de ranking: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Executa as migrations pendentes de forma automática ao carregar as páginas,
+     * detectando mudanças na pasta de migrations e otimizando a checagem via Cache.
+     */
+    private function autoMigrate(): void
+    {
+        // Se estiver rodando via linha de comando, evita loops recursivos de Artisan::call
+        if (app()->runningInConsole()) {
+            return;
+        }
+
+        try {
+            $migrationsPath = database_path('migrations');
+            $files = glob($migrationsPath . '/*.php');
+            if (empty($files)) {
+                return;
+            }
+
+            // Gera um hash único baseado no nome e na data de modificação dos arquivos
+            $hashingSource = '';
+            foreach ($files as $file) {
+                $hashingSource .= basename($file) . filemtime($file);
+            }
+            $hash = md5($hashingSource);
+
+            // Executa as migrations se houver alguma alteração ou novos arquivos detectados
+            if (\Illuminate\Support\Facades\Cache::get('db_migrations_hash') !== $hash) {
+                // Roda Artisan migrate --force programaticamente
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                
+                // Grava o novo hash no cache indefinidamente
+                \Illuminate\Support\Facades\Cache::forever('db_migrations_hash', $hash);
+                
+                logger()->info('Auto-migration executada com sucesso.');
+            }
+        } catch (\Throwable $e) {
+            logger()->error('Falha ao executar auto-migration: ' . $e->getMessage());
         }
     }
 }

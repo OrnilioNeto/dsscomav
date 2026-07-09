@@ -15,6 +15,7 @@ class PermissionController extends Controller
         'certificates' => 'Consulta de Certificados',
         'rankings' => 'Ranking & Engajamento',
         'splash' => 'Mensagens Splash',
+        'social' => 'Rede Social (Feed, Postagens, Seguidores)',
         'permissions' => 'Gerenciar Permissões'
     ];
 

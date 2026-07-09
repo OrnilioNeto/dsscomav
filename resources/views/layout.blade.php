@@ -105,6 +105,12 @@
                             <i class="fas fa-home mr-1"></i><span class="hidden sm:inline">Dashboard</span>
                         </a>
 
+                        @if(Auth::user()->hasPermission('social', 'view'))
+                            <a href="{{ route('social.feed') }}" class="site-link-hover nav-link flex items-center">
+                                <i class="fas fa-hashtag mr-1"></i><span class="hidden sm:inline">Feed Social</span>
+                            </a>
+                        @endif
+
                         @if(Auth::user()->isSuperAdmin())
                             <a href="{{ route('usuarios.index') }}" class="site-link-hover nav-link flex items-center">
                                 <i class="fas fa-id-card mr-1"></i><span class="hidden sm:inline">Fichas (EPI/NR)</span>
@@ -191,6 +197,9 @@
                             @endif
                         @endif
                         <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover">Dashboard</a>
+                        @if(Auth::user()->hasPermission('social', 'view'))
+                            <a href="{{ route('social.feed') }}" class="block px-3 py-2 rounded text-white site-link-hover">Feed Social</a>
+                        @endif
                         @if(Auth::user()->isSuperAdmin())
                             <a href="{{ route('usuarios.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Fichas (EPI/NR)</a>
                             <a href="{{ route('certificados.gerencial') }}" class="block px-3 py-2 rounded text-white site-link-hover">Consulta Certificados</a>

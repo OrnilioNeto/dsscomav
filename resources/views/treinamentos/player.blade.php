@@ -156,6 +156,14 @@
                     <div class="text-green-600 font-semibold">
                         <i class="fas fa-check-circle mr-2"></i>Concluído em {{ $progress->data_conclusao->format('d/m/Y H:i') }}
                     </div>
+                    @if(Auth::user()->hasPermission('social', 'view'))
+                        <div class="mt-4 pt-4 border-t border-gray-100">
+                            <p class="text-sm text-gray-600 mb-3">Compartilhe sua conquista e seu ranking com seus colegas de trabalho!</p>
+                            <a href="{{ route('social.feed', ['share_training_id' => $training->id]) }}" class="inline-flex items-center text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 px-4 py-2.5 rounded-lg transition shadow-sm">
+                                <i class="fas fa-share-alt mr-1.5"></i> Compartilhar Conquista
+                            </a>
+                        </div>
+                    @endif
                 @endif
             </div>
         </div>
