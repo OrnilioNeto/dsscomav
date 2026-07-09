@@ -27,7 +27,7 @@ try {
     echo "   -> Perfil criado com ID: " . $role->id . "\n";
 
     // 3. Inicializar permissões vazias (como feito no PermissionController)
-    $modules = ['users', 'trainings', 'certificates', 'rankings', 'splash', 'permissions'];
+    $modules = ['users', 'trainings', 'certificates', 'rankings', 'splash', 'social', 'permissions'];
     foreach ($modules as $module) {
         $role->permissions()->create([
             'module' => $module,

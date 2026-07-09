@@ -323,4 +323,36 @@ class User extends Authenticatable
         $colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
         return $colors[$this->id % count($colors)];
     }
+
+    // RELACIONAMENTOS E HELPERS DA REDE SOCIAL
+    public function socialPosts()
+    {
+        return $this->hasMany(SocialPost::class, 'user_id');
+    }
+
+    public function following()
+    {
+        return $this->belongsToMany(User::class, 'social_follows', 'follower_id', 'following_id');
+    }
+
+    public function followers()
+    {
+        return $this->belongsToMany(User::class, 'social_follows', 'following_id', 'follower_id');
+    }
+
+    public function isFollowing($userId): bool
+    {
+        return $this->following()->where('following_id', $userId)->exists();
+    }
+
+    public function followersCount(): int
+    {
+        return $this->followers()->count();
+    }
+
+    public function followingCount(): int
+    {
+        return $this->following()->count();
+    }
 }
+

@@ -127,4 +127,16 @@ Route::middleware('auth')->group(function () {
         Route::delete('/admin/permissoes/perfis/{id}', [PermissionController::class, 'destroyRole'])->name('admin.permissoes.destroyRole');
         Route::post('/admin/permissoes/salvar', [PermissionController::class, 'updatePermissions'])->name('admin.permissoes.update');
     });
+
+    // REDE SOCIAL (Acesso controlado por permissão:social)
+    Route::middleware('permission:social')->group(function () {
+        Route::get('/social/feed', [\App\Http\Controllers\SocialController::class, 'index'])->name('social.feed');
+        Route::post('/social/posts', [\App\Http\Controllers\SocialController::class, 'storePost'])->name('social.posts.store');
+        Route::delete('/social/posts/{id}', [\App\Http\Controllers\SocialController::class, 'destroyPost'])->name('social.posts.destroy');
+        Route::post('/social/posts/{id}/like', [\App\Http\Controllers\SocialController::class, 'toggleLike'])->name('social.posts.like');
+        Route::post('/social/posts/{id}/comment', [\App\Http\Controllers\SocialController::class, 'storeComment'])->name('social.posts.comment');
+        Route::post('/social/user/{id}/follow', [\App\Http\Controllers\SocialController::class, 'toggleFollow'])->name('social.user.follow');
+        Route::get('/social/user/{id}', [\App\Http\Controllers\SocialController::class, 'showProfile'])->name('social.user.profile');
+    });
 });
+
