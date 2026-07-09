@@ -195,6 +195,9 @@ class TrainingPlayerController extends Controller
             'avaliacao_resposta_usuario' => (int) $request->answer,
         ]));
 
+        // Recarregar os dados do progresso do banco para obter a porcentagem_assistida mais recente
+        $progress->refresh();
+
         if (($isTestUser || $progress->porcentagem_assistida >= 99) && !$progress->concluido) {
             $progress->update([
                 'concluido' => true,

@@ -50,3 +50,7 @@ Thumbs.db
 # Bootstrap cache
 !bootstrap/cache/.gitkeep
 bootstrap/cache/*.php
+
+
+#funcionalidades
+/app/saude_seguranca/*
