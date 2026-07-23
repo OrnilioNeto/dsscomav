@@ -40,6 +40,27 @@ Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Módulo de Saúde e Segurança (Gestão de EPIs)
+    Route::prefix('epi')->group(function () {
+        Route::get('/', [\App\Http\Controllers\EpiController::class, 'index'])->name('epi.index');
+        Route::get('/estoque-disponivel', [\App\Http\Controllers\EpiController::class, 'getEstoqueDisponivel'])->name('epi.estoque-disponivel');
+        Route::post('/catalogo', [\App\Http\Controllers\EpiController::class, 'catalogoStore'])->name('epi.catalogo.store');
+        Route::post('/catalogo/{id}/toggle', [\App\Http\Controllers\EpiController::class, 'catalogoToggleStatus'])->name('epi.catalogo.toggle');
+        Route::get('/modelo-csv', [\App\Http\Controllers\EpiController::class, 'modeloCsv'])->name('epi.modelo-csv');
+        Route::get('/export-csv', [\App\Http\Controllers\EpiController::class, 'exportCsv'])->name('epi.export-csv');
+        Route::post('/import-csv', [\App\Http\Controllers\EpiController::class, 'importCsv'])->name('epi.import-csv');
+        Route::post('/estoque', [\App\Http\Controllers\EpiController::class, 'estoqueStore'])->name('epi.estoque.store');
+        Route::post('/kits', [\App\Http\Controllers\EpiController::class, 'kitStore'])->name('epi.kits.store');
+        Route::delete('/kits/{id}', [\App\Http\Controllers\EpiController::class, 'kitDestroy'])->name('epi.kits.destroy');
+        Route::post('/entrega', [\App\Http\Controllers\EpiController::class, 'entregaStore'])->name('epi.entrega.store');
+        Route::post('/entrega/{id}/cancelar', [\App\Http\Controllers\EpiController::class, 'entregaCancelar'])->name('epi.entrega.cancelar');
+        Route::get('/ficha/{colaborador_id}', [\App\Http\Controllers\EpiController::class, 'fichaColaborador'])->name('epi.ficha');
+        Route::post('/colaborador', [\App\Http\Controllers\EpiController::class, 'colaboradorStore'])->name('epi.colaborador.store');
+        Route::post('/filiais', [\App\Http\Controllers\EpiController::class, 'filialStore'])->name('epi.filiais.store');
+        Route::post('/filiais/{id}/toggle', [\App\Http\Controllers\EpiController::class, 'filialToggleStatus'])->name('epi.filiais.toggle');
+        Route::delete('/filiais/{id}', [\App\Http\Controllers\EpiController::class, 'filialDestroy'])->name('epi.filiais.destroy');
+    });
+
     // Perfil do Usuário
     Route::get('/perfil/editar', [ProfilePhotoController::class, 'edit'])->name('profile.edit');
     Route::get('/perfil/estatisticas', [DashboardController::class, 'profileStats'])->name('profile.stats');

@@ -1,19 +1,13 @@
 #!/bin/sh
 set -e
 
-if [ ! -f /var/www/app/.env ]; then
+if [ -f /var/www/app/.env.adminer ]; then
+    cp /var/www/app/.env.adminer /var/www/app/.env
+elif [ ! -f /var/www/app/.env ] && [ -f /var/www/app/.env.example ]; then
     cp /var/www/app/.env.example /var/www/app/.env
 fi
 
-php -r "
-\$env = file_get_contents('/var/www/app/.env');
-\$env = preg_replace('/^APP_URL=.*/m', 'APP_URL=http://localhost:8000', \$env);
-\$env = preg_replace('/^DB_CONNECTION=.*/m', 'DB_CONNECTION=sqlite', \$env);
-\$env = preg_replace('/^DB_DATABASE=.*/m', 'DB_DATABASE=/var/www/app/database/database.sqlite', \$env);
-file_put_contents('/var/www/app/.env', \$env);
-"
-
-touch /var/www/app/database/database.sqlite
+mkdir -p /var/www/app/database
 mkdir -p /var/www/app/storage/framework/cache
 mkdir -p /var/www/app/storage/framework/sessions
 mkdir -p /var/www/app/storage/framework/views
@@ -38,7 +32,7 @@ fi
 php artisan key:generate --force
 php artisan migrate --force
 
-ROLE_COUNT=$(sqlite3 /var/www/app/database/database.sqlite "select count(*) from roles;" 2>/dev/null || echo 0)
+ROLE_COUNT=$(php -r "require '/var/www/app/vendor/autoload.php'; \$app = require_once '/var/www/app/bootstrap/app.php'; \$kernel = \$app->make(Illuminate\Contracts\Console\Kernel::class); \$kernel->bootstrap(); try { echo \Illuminate\Support\Facades\DB::table('roles')->count(); } catch (\Throwable \$e) { echo 0; }" 2>/dev/null || echo 0)
 if [ "$ROLE_COUNT" = "0" ]; then
     php artisan db:seed --force
 fi
