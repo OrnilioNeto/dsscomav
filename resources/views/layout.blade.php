@@ -61,98 +61,111 @@
     @if(Auth::check())
         <nav class="site-nav shadow-lg">
             <div class="max-w-7xl mx-auto px-4">
-                        <div class="flex flex-wrap justify-between items-center h-16">
-                    <div class="flex items-center">
-                                <x-logo alt="logo" class="mr-3 w-8 md:w-10" />
-                                <span class="font-bold text-lg brand-text hidden md:inline-block">Plataforma DSS</span>
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-3">
+                        <a href="{{ route('dashboard') }}" class="flex items-center gap-2">
+                            <x-logo alt="logo" class="w-8 md:w-10" />
+                            <span class="font-bold text-lg brand-text hidden md:inline-block">Plataforma DSS</span>
+                        </a>
                     </div>
 
                     <!-- Mobile menu button -->
                     <div class="md:hidden">
-                        <button id="nav-toggle" class="text-white focus:outline-none">
+                        <button id="nav-toggle" class="text-white focus:outline-none p-1">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                         </button>
                     </div>
 
                     <!-- Desktop menu -->
-                    <div class="hidden md:flex items-center space-x-6 text-sm">
-                        @if(Auth::user()->isAdmin())
-                            @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('users', 'view'))
-                                <a href="{{ route('usuarios.index') }}" class="site-link-hover nav-link flex items-center">
-                                    <i class="fas fa-users mr-1"></i><span class="hidden sm:inline">Usuários</span>
-                                </a>
-                            @endif
-                            @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
-                                <a href="{{ route('treinamentos.index') }}" class="site-link-hover nav-link flex items-center">
-                                    <i class="fas fa-video mr-1"></i><span class="hidden sm:inline">Treinamentos</span>
-                                </a>
-                            @endif
-                            @if(!Auth::user()->isSuperAdmin())
-                                @if(Auth::user()->hasPermission('rankings', 'view'))
-                                    <a href="{{ route('admin.ranking.index') }}" class="site-link-hover nav-link flex items-center text-yellow-400 hover:text-yellow-300">
-                                        <i class="fas fa-trophy mr-1"></i><span class="hidden sm:inline">Ranking</span>
-                                    </a>
-                                @endif
-                                @if(Auth::user()->hasPermission('splash', 'view'))
-                                    <a href="{{ route('admin.splash.index') }}" class="site-link-hover nav-link flex items-center">
-                                        <i class="fas fa-bullhorn mr-1"></i><span class="hidden sm:inline">Splash</span>
-                                    </a>
-                                @endif
-                            @endif
-                        @endif
-
+                    <div class="hidden md:flex items-center space-x-4 lg:space-x-5 text-sm">
                         <a href="{{ route('dashboard') }}" class="site-link-hover nav-link flex items-center">
-                            <i class="fas fa-home mr-1"></i><span class="hidden sm:inline">Dashboard</span>
+                            <i class="fas fa-home mr-1.5"></i><span>Dashboard</span>
                         </a>
+
+                        <a href="{{ route('epi.index') }}" class="site-link-hover nav-link flex items-center text-amber-300 hover:text-amber-200 font-semibold">
+                            <i class="fas fa-hard-hat mr-1.5"></i><span>Gestão de EPIs</span>
+                        </a>
+
+                        @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
+                            <a href="{{ route('treinamentos.index') }}" class="site-link-hover nav-link flex items-center">
+                                <i class="fas fa-video mr-1.5"></i><span>Treinamentos</span>
+                            </a>
+                        @endif
 
                         @if(Auth::user()->hasPermission('social', 'view'))
                             <a href="{{ route('social.feed') }}" class="site-link-hover nav-link flex items-center">
-                                <i class="fas fa-hashtag mr-1"></i><span class="hidden sm:inline">Feed Social</span>
+                                <i class="fas fa-hashtag mr-1.5"></i><span>Feed Social</span>
                             </a>
                         @endif
 
-                        @if(Auth::user()->isSuperAdmin())
-                            <a href="{{ route('usuarios.index') }}" class="site-link-hover nav-link flex items-center">
-                                <i class="fas fa-id-card mr-1"></i><span class="hidden sm:inline">Fichas (EPI/NR)</span>
-                            </a>
-                            <a href="{{ route('certificados.gerencial') }}" class="site-link-hover nav-link flex items-center">
-                                <i class="fas fa-certificate mr-1"></i><span class="hidden sm:inline">Consulta Certificados</span>
-                            </a>
-                            <a href="{{ route('admin.ranking.index') }}" class="site-link-hover nav-link flex items-center text-yellow-400 hover:text-yellow-300">
-                                <i class="fas fa-trophy mr-1"></i><span class="hidden sm:inline">Ranking</span>
-                            </a>
-                            <a href="{{ route('admin.ranking.settings') }}" class="site-link-hover nav-link flex items-center">
-                                <i class="fas fa-sliders-h mr-1"></i><span class="hidden sm:inline">Parâmetros</span>
-                            </a>
-                            <a href="{{ route('relatorios.ia') }}" class="site-link-hover nav-link flex items-center">
-                                <i class="fas fa-chart-line mr-1"></i><span class="hidden sm:inline">Relatórios IA</span>
-                            </a>
-                            <a href="{{ route('admin.permissoes.index') }}" class="site-link-hover nav-link flex items-center">
-                                <i class="fas fa-user-shield mr-1"></i><span class="hidden sm:inline">Permissões</span>
-                            </a>
-                        @else
+                        @if(!Auth::user()->isAdmin() && !Auth::user()->isSuperAdmin())
                             <a href="{{ route('certificados.meus') }}" class="site-link-hover nav-link flex items-center">
-                                <i class="fas fa-certificate mr-1"></i><span class="hidden sm:inline">Certificados</span>
+                                <i class="fas fa-certificate mr-1.5"></i><span>Certificados</span>
                             </a>
                         @endif
 
                         <a href="{{ route('certificacao.conformidade') }}" class="site-link-hover nav-link flex items-center">
-                            <i class="fas fa-shield-alt mr-1"></i><span class="hidden sm:inline">Transparência</span>
+                            <i class="fas fa-shield-alt mr-1.5"></i><span>Transparência</span>
                         </a>
 
-                        <div class="relative">
-                            <button id="user-desktop-toggle" class="flex items-center gap-2 site-link-hover hover:opacity-80 transition">
+                        @if(Auth::user()->isAdmin() || Auth::user()->isSuperAdmin())
+                            <div class="relative">
+                                <button id="admin-desktop-toggle" type="button" class="site-link-hover nav-link flex items-center focus:outline-none cursor-pointer">
+                                    <i class="fas fa-cog mr-1.5"></i><span>Administração</span>
+                                    <i class="fas fa-chevron-down text-xs ml-1 opacity-75"></i>
+                                </button>
+                                <div id="admin-desktop-menu" class="hidden absolute right-0 mt-2 w-56 bg-white text-gray-800 rounded-lg shadow-xl z-50 border border-gray-200 py-1 text-sm">
+                                    @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('users', 'view'))
+                                        <a href="{{ route('usuarios.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-users w-5 mr-2 text-emerald-700"></i> Usuários & Fichas
+                                        </a>
+                                    @endif
+                                    @if(Auth::user()->isSuperAdmin())
+                                        <a href="{{ route('certificados.gerencial') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-certificate w-5 mr-2 text-blue-600"></i> Consulta Certificados
+                                        </a>
+                                    @endif
+                                    @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('rankings', 'view'))
+                                        <a href="{{ route('admin.ranking.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-trophy w-5 mr-2 text-amber-500"></i> Ranking
+                                        </a>
+                                    @endif
+                                    @if(Auth::user()->isSuperAdmin())
+                                        <a href="{{ route('admin.ranking.settings') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-sliders-h w-5 mr-2 text-gray-600"></i> Parâmetros Ranking
+                                        </a>
+                                        <a href="{{ route('relatorios.ia') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-chart-line w-5 mr-2 text-indigo-600"></i> Relatórios IA
+                                        </a>
+                                    @endif
+                                    @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('splash', 'view'))
+                                        <a href="{{ route('admin.splash.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-bullhorn w-5 mr-2 text-orange-500"></i> Avisos / Splash
+                                        </a>
+                                    @endif
+                                    @if(Auth::user()->isSuperAdmin())
+                                        <a href="{{ route('admin.permissoes.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900 border-t border-gray-100">
+                                            <i class="fas fa-user-shield w-5 mr-2 text-purple-600"></i> Permissões
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="relative pl-2 border-l border-white/20">
+                            <button id="user-desktop-toggle" type="button" class="flex items-center gap-2 site-link-hover hover:opacity-80 transition cursor-pointer">
                                 @component('components.user-avatar', ['user' => Auth::user(), 'size' => 'sm'])
                                 @endcomponent
                                 <span class="ml-1 hidden sm:inline text-sm font-medium">{{ Auth::user()->nome }}</span>
+                                <i class="fas fa-chevron-down text-xs opacity-75"></i>
                             </button>
-                            <div id="user-desktop-menu" class="hidden absolute right-0 mt-1 w-56 bg-white text-gray-800 rounded-lg shadow-lg z-50 border border-gray-200">
+                            <div id="user-desktop-menu" class="hidden absolute right-0 mt-2 w-56 bg-white text-gray-800 rounded-lg shadow-xl z-50 border border-gray-200 py-1">
                                 <div class="px-4 py-3 border-b border-gray-200">
                                     <div class="flex items-center gap-3">
                                         <img 
                                             src="{{ Auth::user()->getFotoPerfilUrl() }}" 
                                             alt="{{ Auth::user()->nome }}"
-                                            class="w-12 h-12 rounded-full object-cover border-2 border-blue-900"
+                                            class="w-10 h-10 rounded-full object-cover border-2 border-emerald-900"
                                         >
                                         <div class="flex-1 min-w-0">
                                             <p class="text-sm font-semibold text-gray-900 truncate">{{ Auth::user()->nome }}</p>
@@ -160,16 +173,16 @@
                                         </div>
                                     </div>
                                 </div>
-                                <a href="{{ route('profile.edit') }}" class="block px-4 py-2 hover:bg-gray-100 text-sm">
-                                    <i class="fas fa-camera mr-2 text-blue-600"></i> Editar Perfil
+                                <a href="{{ route('profile.edit') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
+                                    <i class="fas fa-camera w-5 mr-2 text-blue-600"></i> Editar Perfil
                                 </a>
-                                <a href="{{ route('dashboard') }}" class="block px-4 py-2 hover:bg-gray-100 text-sm">
-                                    <i class="fas fa-user mr-2"></i> Meu Perfil
+                                <a href="{{ route('dashboard') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
+                                    <i class="fas fa-user w-5 mr-2 text-emerald-700"></i> Meu Perfil
                                 </a>
-                                <form action="{{ route('logout') }}" method="POST" class="block border-t border-gray-200">
+                                <form action="{{ route('logout') }}" method="POST" class="block border-t border-gray-200 mt-1 pt-1">
                                     @csrf
-                                    <button type="submit" class="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
-                                        <i class="fas fa-sign-out-alt mr-2 text-red-600"></i> Sair
+                                    <button type="submit" class="w-full flex items-center text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600">
+                                        <i class="fas fa-sign-out-alt w-5 mr-2"></i> Sair
                                     </button>
                                 </form>
                             </div>
@@ -178,51 +191,83 @@
                 </div>
 
                 <!-- Mobile menu, hidden by default -->
-                <div id="mobile-menu" class="hidden md:hidden mt-2 pb-4">
+                <div id="mobile-menu" class="hidden md:hidden mt-2 pb-4 border-t border-white/10 pt-2">
                     <div class="px-2 space-y-1">
-                        @if(Auth::user()->isAdmin())
-                            @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('users', 'view'))
-                                <a href="{{ route('usuarios.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Usuários</a>
-                            @endif
-                            @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
-                                <a href="{{ route('treinamentos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Treinamentos</a>
-                            @endif
-                            @if(!Auth::user()->isSuperAdmin())
-                                @if(Auth::user()->hasPermission('rankings', 'view'))
-                                    <a href="{{ route('admin.ranking.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Ranking</a>
-                                @endif
-                                @if(Auth::user()->hasPermission('splash', 'view'))
-                                    <a href="{{ route('admin.splash.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Splash</a>
-                                @endif
-                            @endif
+                        <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover font-medium">
+                            <i class="fas fa-home mr-2"></i> Dashboard
+                        </a>
+                        <a href="{{ route('epi.index') }}" class="block px-3 py-2 rounded text-amber-300 site-link-hover font-medium">
+                            <i class="fas fa-hard-hat mr-2"></i> Gestão de EPIs
+                        </a>
+                        @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
+                            <a href="{{ route('treinamentos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                <i class="fas fa-video mr-2"></i> Treinamentos
+                            </a>
                         @endif
-                        <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover">Dashboard</a>
                         @if(Auth::user()->hasPermission('social', 'view'))
-                            <a href="{{ route('social.feed') }}" class="block px-3 py-2 rounded text-white site-link-hover">Feed Social</a>
+                            <a href="{{ route('social.feed') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                <i class="fas fa-hashtag mr-2"></i> Feed Social
+                            </a>
                         @endif
-                        @if(Auth::user()->isSuperAdmin())
-                            <a href="{{ route('usuarios.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Fichas (EPI/NR)</a>
-                            <a href="{{ route('certificados.gerencial') }}" class="block px-3 py-2 rounded text-white site-link-hover">Consulta Certificados</a>
-                            <a href="{{ route('admin.ranking.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Ranking</a>
-                            <a href="{{ route('admin.ranking.settings') }}" class="block px-3 py-2 rounded text-white site-link-hover">Parâmetros</a>
-                            <a href="{{ route('relatorios.ia') }}" class="block px-3 py-2 rounded text-white site-link-hover">Relatórios IA</a>
-                            <a href="{{ route('admin.permissoes.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">Permissões</a>
-                        @else
-                            <a href="{{ route('certificados.meus') }}" class="block px-3 py-2 rounded text-white site-link-hover">Certificados</a>
+                        @if(!Auth::user()->isAdmin() && !Auth::user()->isSuperAdmin())
+                            <a href="{{ route('certificados.meus') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                <i class="fas fa-certificate mr-2"></i> Certificados
+                            </a>
                         @endif
-                                <a href="{{ route('certificacao.conformidade') }}" class="block px-3 py-2 rounded text-white site-link-hover">Transparência</a>
+                        <a href="{{ route('certificacao.conformidade') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                            <i class="fas fa-shield-alt mr-2"></i> Transparência
+                        </a>
+
+                        @if(Auth::user()->isAdmin() || Auth::user()->isSuperAdmin())
+                            <div class="border-t border-white/20 mt-2 pt-2">
+                                <p class="px-3 text-xs uppercase tracking-wider text-emerald-300 font-semibold mb-1">Administração</p>
+                                @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('users', 'view'))
+                                    <a href="{{ route('usuarios.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-users mr-2"></i> Usuários & Fichas
+                                    </a>
+                                @endif
+                                @if(Auth::user()->isSuperAdmin())
+                                    <a href="{{ route('certificados.gerencial') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-certificate mr-2"></i> Consulta Certificados
+                                    </a>
+                                @endif
+                                @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('rankings', 'view'))
+                                    <a href="{{ route('admin.ranking.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-trophy mr-2 text-amber-400"></i> Ranking
+                                    </a>
+                                @endif
+                                @if(Auth::user()->isSuperAdmin())
+                                    <a href="{{ route('admin.ranking.settings') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-sliders-h mr-2"></i> Parâmetros Ranking
+                                    </a>
+                                    <a href="{{ route('relatorios.ia') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-chart-line mr-2"></i> Relatórios IA
+                                    </a>
+                                @endif
+                                @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('splash', 'view'))
+                                    <a href="{{ route('admin.splash.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-bullhorn mr-2"></i> Avisos / Splash
+                                    </a>
+                                @endif
+                                @if(Auth::user()->isSuperAdmin())
+                                    <a href="{{ route('admin.permissoes.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-user-shield mr-2"></i> Permissões
+                                    </a>
+                                @endif
+                            </div>
+                        @endif
 
                         <div class="border-t border-white/20 mt-2 pt-2">
                             <a href="{{ route('profile.edit') }}" class="block px-3 py-2 rounded text-white site-link-hover">
-                                <i class="fas fa-camera mr-1"></i> Editar Perfil
+                                <i class="fas fa-camera mr-2 text-blue-400"></i> Editar Perfil
                             </a>
                             <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover">
-                                <i class="fas fa-user mr-1"></i> Meu Perfil
+                                <i class="fas fa-user mr-2 text-emerald-400"></i> Meu Perfil
                             </a>
                             <form action="{{ route('logout') }}" method="POST" class="block px-3 py-2">
                                 @csrf
-                                <button type="submit" class="w-full text-left text-white site-link-hover">
-                                    <i class="fas fa-sign-out-alt mr-1"></i> Sair
+                                <button type="submit" class="w-full text-left text-red-300 hover:text-red-200">
+                                    <i class="fas fa-sign-out-alt mr-2"></i> Sair
                                 </button>
                             </form>
                         </div>
@@ -514,6 +559,8 @@
             const mobileMenu = document.getElementById('mobile-menu');
             const userDesktopToggle = document.getElementById('user-desktop-toggle');
             const userDesktopMenu = document.getElementById('user-desktop-menu');
+            const adminDesktopToggle = document.getElementById('admin-desktop-toggle');
+            const adminDesktopMenu = document.getElementById('admin-desktop-menu');
 
             if(navToggle && mobileMenu){
                 navToggle.addEventListener('click', function(){
@@ -521,25 +568,38 @@
                 });
             }
 
+            if(adminDesktopToggle && adminDesktopMenu){
+                adminDesktopToggle.addEventListener('click', function(e){
+                    e.stopPropagation();
+                    if(userDesktopMenu) userDesktopMenu.classList.add('hidden');
+                    adminDesktopMenu.classList.toggle('hidden');
+                });
+            }
+
             if(userDesktopToggle && userDesktopMenu){
                 userDesktopToggle.addEventListener('click', function(e){
                     e.stopPropagation();
+                    if(adminDesktopMenu) adminDesktopMenu.classList.add('hidden');
                     userDesktopMenu.classList.toggle('hidden');
                 });
-
-                // close when clicking outside
-                document.addEventListener('click', function(){
-                    if(!userDesktopMenu.classList.contains('hidden')){
-                        userDesktopMenu.classList.add('hidden');
-                    }
-                });
             }
+
+            // close when clicking outside
+            document.addEventListener('click', function(){
+                if(adminDesktopMenu && !adminDesktopMenu.classList.contains('hidden')){
+                    adminDesktopMenu.classList.add('hidden');
+                }
+                if(userDesktopMenu && !userDesktopMenu.classList.contains('hidden')){
+                    userDesktopMenu.classList.add('hidden');
+                }
+            });
         })();
         // Transform tables inside .table-responsive into card lists on small screens
         (function(){
             const BREAKPOINT = 640;
             function transformTables(){
                 document.querySelectorAll('.table-responsive, .overflow-x-auto').forEach(function(container){
+                    if (container.classList.contains('no-transform')) return;
                     const table = container.querySelector('table');
                     if(!table) return;
                     // ensure we only process once per container
