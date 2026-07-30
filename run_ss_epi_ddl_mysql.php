@@ -137,46 +137,10 @@ try {
         echo "   -> Tabela 'ss_kit_item' já existe.\n";
     }
 
-    // População de EPIs Universais Padrão
-    echo "\nExecutando Carga Inicial (Seed) dos EPIs Padrão...\n";
-    $defaultItems = [
-        ['ss_e_tx_grupo' => 'PROTEÇÃO DA CABEÇA', 'ss_e_tx_subgrupo' => 'Capacetes', 'ss_e_tx_item' => 'Capacete de Segurança', 'ss_e_tx_descricao' => 'capacete para proteção contra impactos de objetos sobre o crânio', 'ss_e_nb_vida_util_dias' => 365],
-        ['ss_e_tx_grupo' => 'PROTEÇÃO DA CABEÇA', 'ss_e_tx_subgrupo' => 'Capacetes', 'ss_e_tx_item' => 'Capacete de Segurança Com Carneira', 'ss_e_tx_descricao' => 'capacete para proteção contra impactos de objetos sobre o crânio', 'ss_e_nb_vida_util_dias' => 365],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS OLHOS E FACE', 'ss_e_tx_subgrupo' => 'Óculos de Segurança', 'ss_e_tx_item' => 'Óculos de Segurança Anti-Embaçante', 'ss_e_tx_descricao' => 'óculos para proteção dos olhos contra impactos de partículas volantes', 'ss_e_nb_vida_util_dias' => 180],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS OLHOS E FACE', 'ss_e_tx_subgrupo' => 'Óculos de Segurança', 'ss_e_tx_item' => 'Óculos Ampla Visão', 'ss_e_tx_descricao' => 'óculos para proteção dos olhos contra impactos de partículas volantes', 'ss_e_nb_vida_util_dias' => 180],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO AUDITIVA', 'ss_e_tx_subgrupo' => 'Protetores Auriculares', 'ss_e_tx_item' => 'Protetor Auricular de Silicone Tipo Plug', 'ss_e_tx_descricao' => 'para proteção do sistema auditivo contra níveis de pressão sonora superiores ao estabelecido na NR-15', 'ss_e_nb_vida_util_dias' => 90],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO AUDITIVA', 'ss_e_tx_subgrupo' => 'Protetores Auriculares', 'ss_e_tx_item' => 'Protetor Auricular Abafador Concha', 'ss_e_tx_descricao' => 'para proteção do sistema auditivo contra níveis de pressão sonora superiores ao estabelecido na NR-15', 'ss_e_nb_vida_util_dias' => 365],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO RESPIRATÓRIA', 'ss_e_tx_subgrupo' => 'Respiradores e Máscaras', 'ss_e_tx_item' => 'Respirador purificador de ar não motorizado', 'ss_e_tx_descricao' => 'com filtros combinados para proteção das vias respiratórias contra gases e vapores', 'ss_e_nb_vida_util_dias' => 180],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO RESPIRATÓRIA', 'ss_e_tx_subgrupo' => 'Respiradores e Máscaras', 'ss_e_tx_item' => 'Máscara Descartável Pff2', 'ss_e_tx_descricao' => 'peça semifacial filtrante para partículas PFF2 para proteção das vias respiratórias', 'ss_e_nb_vida_util_dias' => 30],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS MEMBROS SUPERIORES', 'ss_e_tx_subgrupo' => 'Luvas de Proteção', 'ss_e_tx_item' => 'luvas pvc', 'ss_e_tx_descricao' => 'luvas para proteção das mãos contra agentes químicos', 'ss_e_nb_vida_util_dias' => 90],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS MEMBROS SUPERIORES', 'ss_e_tx_subgrupo' => 'Luvas de Proteção', 'ss_e_tx_item' => 'luvas nitrilica', 'ss_e_tx_descricao' => 'luvas para proteção das mãos contra agentes químicos', 'ss_e_nb_vida_util_dias' => 90],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS MEMBROS SUPERIORES', 'ss_e_tx_subgrupo' => 'Luvas de Proteção', 'ss_e_tx_item' => 'luvas algodao', 'ss_e_tx_descricao' => 'luvas para proteção das mãos contra vibrações', 'ss_e_nb_vida_util_dias' => 60],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS MEMBROS INFERIORES', 'ss_e_tx_subgrupo' => 'Calçados de Segurança', 'ss_e_tx_item' => 'Bota Botina Bico PVC', 'ss_e_tx_descricao' => 'calçado para proteção contra impactos de quedas de objetos sobre os artelhos', 'ss_e_nb_vida_util_dias' => 365],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO CONTRA QUEDAS COM DIFERENÇA DE NÍVEL', 'ss_e_tx_subgrupo' => 'Cintos e Talabartes', 'ss_e_tx_item' => 'Cinto Paraquedista', 'ss_e_tx_descricao' => 'Cinturão de segurança com dispositivo trava-queda para proteção do usuário', 'ss_e_nb_vida_util_dias' => 365],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO CONTRA QUEDAS COM DIFERENÇA DE NÍVEL', 'ss_e_tx_subgrupo' => 'Cintos e Talabartes', 'ss_e_tx_item' => 'Cinto Paraquedista + Talabarte', 'ss_e_tx_descricao' => 'cinturão de segurança com talabarte para proteção do usuário', 'ss_e_nb_vida_util_dias' => 365],
-        ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO CONTRA QUEDAS COM DIFERENÇA DE NÍVEL', 'ss_e_tx_subgrupo' => 'Cintos e Talabartes', 'ss_e_tx_item' => 'Talabarte', 'ss_e_tx_descricao' => 'talabarte para proteção do usuário contra riscos de queda', 'ss_e_nb_vida_util_dias' => 365],
-    ];
-
-    $now = date('Y-m-d H:i:s');
-    foreach ($defaultItems as $item) {
-        $exists = DB::table('ss_epi')
-            ->where('ss_e_tx_grupo', $item['ss_e_tx_grupo'])
-            ->where('ss_e_tx_item', $item['ss_e_tx_item'])
-            ->exists();
-
-        if (!$exists) {
-            DB::table('ss_epi')->insert([
-                'ss_e_tx_grupo' => $item['ss_e_tx_grupo'],
-                'ss_e_tx_subgrupo' => $item['ss_e_tx_subgrupo'],
-                'ss_e_tx_item' => $item['ss_e_tx_item'],
-                'ss_e_tx_descricao' => $item['ss_e_tx_descricao'],
-                'ss_e_nb_vida_util_dias' => $item['ss_e_nb_vida_util_dias'],
-                'ss_e_tx_status' => 'ativo',
-                'ss_e_tx_cadastro_tipo' => 'universal',
-                'ss_e_tx_dataCadastro' => $now,
-            ]);
-        }
-    }
+    // [DESATIVADO] População de EPIs Universais Padrão
+    // echo "\nExecutando Carga Inicial (Seed) dos EPIs Padrão...\n";
+    // $defaultItems = [...];
+    // foreach (...)
 
     // Sincronizar colaboradores a partir da tabela `users`
     if (Schema::hasTable('users')) {

@@ -25,10 +25,16 @@ class EpiEstoque extends Model
         'ss_e_tx_motivo',
         'ss_e_tx_foto',
         'ss_e_nb_userCadastro',
+        'ss_e_nb_variacao_id',
     ];
 
     public function epi()
     {
         return $this->belongsTo(Epi::class, 'ss_e_nb_epi_id', 'ss_e_nb_id');
+    }
+
+    public function variacao()
+    {
+        return $this->belongsTo(EpiVariacao::class, 'ss_e_nb_variacao_id', 'ss_ev_nb_id');
     }
 }

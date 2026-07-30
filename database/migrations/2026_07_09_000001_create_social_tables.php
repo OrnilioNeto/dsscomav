@@ -9,7 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Tabela de Postagens (Social Posts)
-        Schema::create('social_posts', function (Blueprint $table) {
+        if (!Schema::hasTable('social_posts')) {
+            Schema::create('social_posts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('photo_path')->nullable();
@@ -23,9 +24,11 @@ return new class extends Migration
             
             $table->timestamps();
         });
+        }
 
         // 2. Tabela de Curtidas (Social Likes)
-        Schema::create('social_likes', function (Blueprint $table) {
+        if (!Schema::hasTable('social_likes')) {
+            Schema::create('social_likes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('post_id')->constrained('social_posts')->onDelete('cascade');
@@ -33,9 +36,11 @@ return new class extends Migration
 
             $table->unique(['user_id', 'post_id']);
         });
+        }
 
         // 3. Tabela de Seguidores (Social Follows)
-        Schema::create('social_follows', function (Blueprint $table) {
+        if (!Schema::hasTable('social_follows')) {
+            Schema::create('social_follows', function (Blueprint $table) {
             $table->id();
             $table->foreignId('follower_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('following_id')->constrained('users')->onDelete('cascade');
@@ -43,15 +48,18 @@ return new class extends Migration
 
             $table->unique(['follower_id', 'following_id']);
         });
+        }
 
         // 4. Tabela de Comentários (Social Comments)
-        Schema::create('social_comments', function (Blueprint $table) {
+        if (!Schema::hasTable('social_comments')) {
+            Schema::create('social_comments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('post_id')->constrained('social_posts')->onDelete('cascade');
             $table->text('content');
             $table->timestamps();
         });
+        }
     }
 
     public function down(): void

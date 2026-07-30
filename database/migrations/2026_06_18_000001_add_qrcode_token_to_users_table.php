@@ -10,16 +10,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('qrcode_token', 64)->nullable()->unique()->after('foto_perfil');
-        });
+        if (!Schema::hasColumn('users', 'qrcode_token')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->string('qrcode_token', 64)->nullable()->unique()->after('foto_perfil');
+            });
 
-        // Popular usuários existentes com tokens únicos
-        User::all()->each(function ($user) {
-            $user->update([
-                'qrcode_token' => Str::random(32)
-            ]);
-        });
+            // Popular usuários existentes com tokens únicos
+            User::all()->each(function ($user) {
+                $user->update([
+                    'qrcode_token' => Str::random(32)
+                ]);
+            });
+        }
     }
 
     public function down(): void

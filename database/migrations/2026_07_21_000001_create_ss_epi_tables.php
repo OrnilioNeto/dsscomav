@@ -109,8 +109,8 @@ return new class extends Migration
             });
         }
 
-        // Execute initial seed for default EPI items
-        $this->seedDefaultEpis();
+        // [DESATIVADO] Execute initial seed for default EPI items
+        // $this->seedDefaultEpis();
 
         // Synchronize collaborators from `users` table if `ss_colaborador` is empty
         $this->syncColaboradoresFromUsers();

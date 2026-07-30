@@ -8,16 +8,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('user_progress', function (Blueprint $table) {
-            $table->timestamp('data_inicio')->nullable()->after('training_id');
-        });
+        if (!Schema::hasColumn('user_progress', 'data_inicio')) {
+            Schema::table('user_progress', function (Blueprint $table) {
+                $table->timestamp('data_inicio')->nullable()->after('training_id');
+            });
+        }
 
-        Schema::table('certificates', function (Blueprint $table) {
-            $table->timestamp('data_inicio_assistencia')->nullable()->after('data_emissao');
-            $table->timestamp('data_finalizacao_assistencia')->nullable()->after('data_inicio_assistencia');
-            $table->integer('tempo_assistido_segundos')->default(0)->after('data_finalizacao_assistencia');
-            $table->integer('porcentagem_assistida')->default(0)->after('tempo_assistido_segundos');
-        });
+        if (!Schema::hasColumn('certificates', 'data_inicio_assistencia')) {
+            Schema::table('certificates', function (Blueprint $table) {
+                $table->timestamp('data_inicio_assistencia')->nullable()->after('data_emissao');
+                $table->timestamp('data_finalizacao_assistencia')->nullable()->after('data_inicio_assistencia');
+                $table->integer('tempo_assistido_segundos')->default(0)->after('data_finalizacao_assistencia');
+                $table->integer('porcentagem_assistida')->default(0)->after('tempo_assistido_segundos');
+            });
+        }
     }
 
     public function down(): void

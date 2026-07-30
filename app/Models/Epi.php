@@ -38,10 +38,15 @@ class Epi extends Model
         return $this->hasMany(EpiEntrega::class, 'ss_e_nb_epi_id', 'ss_e_nb_id');
     }
 
+    public function variacoes()
+    {
+        return $this->hasMany(EpiVariacao::class, 'ss_ev_nb_epi_id', 'ss_e_nb_id');
+    }
+
     /**
      * Calcula o saldo do EPI para uma filial específica (0/null = Matriz) ou consolidado.
      */
-    public function getSaldoPorFilial($empresaId = null): int
+    public function getSaldoPorFilial($empresaId = null, $variacaoId = null): int
     {
         $query = DB::table('ss_epi_estoque')
             ->where('ss_e_nb_epi_id', $this->ss_e_nb_id);
@@ -58,6 +63,10 @@ class Epi extends Model
             }
         }
 
+        if ($variacaoId !== null) {
+            $query->where('ss_e_nb_variacao_id', $variacaoId);
+        }
+
         $entradas = (int) (clone $query)->where('ss_e_tx_tipo', 'entrada')->sum('ss_e_nb_quantidade');
         $saidas = (int) (clone $query)->whereIn('ss_e_tx_tipo', ['saida', 'substituicao'])->sum('ss_e_nb_quantidade');
 
@@ -67,17 +76,17 @@ class Epi extends Model
     /**
      * Retorna o saldo total somado em TODAS as filiais da rede.
      */
-    public function getSaldoTotalRede(): int
+    public function getSaldoTotalRede($variacaoId = null): int
     {
-        $entradas = (int) DB::table('ss_epi_estoque')
-            ->where('ss_e_nb_epi_id', $this->ss_e_nb_id)
-            ->where('ss_e_tx_tipo', 'entrada')
-            ->sum('ss_e_nb_quantidade');
+        $query = DB::table('ss_epi_estoque')
+            ->where('ss_e_nb_epi_id', $this->ss_e_nb_id);
 
-        $saidas = (int) DB::table('ss_epi_estoque')
-            ->where('ss_e_nb_epi_id', $this->ss_e_nb_id)
-            ->whereIn('ss_e_tx_tipo', ['saida', 'substituicao'])
-            ->sum('ss_e_nb_quantidade');
+        if ($variacaoId !== null) {
+            $query->where('ss_e_nb_variacao_id', $variacaoId);
+        }
+
+        $entradas = (int) (clone $query)->where('ss_e_tx_tipo', 'entrada')->sum('ss_e_nb_quantidade');
+        $saidas = (int) (clone $query)->whereIn('ss_e_tx_tipo', ['saida', 'substituicao'])->sum('ss_e_nb_quantidade');
 
         return max(0, $entradas - $saidas);
     }
