@@ -16,6 +16,7 @@ class PermissionController extends Controller
         'rankings' => 'Ranking & Engajamento',
         'splash' => 'Mensagens Splash',
         'social' => 'Rede Social (Feed, Postagens, Seguidores)',
+        'epi' => 'Saúde e Segurança (EPIs, Estoque, Entregas)',
         'permissions' => 'Gerenciar Permissões'
     ];
 

@@ -82,9 +82,11 @@
                             <i class="fas fa-home mr-1.5"></i><span>Dashboard</span>
                         </a>
 
-                        <a href="{{ route('epi.index') }}" class="site-link-hover nav-link flex items-center text-amber-300 hover:text-amber-200 font-semibold">
-                            <i class="fas fa-hard-hat mr-1.5"></i><span>Gestão de EPIs</span>
-                        </a>
+                        @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('epi'))
+                            <a href="{{ route('epi.index') }}" class="site-link-hover nav-link flex items-center text-amber-300 hover:text-amber-200 font-semibold">
+                                <i class="fas fa-hard-hat mr-1.5"></i><span>Gestão de EPIs</span>
+                            </a>
+                        @endif
 
                         @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
                             <a href="{{ route('treinamentos.index') }}" class="site-link-hover nav-link flex items-center">
@@ -152,6 +154,26 @@
                             </div>
                         @endif
 
+                        @php
+                            $pendentesCount = 0;
+                            if (Auth::check() && request()->route() && !in_array(request()->route()->getName(), ['login', 'home'])) {
+                                try {
+                                    if (\Illuminate\Support\Facades\Schema::hasTable('ss_colaborador') && \Illuminate\Support\Facades\Schema::hasTable('ss_epi_entrega')) {
+                                        $colab = \App\Models\EpiColaborador::where('ss_c_tx_cpf', Auth::user()->cpf)->first();
+                                        if ($colab) {
+                                            $pendentesCount = \App\Models\EpiEntrega::pendentesAssinatura($colab->ss_c_nb_id)->count();
+                                        }
+                                    }
+                                } catch (\Throwable $e) {}
+                            }
+                        @endphp
+                        @if($pendentesCount > 0)
+                            <a href="{{ route('epi.assinaturas') }}" class="relative site-link-hover nav-link flex items-center text-amber-300 font-bold" title="Assinaturas Pendentes">
+                                <i class="fas fa-bell text-lg"></i>
+                                <span class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{{ $pendentesCount > 9 ? '9+' : $pendentesCount }}</span>
+                            </a>
+                        @endif
+
                         <div class="relative pl-2 border-l border-white/20">
                             <button id="user-desktop-toggle" type="button" class="flex items-center gap-2 site-link-hover hover:opacity-80 transition cursor-pointer">
                                 @component('components.user-avatar', ['user' => Auth::user(), 'size' => 'sm'])
@@ -196,9 +218,17 @@
                         <a href="{{ route('dashboard') }}" class="block px-3 py-2 rounded text-white site-link-hover font-medium">
                             <i class="fas fa-home mr-2"></i> Dashboard
                         </a>
-                        <a href="{{ route('epi.index') }}" class="block px-3 py-2 rounded text-amber-300 site-link-hover font-medium">
-                            <i class="fas fa-hard-hat mr-2"></i> Gestão de EPIs
-                        </a>
+                        @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('epi'))
+                            <a href="{{ route('epi.index') }}" class="block px-3 py-2 rounded text-amber-300 site-link-hover font-medium">
+                                <i class="fas fa-hard-hat mr-2"></i> Gestão de EPIs
+                            </a>
+                        @endif
+                        @if($pendentesCount > 0)
+                            <a href="{{ route('epi.assinaturas') }}" class="block px-3 py-2 rounded text-amber-300 site-link-hover font-bold">
+                                <i class="fas fa-bell mr-2"></i> Assinaturas Pendentes
+                                <span class="ml-1 px-1.5 py-0.5 bg-rose-500 text-white text-xs rounded-full">{{ $pendentesCount }}</span>
+                            </a>
+                        @endif
                         @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
                             <a href="{{ route('treinamentos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
                                 <i class="fas fa-video mr-2"></i> Treinamentos

@@ -229,6 +229,13 @@ Dashboard Administrador
                     <p class="text-blue-100 text-sm mt-2">Configurar mensagens de boas-vindas e comunicados</p>
                 </a>
             @endif
+            @if(auth()->user()->hasPermission('epi', 'view'))
+                <a href="{{ route('epi.index') }}" class="bg-gradient-to-r from-amber-600 to-amber-500 text-white p-6 rounded-lg hover:shadow-lg transition">
+                    <i class="fas fa-hard-hat text-3xl mb-3"></i>
+                    <h3 class="text-xl font-bold">Gestão de EPIs</h3>
+                    <p class="text-amber-100 text-sm mt-2">Catálogo, estoque, entregas e fichas de EPI</p>
+                </a>
+            @endif
         </div>
     </div>
 

@@ -142,6 +142,9 @@
             <button type="button" onclick="mudarAba('filiais')" id="tab-btn-filiais" class="nav-tab-btn px-5 py-3 text-sm flex items-center cursor-pointer">
                 <i class="fas fa-building mr-2"></i> Cadastro de Filiais
             </button>
+            <a href="{{ route('epi.gestao-assinaturas') }}" class="nav-tab-btn px-5 py-3 text-sm flex items-center text-emerald-700 hover:text-emerald-900 cursor-pointer">
+                <i class="fas fa-file-signature mr-2"></i> Gestão de Assinaturas
+            </a>
         </div>
 
         <!-- Conteúdo das Abas -->
@@ -336,6 +339,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Grupo / Subgrupo</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Item / Descrição</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">CA & Validade</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Variações</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Vida Útil</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Saldo (Rede)</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Tipo</th>
@@ -358,6 +362,20 @@
                                         @if($epi->ss_e_tx_ca)
                                             <span class="font-bold px-2 py-0.5 bg-gray-100 border border-gray-300 rounded">CA: {{ $epi->ss_e_tx_ca }}</span>
                                             <div class="text-gray-400 mt-0.5">Val: {{ $epi->ss_e_tx_validade_ca ? date('d/m/Y', strtotime($epi->ss_e_tx_validade_ca)) : '-' }}</div>
+                                        @else
+                                            <span class="text-gray-400">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-center text-xs">
+                                        @if(isset($saldosVariacao[$epi->ss_e_nb_id]) && count($saldosVariacao[$epi->ss_e_nb_id]) > 0)
+                                            <div class="flex flex-wrap gap-1 justify-center">
+                                                @foreach($epi->variacoes->where('ss_ev_tx_status', 'ativo') as $v)
+                                                    @php $saldoVar = $saldosVariacao[$epi->ss_e_nb_id][$v->ss_ev_nb_id] ?? 0; @endphp
+                                                    <span class="px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs {{ $saldoVar <= 0 ? 'text-gray-400' : 'text-gray-800' }}" title="Saldo: {{ $saldoVar }}">
+                                                        {{ $v->ss_ev_tx_nome }} <strong>({{ $saldoVar }})</strong>
+                                                    </span>
+                                                @endforeach
+                                            </div>
                                         @else
                                             <span class="text-gray-400">-</span>
                                         @endif
@@ -408,12 +426,54 @@
             <div id="tab-content-estoque" class="aba-content hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-base font-bold text-gray-900">
-                        <i class="fas fa-boxes text-amber-600 mr-2"></i> Movimentações de Inventário
+                        <i class="fas fa-boxes text-amber-600 mr-2"></i> Saldo Atual por EPI e Variação
                     </h3>
                     <button type="button" onclick="abrirModalNovaEntradaEstoque()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
                         <i class="fas fa-plus mr-1"></i> + Registrar Lançamento / Entrada
                     </button>
                 </div>
+
+                <!-- Tabela de Saldo por Variação -->
+                <div class="overflow-x-auto border border-gray-200 rounded-xl bg-white mb-6">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">EPI</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Variação</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Saldo Total (Rede)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            @php $temSaldoVariacao = false; @endphp
+                            @foreach($episCatalogo as $epi)
+                                @if(isset($saldosVariacao[$epi->ss_e_nb_id]) && count($saldosVariacao[$epi->ss_e_nb_id]) > 0)
+                                    @foreach($epi->variacoes->where('ss_ev_tx_status', 'ativo') as $v)
+                                        @php 
+                                            $saldoVar = $saldosVariacao[$epi->ss_e_nb_id][$v->ss_ev_nb_id] ?? 0;
+                                            $temSaldoVariacao = true;
+                                        @endphp
+                                        <tr class="hover:bg-gray-50 {{ $saldoVar <= 0 ? 'text-gray-400' : '' }}">
+                                            <td class="px-4 py-3 font-semibold">{{ $epi->ss_e_tx_item }}</td>
+                                            <td class="px-4 py-3">{{ $v->ss_ev_tx_nome }}</td>
+                                            <td class="px-4 py-3 text-center font-bold {{ $saldoVar <= 0 ? 'text-rose-500' : 'text-emerald-700' }}">
+                                                {{ $saldoVar }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                @endif
+                            @endforeach
+                            @if(!$temSaldoVariacao)
+                                <tr>
+                                    <td colspan="3" class="px-4 py-8 text-center text-gray-400">Nenhum EPI com variações cadastradas.</td>
+                                </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="text-base font-bold text-gray-900 mb-4">
+                    <i class="fas fa-history text-amber-600 mr-2"></i> Movimentações de Inventário
+                </h3>
 
                 <div class="overflow-x-auto border border-gray-200 rounded-xl bg-white">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -440,6 +500,9 @@
                                     </td>
                                     <td class="px-4 py-3 font-bold text-emerald-950">
                                         {{ $mov->epi->ss_e_tx_item ?? 'EPI N/D' }}
+                                        @if($mov->ss_e_nb_variacao_id && $mov->variacao)
+                                            <div class="text-xs text-gray-500 font-normal">{{ $mov->variacao->ss_ev_tx_nome }}</div>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3 text-center">
                                         @if($mov->ss_e_tx_tipo === 'entrada')
@@ -563,6 +626,7 @@
                     <div class="lg:col-span-2 bg-white p-5 rounded-xl border border-gray-200">
                         <h3 class="text-sm font-bold text-gray-900 mb-3 flex items-center">
                             <i class="fas fa-history text-emerald-700 mr-2"></i> Histórico Recente de Entregas (Ativas)
+                            <span class="ml-2 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold">{{ count($entregasRecentes) }} registro(s)</span>
                         </h3>
 
                         <div class="overflow-x-auto border border-gray-100 rounded-lg">
@@ -575,6 +639,7 @@
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Qtd</th>
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Vencimento</th>
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Comprovante</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Status Ass.</th>
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Ação</th>
                                     </tr>
                                 </thead>
@@ -589,6 +654,12 @@
                                             </td>
                                             <td class="px-3 py-2 font-semibold text-emerald-950">
                                                 {{ $ent->epi->ss_e_tx_item ?? 'EPI N/D' }}
+                                                @if($ent->ss_e_nb_variacao_id)
+                                                    @php $varNome = $ent->variacao ? $ent->variacao->ss_ev_tx_nome : ''; @endphp
+                                                    @if($varNome)
+                                                        <div class="text-xs text-gray-500">{{ $varNome }}</div>
+                                                    @endif
+                                                @endif
                                                 @if($ent->epi->ss_e_tx_ca)
                                                     <span class="text-gray-400 font-normal">(CA {{ $ent->epi->ss_e_tx_ca }})</span>
                                                 @endif
@@ -613,6 +684,19 @@
                                                 @endif
                                             </td>
                                             <td class="px-3 py-2 text-center">
+                                                @if($ent->ss_e_tx_requer_assinatura)
+                                                    @if($ent->ss_e_tx_status_assinatura === 'assinada')
+                                                        <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px] font-bold">Assinada</span>
+                                                    @elseif($ent->ss_e_tx_status_assinatura === 'negada')
+                                                        <span class="px-1.5 py-0.5 bg-rose-100 text-rose-800 rounded text-[10px] font-bold" title="{{ $ent->ss_e_tx_justificativa_negacao ?? '' }}">Recusada</span>
+                                                    @else
+                                                        <span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">Pendente</span>
+                                                    @endif
+                                                @else
+                                                    <span class="text-gray-400 text-[10px]">-</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
                                                 <button onclick="abrirModalCancelarEntrega({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}')" class="text-rose-600 hover:text-rose-800 font-bold" title="Cancelar / Inativar Entrega">
                                                     <i class="fas fa-ban"></i> Inativar
                                                 </button>
@@ -620,7 +704,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7" class="px-3 py-6 text-center text-gray-400">Nenhuma entrega registrada ainda.</td>
+                                            <td colspan="8" class="px-3 py-6 text-center text-gray-400">Nenhuma entrega registrada ainda.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -754,6 +838,18 @@
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Descrição</label>
                     <textarea id="epi-form-descricao" name="ss_e_tx_descricao" rows="2" class="w-full text-xs border-gray-300 rounded-lg shadow-sm"></textarea>
                 </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Variações (Tamanhos, Cores, etc.)</label>
+                    <div id="container-variacoes" class="space-y-2">
+                        <div class="flex space-x-2 variacao-row">
+                            <input type="text" name="variacoes[]" class="flex-1 text-xs border-gray-300 rounded-lg shadow-sm" placeholder="Ex: Tamanho 38">
+                            <button type="button" onclick="removerVariacao(this)" class="text-rose-500 hover:text-rose-700 p-1"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                    <button type="button" onclick="adicionarVariacao()" class="mt-2 text-xs text-emerald-700 hover:text-emerald-900 font-bold">
+                        <i class="fas fa-plus mr-1"></i> Adicionar Variação
+                    </button>
+                </div>
             </div>
 
             <div class="mt-6 flex justify-end space-x-3">
@@ -788,12 +884,12 @@
 
 <!-- MODAL: REGISTRAR ENTRADA NO ESTOQUE -->
 <div id="modal-estoque-entrada" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
+    <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
             <i class="fas fa-boxes text-amber-600 mr-2"></i> Registrar Movimentação de Estoque
         </h3>
 
-        <form method="POST" action="{{ route('epi.estoque.store') }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('epi.estoque.store') }}" enctype="multipart/form-data" id="form-estoque">
             @csrf
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="md:col-span-2">
@@ -806,12 +902,47 @@
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">EPI do Catálogo *</label>
-                    <select name="ss_e_nb_epi_id" required class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                    <select name="ss_e_nb_epi_id" id="estoque-epi-select" required class="w-full text-xs border-gray-300 rounded-lg shadow-sm" onchange="atualizarVariacoesEstoque(this.value)">
+                        <option value="">-- Selecione o EPI --</option>
                         @foreach($episCatalogo as $e)
-                            <option value="{{ $e->ss_e_nb_id }}">{{ $e->ss_e_tx_grupo }} - {{ $e->ss_e_tx_item }} (CA: {{ $e->ss_e_tx_ca ?? 'N/D' }})</option>
+                             <option value="{{ $e->ss_e_nb_id }}">{{ $e->ss_e_tx_grupo }} - {{ $e->ss_e_tx_item }} (CA: {{ $e->ss_e_tx_ca ?? 'N/D' }})</option>
                         @endforeach
                     </select>
                 </div>
+
+                <!-- Seção: Quantidade por Variação (aparece quando EPI tem variações) -->
+                <div class="md:col-span-2" id="estoque-variacoes-table" style="display:none;">
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <label class="block text-xs font-bold text-amber-800 uppercase mb-2">Distribuir Quantidade por Tamanho / Variação</label>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead>
+                                    <tr class="border-b border-amber-200">
+                                        <th class="text-left py-1 pr-2 font-bold text-amber-900">Variação</th>
+                                        <th class="text-center py-1 px-2 font-bold text-amber-900">Quantidade</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="estoque-variacoes-rows"></tbody>
+                                <tfoot>
+                                    <tr class="border-t border-amber-200">
+                                        <td class="text-right py-1 pr-2 font-bold text-amber-900">Total</td>
+                                        <td class="text-center py-1 px-2">
+                                            <span id="estoque-variacoes-total" class="font-bold text-amber-900">0</span>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <p class="text-[10px] text-amber-700 mt-1"><i class="fas fa-info-circle mr-1"></i> Se não preencher nenhuma quantidade e confirmar, um alerta será exibido.</p>
+                    </div>
+                </div>
+
+                <!-- Seção: Quantidade Única (aparece quando EPI não tem variações ou user escolhe "Sem variação") -->
+                <div id="estoque-qtd-unica-container">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Quantidade *</label>
+                    <input type="number" name="ss_e_nb_quantidade" id="estoque-qtd-unica" min="1" value="1" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                </div>
+
                 <div>
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tipo de Movimento</label>
                     <select name="ss_e_tx_tipo" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
@@ -819,10 +950,6 @@
                         <option value="saida">Saída / Baixa</option>
                         <option value="substituicao">Substituição</option>
                     </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Quantidade *</label>
-                    <input type="number" name="ss_e_nb_quantidade" min="1" value="1" required class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Valor Unitário (R$)</label>
@@ -1001,6 +1128,7 @@
     let sacolaItens = [];
     let kitsLista = @json($kits);
     let episCatalogoLista = @json($episCatalogo);
+    let variacoesPorEpi = @json($episCatalogo->mapWithKeys(fn($epi) => [$epi->ss_e_nb_id => $epi->variacoes->where('ss_ev_tx_status', 'ativo')->values()]));
 
     document.addEventListener('DOMContentLoaded', function () {
         carregarEstoqueDisponivelAPI();
@@ -1092,7 +1220,8 @@
                     saldo_atual: 99,
                     saldo_rede: 99,
                     disponibilidade: 'local',
-                    outras_filiais: []
+                    outras_filiais: [],
+                    variacoes: rawEpi.variacoes || []
                 };
             }
         }
@@ -1102,7 +1231,33 @@
             return;
         }
 
-        window.inserirItemNaSacola(epiInfo, qtd);
+        // Se o EPI tem variações, perguntar qual usar
+        const variacoes = Array.isArray(epiInfo.variacoes) ? epiInfo.variacoes.filter(v => v.ss_ev_tx_status === 'ativo' || !v.ss_ev_tx_status) : [];
+        if (variacoes.length > 0) {
+            const varOptions = variacoes.map(v => `<option value="${v.ss_ev_nb_id || v.id}">${v.ss_ev_tx_nome || v.nome}</option>`).join('');
+            Swal.fire({
+                title: 'Selecione a Variação',
+                html: `<select id="swal-variacao-select" class="swal2-input">${varOptions}</select>`,
+                showCancelButton: true,
+                confirmButtonText: 'Adicionar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    return document.getElementById('swal-variacao-select').value;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const varId = parseInt(result.value);
+                    const varNome = variacoes.find(v => (v.ss_ev_nb_id || v.id) === varId)?.ss_ev_tx_nome || '';
+                    epiInfo.variacao_id = varId;
+                    epiInfo.variacao_nome = varNome;
+                    window.inserirItemNaSacola(epiInfo, qtd);
+                }
+            });
+        } else {
+            epiInfo.variacao_id = null;
+            epiInfo.variacao_nome = null;
+            window.inserirItemNaSacola(epiInfo, qtd);
+        }
     };
 
     // Adicionar Kit Completo à Sacola
@@ -1257,7 +1412,9 @@
             vencimento_previsto: vencimentoFormatado,
             precisa_transferencia: precisaTransferencia,
             filial_origem: filialOrigem,
-            outras_filiais: filiaisComSaldo
+            outras_filiais: filiaisComSaldo,
+            variacao_id: epiInfo.variacao_id || null,
+            variacao_nome: epiInfo.variacao_nome || null
         };
 
         sacolaItens.push(itemSacola);
@@ -1339,10 +1496,12 @@
                     `;
                 }
 
+                const variacaoHtml = item.variacao_nome ? `<div class="text-xs text-amber-700 font-semibold">${item.variacao_nome}</div>` : '';
                 rowsHtml += `
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 font-bold text-gray-900">
                             ${item.nome}
+                            ${variacaoHtml}
                             <div class="text-xs text-gray-400 font-normal">${item.grupo}</div>
                         </td>
                         <td class="px-4 py-3 text-center text-xs font-semibold">${item.ca}</td>
@@ -1394,34 +1553,18 @@
                     </table>
                 </div>
 
-                <!-- Assinatura Digital do Motorista -->
+                <!-- Observação para o motorista -->
                 <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <label class="text-xs font-bold text-gray-700">Assinatura Digital no Canvas:</label>
-                                <button type="button" onclick="window.limparCanvasMotorista(${colabId})" class="text-xs text-amber-600 hover:text-amber-800 font-bold">
-                                    <i class="fas fa-eraser mr-1"></i> Limpar Assinatura
-                                </button>
-                            </div>
-                            <div class="signature-container bg-white border border-gray-300 rounded-lg shadow-inner">
-                                <canvas id="signature-canvas-${colabId}" height="100" class="w-full h-24 rounded-lg cursor-crosshair"></canvas>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-gray-700 block mb-1">OU Upload de Recibo Físico Assinado:</label>
-                            <input type="file" id="foto-recibo-${colabId}" accept="image/*" class="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700">
-                            
-                            <div class="mt-2">
-                                <label class="text-xs font-bold text-gray-700 block mb-1">Observação para este motorista:</label>
-                                <input type="text" id="obs-motorista-${colabId}" class="w-full text-xs border-gray-300 rounded-lg shadow-sm" placeholder="Ex: Entregue em mãos...">
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <label class="text-xs font-bold text-gray-700 block mb-1">Observação para este motorista:</label>
+                        <input type="text" id="obs-motorista-${colabId}" class="w-full text-xs border-gray-300 rounded-lg shadow-sm" placeholder="Ex: Entregue em mãos...">
                     </div>
-
-                    <div class="mt-4 pt-3 border-t border-gray-200 flex justify-end">
+                    <p class="text-xs text-amber-700 bg-amber-50 p-2 rounded mb-3">
+                        <i class="fas fa-info-circle mr-1"></i> A assinatura será coletada diretamente pelo colaborador no sistema.
+                    </p>
+                    <div class="flex justify-end">
                         <button type="button" onclick="window.salvarEntregaMotoristaIndividual(${colabId})" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg shadow-md flex items-center transition cursor-pointer">
-                            <i class="fas fa-check-circle mr-1.5 text-amber-400 text-sm"></i> Salvar Entrega Deste Colaborador
+                            <i class="fas fa-check-circle mr-1.5 text-amber-400 text-sm"></i> Finalizar Entrega (Sem Assinatura)
                         </button>
                     </div>
                 </div>
@@ -1551,19 +1694,6 @@
         const motoristaNome = itensMotorista[0].colaborador_nome;
         const dataEntrega = document.getElementById('sacola-data-entrega').value || new Date().toISOString().split('T')[0];
 
-        let assinaturaBase64 = null;
-        if (driverCanvases[colabId] && !canvasMotoristaEstaVazio(colabId)) {
-            assinaturaBase64 = driverCanvases[colabId].canvas.toDataURL('image/png');
-        }
-
-        const fotoFileInput = document.getElementById(`foto-recibo-${colabId}`);
-        const temFoto = fotoFileInput && fotoFileInput.files && fotoFileInput.files.length > 0;
-
-        if (!assinaturaBase64 && !temFoto) {
-            Swal.fire('Atenção', `É obrigatório capturar a Assinatura Digital no Canvas OU anexar a foto do recibo para ${motoristaNome}!`, 'warning');
-            return;
-        }
-
         const obsVal = document.getElementById(`obs-motorista-${colabId}`) ? document.getElementById(`obs-motorista-${colabId}`).value : '';
 
         const formData = new FormData();
@@ -1571,14 +1701,13 @@
         formData.append('ss_e_nb_colaborador_id', colabId);
         formData.append('ss_e_tx_data_entrega', dataEntrega);
         formData.append('ss_e_nb_empresa_id', filialGlobalId);
-        if (assinaturaBase64) formData.append('ss_e_tx_assinatura', assinaturaBase64);
-        if (temFoto) formData.append('ss_e_tx_foto', fotoFileInput.files[0]);
         formData.append('ss_e_tx_observacao', obsVal);
 
         itensMotorista.forEach((item, idx) => {
             formData.append(`itens[${idx}][epi_id]`, item.epi_id);
             formData.append(`itens[${idx}][quantidade]`, item.quantidade);
             formData.append(`itens[${idx}][empresa_origem_id]`, item.filial_origem);
+            if (item.variacao_id) formData.append(`itens[${idx}][variacao_id]`, item.variacao_id);
         });
 
         fetch('{{ route("epi.entrega.store") }}', {
@@ -1617,19 +1746,6 @@
         const colabIds = [...new Set(sacolaItens.map(i => parseInt(i.colaborador_id)))];
         const dataEntrega = document.getElementById('sacola-data-entrega').value || new Date().toISOString().split('T')[0];
 
-        for (let id of colabIds) {
-            let temAssinatura = driverCanvases[id] && !canvasMotoristaEstaVazio(id);
-            let fotoInput = document.getElementById(`foto-recibo-${id}`);
-            let temFoto = fotoInput && fotoInput.files && fotoInput.files.length > 0;
-
-            if (!temAssinatura && !temFoto) {
-                const item = sacolaItens.find(i => parseInt(i.colaborador_id) === id);
-                const nome = item ? item.colaborador_nome : '#' + id;
-                Swal.fire('Atenção', `Assinatura Digital ou Foto do Recibo é obrigatória para o motorista: ${nome}!`, 'warning');
-                return;
-            }
-        }
-
         Swal.fire({
             title: 'Confirmar TODAS as Entregas em Lote?',
             text: `Serão processadas as entregas para ${colabIds.length} motorista(s) e total de ${sacolaItens.length} item(ns) com baixa de estoque!`,
@@ -1649,19 +1765,18 @@
 
                 colabIds.forEach(id => {
                     const itensMotorista = sacolaItens.filter(i => parseInt(i.colaborador_id) === id);
-                    let sigBase64 = (driverCanvases[id] && !canvasMotoristaEstaVazio(id)) ? driverCanvases[id].canvas.toDataURL('image/png') : null;
                     let obsVal = document.getElementById(`obs-motorista-${id}`) ? document.getElementById(`obs-motorista-${id}`).value : '';
 
                     bulkPayload.entregas.push({
                         ss_e_nb_colaborador_id: id,
                         ss_e_tx_data_entrega: dataEntrega,
                         ss_e_nb_empresa_id: filialGlobalId,
-                        ss_e_tx_assinatura: sigBase64,
                         ss_e_tx_observacao: obsVal,
                         itens: itensMotorista.map(i => ({
                             epi_id: i.epi_id,
                             quantidade: i.quantidade,
-                            empresa_origem_id: i.filial_origem
+                            empresa_origem_id: i.filial_origem,
+                            variacao_id: i.variacao_id || null
                         }))
                     });
                 });
@@ -1724,6 +1839,23 @@
         document.getElementById('epi-form-vida-util').value = epi.ss_e_nb_vida_util_dias || 0;
         document.getElementById('epi-form-fabricante').value = epi.ss_e_tx_fabricante || '';
         document.getElementById('epi-form-descricao').value = epi.ss_e_tx_descricao || '';
+
+        // Carregar variações
+        var container = document.getElementById('container-variacoes');
+        if (container) {
+            container.innerHTML = '';
+            if (epi.variacoes && Array.isArray(epi.variacoes)) {
+                epi.variacoes.forEach(function(v) {
+                    if (v.ss_ev_tx_status === 'ativo') {
+                        window.adicionarVariacao(v.ss_ev_tx_nome);
+                    }
+                });
+            }
+            if (container.children.length === 0) {
+                window.adicionarVariacao('');
+            }
+        }
+
         modal.classList.remove('hidden');
         modal.style.setProperty('display', 'flex', 'important');
     };
@@ -1866,6 +1998,72 @@
             modal.classList.add('hidden');
             modal.style.setProperty('display', 'none', 'important');
         }
+    };
+
+    // ========== VARIAÇÕES DE EPI ==========
+
+    window.adicionarVariacao = function(valor) {
+        var container = document.getElementById('container-variacoes');
+        var div = document.createElement('div');
+        div.className = 'flex space-x-2 variacao-row';
+        div.innerHTML = '<input type="text" name="variacoes[]" value="' + (valor || '') + '" class="flex-1 text-xs border-gray-300 rounded-lg shadow-sm" placeholder="Ex: Tamanho 38"><button type="button" onclick="removerVariacao(this)" class="text-rose-500 hover:text-rose-700 p-1"><i class="fas fa-times"></i></button>';
+        container.appendChild(div);
+    };
+
+    window.removerVariacao = function(btn) {
+        var row = btn.closest('.variacao-row');
+        if (row) row.remove();
+    };
+
+    function recalcularTotalVariacoes() {
+        var rows = document.querySelectorAll('#estoque-variacoes-rows tr');
+        var total = 0;
+        rows.forEach(function(row) {
+            var input = row.querySelector('input.variacao-qtd');
+            if (input) total += parseInt(input.value) || 0;
+        });
+        document.getElementById('estoque-variacoes-total').textContent = total;
+    }
+
+    window.atualizarVariacoesEstoque = function(epiId) {
+        var varTable = document.getElementById('estoque-variacoes-table');
+        var varRows = document.getElementById('estoque-variacoes-rows');
+        var qtdUnicaContainer = document.getElementById('estoque-qtd-unica-container');
+
+        if (!varTable || !varRows || !qtdUnicaContainer) return;
+
+        // Limpar linhas
+        varRows.innerHTML = '';
+
+        if (!epiId || typeof variacoesPorEpi === 'undefined') {
+            varTable.style.display = 'none';
+            qtdUnicaContainer.style.display = 'block';
+            return;
+        }
+
+        var variacoes = variacoesPorEpi[epiId];
+
+        if (!Array.isArray(variacoes) || variacoes.length === 0) {
+            // EPI sem variações: mostrar quantidade única
+            varTable.style.display = 'none';
+            qtdUnicaContainer.style.display = 'block';
+            return;
+        }
+
+        // EPI com variações: mostrar tabela de variações
+        varTable.style.display = 'block';
+        qtdUnicaContainer.style.display = 'none';
+
+        variacoes.forEach(function(v) {
+            var tr = document.createElement('tr');
+            tr.className = 'border-b border-amber-100';
+            tr.innerHTML = '<td class="py-1.5 pr-2 font-semibold text-gray-800">' + v.ss_ev_tx_nome + '</td>' +
+                '<td class="text-center py-1.5 px-2"><input type="number" name="variacoes[' + v.ss_ev_nb_id + '][qtd]" class="variacao-qtd w-20 text-center text-xs border-amber-300 rounded-lg shadow-sm" min="0" value="0" onchange="recalcularTotalVariacoes()" onkeyup="recalcularTotalVariacoes()"></td>';
+            tr.querySelector('input').dataset.varNome = v.ss_ev_tx_nome;
+            varRows.appendChild(tr);
+        });
+
+        recalcularTotalVariacoes();
     };
 </script>
 @endsection

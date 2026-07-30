@@ -40,10 +40,11 @@ Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Módulo de Saúde e Segurança (Gestão de EPIs)
-    Route::prefix('epi')->group(function () {
+    // Módulo de Saúde e Segurança (Gestão de EPIs) - Acesso restrito a quem tem permissão
+    Route::prefix('epi')->middleware('permission:epi')->group(function () {
         Route::get('/', [\App\Http\Controllers\EpiController::class, 'index'])->name('epi.index');
         Route::get('/estoque-disponivel', [\App\Http\Controllers\EpiController::class, 'getEstoqueDisponivel'])->name('epi.estoque-disponivel');
+        Route::get('/variacoes/{epiId}', [\App\Http\Controllers\EpiController::class, 'getVariacoes'])->name('epi.variacoes');
         Route::post('/catalogo', [\App\Http\Controllers\EpiController::class, 'catalogoStore'])->name('epi.catalogo.store');
         Route::post('/catalogo/{id}/toggle', [\App\Http\Controllers\EpiController::class, 'catalogoToggleStatus'])->name('epi.catalogo.toggle');
         Route::get('/modelo-csv', [\App\Http\Controllers\EpiController::class, 'modeloCsv'])->name('epi.modelo-csv');
@@ -59,6 +60,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/filiais', [\App\Http\Controllers\EpiController::class, 'filialStore'])->name('epi.filiais.store');
         Route::post('/filiais/{id}/toggle', [\App\Http\Controllers\EpiController::class, 'filialToggleStatus'])->name('epi.filiais.toggle');
         Route::delete('/filiais/{id}', [\App\Http\Controllers\EpiController::class, 'filialDestroy'])->name('epi.filiais.destroy');
+
+        // Gestão de Assinaturas (apenas gestores)
+        Route::get('/gestao-assinaturas', [\App\Http\Controllers\EpiController::class, 'gestaoAssinaturas'])->name('epi.gestao-assinaturas');
+        Route::post('/gestao-assinaturas/{id}/alterar', [\App\Http\Controllers\EpiController::class, 'alterarEntrega'])->name('epi.gestao-assinaturas.alterar');
+    });
+
+    // Assinatura Digital do Colaborador (acessível a qualquer usuário autenticado)
+    Route::prefix('epi')->group(function () {
+        Route::get('/assinaturas', [\App\Http\Controllers\EpiController::class, 'pendentesAssinatura'])->name('epi.assinaturas');
+        Route::post('/assinaturas/{id}/assinar', [\App\Http\Controllers\EpiController::class, 'assinarEntrega'])->name('epi.assinaturas.assinar');
+        Route::post('/assinaturas/{id}/negar', [\App\Http\Controllers\EpiController::class, 'negarAssinatura'])->name('epi.assinaturas.negar');
     });
 
     // Perfil do Usuário

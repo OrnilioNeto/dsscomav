@@ -8,6 +8,7 @@ use App\Models\EpiEntrega;
 use App\Models\EpiEstoque;
 use App\Models\EpiKit;
 use App\Models\EpiKitItem;
+use App\Models\EpiVariacao;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,11 +17,18 @@ use Illuminate\Support\Facades\Schema;
 
 class EpiController extends Controller
 {
+    private static $tablesEnsured = false;
+
     /**
      * Garante auto-criação e seeder automatizado das 6 tabelas em qualquer ambiente/banco.
      */
     private function ensureTablesExist(): void
     {
+        if (self::$tablesEnsured) {
+            return;
+        }
+        self::$tablesEnsured = true;
+
         if (!Schema::hasTable('ss_epi')) {
             Schema::create('ss_epi', function (Blueprint $table) {
                 $table->id('ss_e_nb_id');
@@ -125,40 +133,49 @@ class EpiController extends Controller
             });
         }
 
-        // Popular EPIs universais se ss_epi estiver vazia
-        if (DB::table('ss_epi')->count() === 0) {
-            $defaultItems = [
-                ['ss_e_tx_grupo' => 'PROTEÇÃO DA CABEÇA', 'ss_e_tx_subgrupo' => 'Capacetes', 'ss_e_tx_item' => 'Capacete de Segurança', 'ss_e_tx_descricao' => 'capacete para proteção contra impactos de objetos sobre o crânio', 'ss_e_nb_vida_util_dias' => 365],
-                ['ss_e_tx_grupo' => 'PROTEÇÃO DA CABEÇA', 'ss_e_tx_subgrupo' => 'Capacetes', 'ss_e_tx_item' => 'Capacete de Segurança Com Carneira', 'ss_e_tx_descricao' => 'capacete para proteção contra impactos de objetos sobre o crânio', 'ss_e_nb_vida_util_dias' => 365],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS OLHOS E FACE', 'ss_e_tx_subgrupo' => 'Óculos de Segurança', 'ss_e_tx_item' => 'Óculos de Segurança Anti-Embaçante', 'ss_e_tx_descricao' => 'óculos para proteção dos olhos contra impactos de partículas volantes', 'ss_e_nb_vida_util_dias' => 180],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS OLHOS E FACE', 'ss_e_tx_subgrupo' => 'Óculos de Segurança', 'ss_e_tx_item' => 'Óculos Ampla Visão', 'ss_e_tx_descricao' => 'óculos para proteção dos olhos contra impactos de partículas volantes', 'ss_e_nb_vida_util_dias' => 180],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO AUDITIVA', 'ss_e_tx_subgrupo' => 'Protetores Auriculares', 'ss_e_tx_item' => 'Protetor Auricular de Silicone Tipo Plug', 'ss_e_tx_descricao' => 'para proteção do sistema auditivo contra níveis de pressão sonora superiores ao estabelecido na NR-15', 'ss_e_nb_vida_util_dias' => 90],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO AUDITIVA', 'ss_e_tx_subgrupo' => 'Protetores Auriculares', 'ss_e_tx_item' => 'Protetor Auricular Abafador Concha', 'ss_e_tx_descricao' => 'para proteção do sistema auditivo contra níveis de pressão sonora superiores ao estabelecido na NR-15', 'ss_e_nb_vida_util_dias' => 365],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO RESPIRATÓRIA', 'ss_e_tx_subgrupo' => 'Respiradores e Máscaras', 'ss_e_tx_item' => 'Respirador purificador de ar não motorizado', 'ss_e_tx_descricao' => 'com filtros combinados para proteção das vias respiratórias contra gases e vapores', 'ss_e_nb_vida_util_dias' => 180],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO RESPIRATÓRIA', 'ss_e_tx_subgrupo' => 'Respiradores e Máscaras', 'ss_e_tx_item' => 'Máscara Descartável Pff2', 'ss_e_tx_descricao' => 'peça semifacial filtrante para partículas PFF2 para proteção das vias respiratórias', 'ss_e_nb_vida_util_dias' => 30],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS MEMBROS SUPERIORES', 'ss_e_tx_subgrupo' => 'Luvas de Proteção', 'ss_e_tx_item' => 'luvas pvc', 'ss_e_tx_descricao' => 'luvas para proteção das mãos contra agentes químicos', 'ss_e_nb_vida_util_dias' => 90],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS MEMBROS SUPERIORES', 'ss_e_tx_subgrupo' => 'Luvas de Proteção', 'ss_e_tx_item' => 'luvas nitrilica', 'ss_e_tx_descricao' => 'luvas para proteção das mãos contra agentes químicos', 'ss_e_nb_vida_util_dias' => 90],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS MEMBROS SUPERIORES', 'ss_e_tx_subgrupo' => 'Luvas de Proteção', 'ss_e_tx_item' => 'luvas algodao', 'ss_e_tx_descricao' => 'luvas para proteção das mãos contra vibrações', 'ss_e_nb_vida_util_dias' => 60],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO DOS MEMBROS INFERIORES', 'ss_e_tx_subgrupo' => 'Calçados de Segurança', 'ss_e_tx_item' => 'Bota Botina Bico PVC', 'ss_e_tx_descricao' => 'calçado para proteção contra impactos de quedas de objetos sobre os artelhos', 'ss_e_nb_vida_util_dias' => 365],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO CONTRA QUEDAS COM DIFERENÇA DE NÍVEL', 'ss_e_tx_subgrupo' => 'Cintos e Talabartes', 'ss_e_tx_item' => 'Cinto Paraquedista', 'ss_e_tx_descricao' => 'Cinturão de segurança com dispositivo trava-queda para proteção do usuário', 'ss_e_nb_vida_util_dias' => 365],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO CONTRA QUEDAS COM DIFERENÇA DE NÍVEL', 'ss_e_tx_subgrupo' => 'Cintos e Talabartes', 'ss_e_tx_item' => 'Cinto Paraquedista + Talabarte', 'ss_e_tx_descricao' => 'cinturão de segurança com talabarte para proteção do usuário', 'ss_e_nb_vida_util_dias' => 365],
-                ['ss_e_tx_grupo' => 'EPI PARA PROTEÇÃO CONTRA QUEDAS COM DIFERENÇA DE NÍVEL', 'ss_e_tx_subgrupo' => 'Cintos e Talabartes', 'ss_e_tx_item' => 'Talabarte', 'ss_e_tx_descricao' => 'talabarte para proteção do usuário contra riscos de queda', 'ss_e_nb_vida_util_dias' => 365],
-            ];
+        // 8. Tabela ss_epi_variacao (Variações de EPI: tamanhos, cores, etc.)
+        if (!Schema::hasTable('ss_epi_variacao')) {
+            Schema::create('ss_epi_variacao', function (Blueprint $table) {
+                $table->id('ss_ev_nb_id');
+                $table->integer('ss_ev_nb_epi_id');
+                $table->string('ss_ev_tx_nome', 255);
+                $table->string('ss_ev_tx_status', 30)->default('ativo');
 
-            $now = date('Y-m-d H:i:s');
-            foreach ($defaultItems as $item) {
-                DB::table('ss_epi')->insert([
-                    'ss_e_tx_grupo' => $item['ss_e_tx_grupo'],
-                    'ss_e_tx_subgrupo' => $item['ss_e_tx_subgrupo'],
-                    'ss_e_tx_item' => $item['ss_e_tx_item'],
-                    'ss_e_tx_descricao' => $item['ss_e_tx_descricao'],
-                    'ss_e_nb_vida_util_dias' => $item['ss_e_nb_vida_util_dias'],
-                    'ss_e_tx_status' => 'ativo',
-                    'ss_e_tx_cadastro_tipo' => 'universal',
-                    'ss_e_tx_dataCadastro' => $now,
-                ]);
-            }
+                $table->index(['ss_ev_nb_epi_id']);
+            });
         }
+
+        // Adicionar coluna de variação nas tabelas existentes (se não existir)
+        if (Schema::hasTable('ss_epi_estoque') && !Schema::hasColumn('ss_epi_estoque', 'ss_e_nb_variacao_id')) {
+            Schema::table('ss_epi_estoque', function (Blueprint $table) {
+                $table->integer('ss_e_nb_variacao_id')->nullable()->after('ss_e_nb_empresa_id');
+            });
+        }
+
+        if (Schema::hasTable('ss_epi_entrega') && !Schema::hasColumn('ss_epi_entrega', 'ss_e_nb_variacao_id')) {
+            Schema::table('ss_epi_entrega', function (Blueprint $table) {
+                $table->integer('ss_e_nb_variacao_id')->nullable()->after('ss_e_nb_epi_id');
+            });
+        }
+
+        // Colunas de workflow de assinatura
+        if (Schema::hasTable('ss_epi_entrega') && !Schema::hasColumn('ss_epi_entrega', 'ss_e_tx_requer_assinatura')) {
+            Schema::table('ss_epi_entrega', function (Blueprint $table) {
+                $table->boolean('ss_e_tx_requer_assinatura')->default(true)->after('ss_e_tx_status');
+                $table->string('ss_e_tx_status_assinatura', 30)->default('pendente')->after('ss_e_tx_requer_assinatura');
+                $table->text('ss_e_tx_justificativa_negacao')->nullable()->after('ss_e_tx_status_assinatura');
+                $table->dateTime('ss_e_tx_data_assinatura')->nullable()->after('ss_e_tx_justificativa_negacao');
+                $table->string('ss_e_tx_grupo_assinatura', 36)->nullable()->after('ss_e_tx_data_assinatura');
+            });
+        }
+        if (Schema::hasTable('ss_epi_entrega') && !Schema::hasColumn('ss_epi_entrega', 'ss_e_tx_grupo_assinatura')) {
+            Schema::table('ss_epi_entrega', function (Blueprint $table) {
+                $table->string('ss_e_tx_grupo_assinatura', 36)->nullable()->after('ss_e_tx_data_assinatura');
+            });
+        }
+
+        // [DESATIVADO] Popular EPIs universais se ss_epi estiver vazia
+        // if (DB::table('ss_epi')->count() === 0) { ... }
 
         // Sincronizar colaboradores se ss_colaborador estiver vazia
         if (Schema::hasTable('users') && DB::table('ss_colaborador')->count() === 0) {
@@ -215,10 +232,18 @@ class EpiController extends Controller
         if (!empty($statusCatalogo)) {
             $queryCatalogo->where('ss_e_tx_status', $statusCatalogo);
         }
-        $episCatalogo = $queryCatalogo->orderBy('ss_e_tx_grupo')->orderBy('ss_e_tx_item')->get();
+        $episCatalogo = $queryCatalogo->with('variacoes')->orderBy('ss_e_tx_grupo')->orderBy('ss_e_tx_item')->get();
 
         // Grupos únicos para os filtros
         $gruposUnicos = Epi::distinct()->pluck('ss_e_tx_grupo')->filter()->values();
+
+        // 2.1 Saldo por Variação (para exibir no catálogo e no estoque)
+        $saldosVariacao = [];
+        foreach ($episCatalogo as $epi) {
+            foreach ($epi->variacoes->where('ss_ev_tx_status', 'ativo') as $v) {
+                $saldosVariacao[$epi->ss_e_nb_id][$v->ss_ev_nb_id] = $epi->getSaldoTotalRede($v->ss_ev_nb_id);
+            }
+        }
 
         // 3. Colaboradores Elegíveis (Regra 4: sem diretores)
         $colaboradores = EpiColaborador::elegiveisParaEntrega()->orderBy('ss_c_tx_nome')->get();
@@ -227,7 +252,7 @@ class EpiController extends Controller
         $kits = EpiKit::with('itens.epi')->where('ss_k_tx_status', 'ativo')->get();
 
         // 5. Movimentações de Estoque Recentes
-        $estoqueMovimentos = EpiEstoque::with('epi')
+        $estoqueMovimentos = EpiEstoque::with(['epi', 'variacao'])
             ->orderBy('ss_e_tx_data', 'desc')
             ->limit(100)
             ->get();
@@ -257,7 +282,8 @@ class EpiController extends Controller
             'entregasRecentes',
             'filiais',
             'filialSelecionada',
-            'filiaisCadastradas'
+            'filiaisCadastradas',
+            'saldosVariacao'
         ));
     }
 
@@ -300,6 +326,20 @@ class EpiController extends Controller
         $resultado = [];
 
         foreach ($epis as $epi) {
+            $variacoes = $epi->variacoes()->where('ss_ev_tx_status', 'ativo')->get();
+
+            $variacoesData = [];
+            foreach ($variacoes as $v) {
+                $saldoVarLocal = $epi->getSaldoPorFilial($filialAtual, $v->ss_ev_nb_id);
+                $saldoVarRede = $epi->getSaldoTotalRede($v->ss_ev_nb_id);
+                $variacoesData[] = [
+                    'id' => $v->ss_ev_nb_id,
+                    'nome' => $v->ss_ev_tx_nome,
+                    'saldo_atual' => $saldoVarLocal,
+                    'saldo_rede' => $saldoVarRede,
+                ];
+            }
+
             $saldoAtual = $epi->getSaldoPorFilial($filialAtual);
             $saldoRede = $epi->getSaldoTotalRede();
 
@@ -318,11 +358,11 @@ class EpiController extends Controller
             }
 
             // Define status visual conforme Regra de Negócio 1
-            $disponibilidade = 'local'; // disponível na filial atual
+            $disponibilidade = 'local';
             if ($saldoAtual <= 0 && $saldoRede > 0) {
-                $disponibilidade = 'externo'; // cor laranja #d97706, negrito itálico
+                $disponibilidade = 'externo';
             } elseif ($saldoRede <= 0) {
-                $disponibilidade = 'esgotado'; // saldo zero na rede inteira
+                $disponibilidade = 'esgotado';
             }
 
             $resultado[] = [
@@ -336,6 +376,7 @@ class EpiController extends Controller
                 'saldo_rede' => $saldoRede,
                 'disponibilidade' => $disponibilidade,
                 'outras_filiais' => $saldosOutrasFiliais,
+                'variacoes' => $variacoesData,
             ];
         }
 
@@ -343,6 +384,23 @@ class EpiController extends Controller
             'status' => 'success',
             'filial_id' => $filialAtual,
             'data' => $resultado,
+        ]);
+    }
+
+    /**
+     * API: Retorna as variações ativas de um EPI.
+     */
+    public function getVariacoes($epiId)
+    {
+        $this->ensureTablesExist();
+
+        $variacoes = EpiVariacao::where('ss_ev_nb_epi_id', $epiId)
+            ->where('ss_ev_tx_status', 'ativo')
+            ->get(['ss_ev_nb_id', 'ss_ev_tx_nome']);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $variacoes,
         ]);
     }
 
@@ -386,8 +444,36 @@ class EpiController extends Controller
             $dados['ss_e_tx_cadastro_tipo'] = 'estoque';
             $dados['ss_e_nb_userCadastro'] = Auth::id();
             $dados['ss_e_tx_dataCadastro'] = now();
-            Epi::create($dados);
+            $epi = Epi::create($dados);
+            $id = $epi->ss_e_nb_id;
             $msg = 'EPI cadastrado com sucesso!';
+        }
+
+        // Gerenciar variações
+        if ($request->has('variacoes') && is_array($request->input('variacoes'))) {
+            $nomesVariacoes = $request->input('variacoes');
+            $idsManter = [];
+            foreach ($nomesVariacoes as $nome) {
+                $nome = trim($nome);
+                if (empty($nome)) continue;
+                $existente = EpiVariacao::where('ss_ev_nb_epi_id', $id)
+                    ->where('ss_ev_tx_nome', $nome)
+                    ->first();
+                if ($existente) {
+                    $idsManter[] = $existente->ss_ev_nb_id;
+                } else {
+                    $var = EpiVariacao::create([
+                        'ss_ev_nb_epi_id' => $id,
+                        'ss_ev_tx_nome' => $nome,
+                        'ss_ev_tx_status' => 'ativo',
+                    ]);
+                    $idsManter[] = $var->ss_ev_nb_id;
+                }
+            }
+            // Remover variações que não estão mais na lista
+            EpiVariacao::where('ss_ev_nb_epi_id', $id)
+                ->whereNotIn('ss_ev_nb_id', $idsManter)
+                ->delete();
         }
 
         return redirect()->back()->with('success', $msg);
@@ -416,34 +502,101 @@ class EpiController extends Controller
 
         $request->validate([
             'ss_e_nb_epi_id' => 'required|integer',
-            'ss_e_nb_quantidade' => 'required|integer|min:1',
             'ss_e_tx_tipo' => 'required|in:entrada,saida,substituicao',
         ]);
 
-        $quantidade = (int)$request->input('ss_e_nb_quantidade');
+        $epiId = $request->input('ss_e_nb_epi_id');
+        $tipo = $request->input('ss_e_tx_tipo');
+        $empresaId = $request->input('ss_e_nb_empresa_id', 0);
         $valorUnitario = $request->filled('ss_e_db_valor_unitario') ? (float)$request->input('ss_e_db_valor_unitario') : null;
+        $chaveNf = $request->input('ss_e_tx_chave_nf');
+        $fornecedor = $request->input('ss_e_tx_fornecedor');
+        $motivo = $request->input('ss_e_tx_motivo');
+        $dataRecebimento = $request->input('ss_e_tx_data_recebimento');
+        $validade = $request->input('ss_e_tx_validade');
+
+        $fotoCaminho = null;
+        if ($request->hasFile('ss_e_tx_foto')) {
+            $path = $request->file('ss_e_tx_foto')->store('estoque_comprovantes', 'public');
+            $fotoCaminho = '/storage/' . $path;
+        }
+
+        $variacoesData = $request->input('variacoes');
+        $totalGeral = 0;
+
+        // Modo 1: Lançamento com múltiplas variações
+        if (!empty($variacoesData) && is_array($variacoesData)) {
+            $temQtd = false;
+            $entries = [];
+            foreach ($variacoesData as $varId => $varData) {
+                $qtd = isset($varData['qtd']) ? (int)$varData['qtd'] : 0;
+                if ($qtd <= 0) continue;
+                $temQtd = true;
+                $entries[] = [
+                    'variacao_id' => (int)$varId,
+                    'quantidade' => $qtd,
+                ];
+            }
+
+            if (!$temQtd) {
+                return redirect()->back()->with('error', 'Informe a quantidade para pelo menos uma variação!');
+            }
+
+            DB::transaction(function () use ($entries, $epiId, $empresaId, $tipo, $valorUnitario, $chaveNf, $fornecedor, $motivo, $dataRecebimento, $validade, $fotoCaminho, &$totalGeral) {
+                foreach ($entries as $entry) {
+                    $qtd = $entry['quantidade'];
+                    $valorTotal = $valorUnitario !== null ? ($valorUnitario * $qtd) : null;
+                    $totalGeral += $qtd;
+
+                    EpiEstoque::create([
+                        'ss_e_nb_epi_id' => $epiId,
+                        'ss_e_nb_empresa_id' => $empresaId,
+                        'ss_e_nb_variacao_id' => $entry['variacao_id'],
+                        'ss_e_nb_quantidade' => $qtd,
+                        'ss_e_tx_tipo' => $tipo,
+                        'ss_e_db_valor_unitario' => $valorUnitario,
+                        'ss_e_db_valor_total' => $valorTotal,
+                        'ss_e_tx_data_recebimento' => $dataRecebimento,
+                        'ss_e_tx_validade' => $validade,
+                        'ss_e_tx_chave_nf' => $chaveNf,
+                        'ss_e_tx_fornecedor' => $fornecedor,
+                        'ss_e_tx_data' => now(),
+                        'ss_e_tx_motivo' => $motivo,
+                        'ss_e_tx_foto' => $fotoCaminho,
+                        'ss_e_nb_userCadastro' => Auth::id(),
+                    ]);
+                }
+            });
+
+            $msg = "Movimentação de estoque registrada com sucesso! Total de {$totalGeral} itens em " . count($entries) . " variação(ões).";
+            return redirect()->back()->with('success', $msg);
+        }
+
+        // Modo 2: Lançamento único (sem variações ou variação única)
+        $request->validate([
+            'ss_e_nb_quantidade' => 'required|integer|min:1',
+        ]);
+
+        $quantidade = (int)$request->input('ss_e_nb_quantidade');
         $valorTotal = $valorUnitario !== null ? ($valorUnitario * $quantidade) : null;
 
         $dados = [
-            'ss_e_nb_epi_id' => $request->input('ss_e_nb_epi_id'),
-            'ss_e_nb_empresa_id' => $request->input('ss_e_nb_empresa_id', 0),
+            'ss_e_nb_epi_id' => $epiId,
+            'ss_e_nb_empresa_id' => $empresaId,
+            'ss_e_nb_variacao_id' => $request->input('ss_e_nb_variacao_id'),
             'ss_e_nb_quantidade' => $quantidade,
-            'ss_e_tx_tipo' => $request->input('ss_e_tx_tipo'),
+            'ss_e_tx_tipo' => $tipo,
             'ss_e_db_valor_unitario' => $valorUnitario,
             'ss_e_db_valor_total' => $valorTotal,
-            'ss_e_tx_data_recebimento' => $request->input('ss_e_tx_data_recebimento'),
-            'ss_e_tx_validade' => $request->input('ss_e_tx_validade'),
-            'ss_e_tx_chave_nf' => $request->input('ss_e_tx_chave_nf'),
-            'ss_e_tx_fornecedor' => $request->input('ss_e_tx_fornecedor'),
+            'ss_e_tx_data_recebimento' => $dataRecebimento,
+            'ss_e_tx_validade' => $validade,
+            'ss_e_tx_chave_nf' => $chaveNf,
+            'ss_e_tx_fornecedor' => $fornecedor,
             'ss_e_tx_data' => now(),
-            'ss_e_tx_motivo' => $request->input('ss_e_tx_motivo'),
+            'ss_e_tx_motivo' => $motivo,
+            'ss_e_tx_foto' => $fotoCaminho,
             'ss_e_nb_userCadastro' => Auth::id(),
         ];
-
-        if ($request->hasFile('ss_e_tx_foto')) {
-            $path = $request->file('ss_e_tx_foto')->store('estoque_comprovantes', 'public');
-            $dados['ss_e_tx_foto'] = '/storage/' . $path;
-        }
 
         EpiEstoque::create($dados);
 
@@ -517,18 +670,26 @@ class EpiController extends Controller
                     if (!$epi) continue;
                     $qtd = (int)$itemData['quantidade'];
                     $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empId;
-                    $saldoLocal = $epi->getSaldoPorFilial($filialOrigem);
+                    $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
+                    $saldoLocal = $epi->getSaldoPorFilial($filialOrigem, $variacaoId);
+
+                    $infoVariacao = '';
+                    if ($variacaoId) {
+                        $var = EpiVariacao::find($variacaoId);
+                        $infoVariacao = " ({$var->ss_ev_tx_nome})" . ($var ? " ({$var->ss_ev_tx_nome})" : '');
+                    }
 
                     if ($saldoLocal < $qtd) {
                         return response()->json([
                             'status' => 'error',
-                            'message' => "O item '{$epi->ss_e_tx_item}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
+                            'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
                         ], 422);
                     }
                 }
             }
 
             DB::transaction(function () use ($entregasLote, $request, &$totalProcessados) {
+                $grupoAssinatura = (string) \Illuminate\Support\Str::uuid();
                 foreach ($entregasLote as $entData) {
                     $colabId = $entData['ss_e_nb_colaborador_id'] ?? null;
                     $dtEntrega = $entData['ss_e_tx_data_entrega'] ?? date('Y-m-d');
@@ -545,6 +706,7 @@ class EpiController extends Controller
 
                         $qtd = (int)$itemData['quantidade'];
                         $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empId;
+                        $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
 
                         $diasVidaUtil = (int)$epi->ss_e_nb_vida_util_dias;
                         $vencimento = null;
@@ -552,9 +714,12 @@ class EpiController extends Controller
                             $vencimento = date('Y-m-d', strtotime("{$dtEntrega} + {$diasVidaUtil} days"));
                         }
 
+                        $requerAssinatura = $sig ? false : true;
+
                         EpiEntrega::create([
                             'ss_e_nb_colaborador_id' => $colabId,
                             'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
+                            'ss_e_nb_variacao_id' => $variacaoId,
                             'ss_e_nb_empresa_id' => $empId,
                             'ss_e_tx_data_entrega' => $dtEntrega,
                             'ss_e_nb_quantidade' => $qtd,
@@ -564,10 +729,15 @@ class EpiController extends Controller
                             'ss_e_tx_observacao' => $obs,
                             'ss_e_nb_userCadastro' => Auth::id(),
                             'ss_e_tx_dataCadastro' => now(),
+                            'ss_e_tx_requer_assinatura' => $requerAssinatura,
+                            'ss_e_tx_status_assinatura' => $sig ? 'assinada' : 'pendente',
+                            'ss_e_tx_data_assinatura' => $sig ? now() : null,
+                            'ss_e_tx_grupo_assinatura' => $requerAssinatura ? $grupoAssinatura : null,
                         ]);
 
                         EpiEstoque::create([
                             'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
+                            'ss_e_nb_variacao_id' => $variacaoId,
                             'ss_e_nb_empresa_id' => $filialOrigem,
                             'ss_e_nb_quantidade' => $qtd,
                             'ss_e_tx_tipo' => 'saida',
@@ -612,12 +782,19 @@ class EpiController extends Controller
             if (!$epi) continue;
             $qtd = (int)$itemData['quantidade'];
             $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empresaId;
-            $saldoLocal = $epi->getSaldoPorFilial($filialOrigem);
+            $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
+            $saldoLocal = $epi->getSaldoPorFilial($filialOrigem, $variacaoId);
+
+            $infoVariacao = '';
+            if ($variacaoId) {
+                $var = EpiVariacao::find($variacaoId);
+                $infoVariacao = $var ? " ({$var->ss_ev_tx_nome})" : '';
+            }
 
             if ($saldoLocal < $qtd) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => "O item '{$epi->ss_e_tx_item}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
+                    'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
                 ], 422);
             }
         }
@@ -629,10 +806,12 @@ class EpiController extends Controller
         }
 
         DB::transaction(function () use ($colaboradorId, $dataEntrega, $empresaId, $assinatura, $fotoCaminho, $observacao, $request) {
+            $grupoAssinatura = (string) \Illuminate\Support\Str::uuid();
             foreach ($request->input('itens') as $itemData) {
                 $epi = Epi::findOrFail($itemData['epi_id']);
                 $qtd = (int)$itemData['quantidade'];
                 $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empresaId;
+                $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
 
                 $diasVidaUtil = (int)$epi->ss_e_nb_vida_util_dias;
                 $vencimento = null;
@@ -640,9 +819,12 @@ class EpiController extends Controller
                     $vencimento = date('Y-m-d', strtotime("{$dataEntrega} + {$diasVidaUtil} days"));
                 }
 
+                $reqAss = $assinatura ? false : true;
+
                 EpiEntrega::create([
                     'ss_e_nb_colaborador_id' => $colaboradorId,
                     'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
+                    'ss_e_nb_variacao_id' => $variacaoId,
                     'ss_e_nb_empresa_id' => $empresaId,
                     'ss_e_tx_data_entrega' => $dataEntrega,
                     'ss_e_nb_quantidade' => $qtd,
@@ -653,10 +835,15 @@ class EpiController extends Controller
                     'ss_e_tx_observacao' => $observacao,
                     'ss_e_nb_userCadastro' => Auth::id(),
                     'ss_e_tx_dataCadastro' => now(),
+                    'ss_e_tx_requer_assinatura' => $reqAss,
+                    'ss_e_tx_status_assinatura' => $assinatura ? 'assinada' : 'pendente',
+                    'ss_e_tx_data_assinatura' => $assinatura ? now() : null,
+                    'ss_e_tx_grupo_assinatura' => $reqAss ? $grupoAssinatura : null,
                 ]);
 
                 EpiEstoque::create([
                     'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
+                    'ss_e_nb_variacao_id' => $variacaoId,
                     'ss_e_nb_empresa_id' => $filialOrigem,
                     'ss_e_nb_quantidade' => $qtd,
                     'ss_e_tx_tipo' => 'saida',
@@ -703,6 +890,7 @@ class EpiController extends Controller
             if ($estornarEstoque) {
                 EpiEstoque::create([
                     'ss_e_nb_epi_id' => $entrega->ss_e_nb_epi_id,
+                    'ss_e_nb_variacao_id' => $entrega->ss_e_nb_variacao_id,
                     'ss_e_nb_empresa_id' => $entrega->ss_e_nb_empresa_id ?? 0,
                     'ss_e_nb_quantidade' => $entrega->ss_e_nb_quantidade,
                     'ss_e_tx_tipo' => 'entrada',
@@ -726,7 +914,7 @@ class EpiController extends Controller
         $colaborador = EpiColaborador::findOrFail($colaborador_id);
         
         // Omitir registros inativos conforme regra
-        $entregas = EpiEntrega::with('epi')
+        $entregas = EpiEntrega::with(['epi', 'variacao'])
             ->where('ss_e_nb_colaborador_id', $colaborador_id)
             ->where('ss_e_tx_status', '<>', 'inativo')
             ->orderBy('ss_e_tx_data_entrega', 'desc')
@@ -736,7 +924,196 @@ class EpiController extends Controller
     }
 
     /**
-     * Cadastro/Edição rápida de Colaborador na tabela ss_colaborador.
+     * API: Retorna entregas pendentes de assinatura para o colaborador logado.
+     */
+    public function pendentesAssinatura()
+    {
+        $this->ensureTablesExist();
+
+        $user = Auth::user();
+        $colaborador = EpiColaborador::where('ss_c_tx_cpf', $user->cpf)->first();
+
+        if (!$colaborador) {
+            if (request()->wantsJson()) {
+                return response()->json(['status' => 'success', 'data' => [], 'count' => 0]);
+            }
+            return view('epi.assinaturas', ['pendentes' => collect(), 'count' => 0, 'colaborador' => null]);
+        }
+
+        $pendentes = EpiEntrega::with(['epi', 'variacao'])
+            ->pendentesAssinatura($colaborador->ss_c_nb_id)
+            ->orderBy('ss_e_tx_data_entrega', 'desc')
+            ->get();
+
+        // Agrupar por grupo_assinatura
+        $grupos = $pendentes->groupBy(function ($item) {
+            return $item->ss_e_tx_grupo_assinatura ?: 'grupo_' . $item->ss_e_nb_id;
+        });
+
+        $count = $grupos->count();
+
+        if (request()->wantsJson()) {
+            return response()->json(['status' => 'success', 'data' => $pendentes, 'count' => $count]);
+        }
+
+        return view('epi.assinaturas', compact('grupos', 'count', 'colaborador'));
+    }
+
+    /**
+     * API: Funcionário assina uma entrega pendente.
+     */
+    public function assinarEntrega(Request $request, $id)
+    {
+        $this->ensureTablesExist();
+
+        $user = Auth::user();
+        $colaborador = EpiColaborador::where('ss_c_tx_cpf', $user->cpf)->first();
+
+        if (!$colaborador) {
+            return response()->json(['status' => 'error', 'message' => 'Colaborador não encontrado!'], 404);
+        }
+
+        $entrega = EpiEntrega::pendentesAssinatura($colaborador->ss_c_nb_id)->findOrFail($id);
+
+        $request->validate([
+            'ss_e_tx_assinatura' => 'required|string',
+        ]);
+
+        $grupo = $entrega->ss_e_tx_grupo_assinatura;
+        $assinatura = $request->input('ss_e_tx_assinatura');
+        $agora = now();
+
+        // Assinar todas as entregas do mesmo grupo
+        $query = EpiEntrega::pendentesAssinatura($colaborador->ss_c_nb_id);
+        if ($grupo) {
+            $query->porGrupoAssinatura($grupo);
+        } else {
+            $query->where('ss_e_nb_id', $id);
+        }
+
+        $query->update([
+            'ss_e_tx_assinatura' => $assinatura,
+            'ss_e_tx_status_assinatura' => 'assinada',
+            'ss_e_tx_data_assinatura' => $agora,
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json(['status' => 'success', 'message' => 'Assinatura registrada com sucesso!']);
+        }
+
+        return redirect()->route('epi.assinaturas')->with('success', 'Assinatura registrada com sucesso!');
+    }
+
+    /**
+     * API: Funcionário nega assinatura de uma entrega pendente.
+     */
+    public function negarAssinatura(Request $request, $id)
+    {
+        $this->ensureTablesExist();
+
+        $user = Auth::user();
+        $colaborador = EpiColaborador::where('ss_c_tx_cpf', $user->cpf)->first();
+
+        if (!$colaborador) {
+            return response()->json(['status' => 'error', 'message' => 'Colaborador não encontrado!'], 404);
+        }
+
+        $entrega = EpiEntrega::pendentesAssinatura($colaborador->ss_c_nb_id)->findOrFail($id);
+
+        $grupo = $entrega->ss_e_tx_grupo_assinatura;
+        $justificativa = $request->input('ss_e_tx_justificativa_negacao');
+
+        // Negar todas as entregas do mesmo grupo
+        $query = EpiEntrega::pendentesAssinatura($colaborador->ss_c_nb_id);
+        if ($grupo) {
+            $query->porGrupoAssinatura($grupo);
+        } else {
+            $query->where('ss_e_nb_id', $id);
+        }
+
+        $query->update([
+            'ss_e_tx_status_assinatura' => 'negada',
+            'ss_e_tx_justificativa_negacao' => $justificativa,
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json(['status' => 'success', 'message' => 'Assinatura recusada. A gestão será notificada.']);
+        }
+
+        return redirect()->route('epi.assinaturas')->with('success', 'Assinatura recusada.');
+    }
+
+    /**
+     * Gestão de assinaturas (para gestores).
+     */
+    public function gestaoAssinaturas()
+    {
+        $this->ensureTablesExist();
+
+        $assinadas = EpiEntrega::with(['colaborador', 'epi', 'variacao'])
+            ->where('ss_e_tx_requer_assinatura', true)
+            ->where('ss_e_tx_status_assinatura', 'assinada')
+            ->orderBy('ss_e_tx_data_assinatura', 'desc')
+            ->limit(100)
+            ->get();
+
+        $negadas = EpiEntrega::with(['colaborador', 'epi', 'variacao'])
+            ->where('ss_e_tx_requer_assinatura', true)
+            ->where('ss_e_tx_status_assinatura', 'negada')
+            ->orderBy('ss_e_tx_data_entrega', 'desc')
+            ->limit(100)
+            ->get();
+
+        $pendentes = EpiEntrega::with(['colaborador', 'epi', 'variacao'])
+            ->where('ss_e_tx_requer_assinatura', true)
+            ->where('ss_e_tx_status_assinatura', 'pendente')
+            ->orderBy('ss_e_tx_data_entrega', 'desc')
+            ->limit(100)
+            ->get();
+
+        return view('epi.gestao_assinaturas', compact('assinadas', 'negadas', 'pendentes'));
+    }
+
+    /**
+     * Gestor altera/cancela uma entrega que foi negada.
+     */
+    public function alterarEntrega(Request $request, $id)
+    {
+        $this->ensureTablesExist();
+
+        $entrega = EpiEntrega::findOrFail($id);
+
+        if ($entrega->ss_e_tx_status_assinatura !== 'negada') {
+            return redirect()->back()->with('error', 'Apenas entregas com assinatura negada podem ser alteradas.');
+        }
+
+        $action = $request->input('action', 'cancelar');
+        $justificativa = $request->input('ss_e_tx_justificativa_exclusao');
+
+        if ($action === 'cancelar') {
+            $entrega->update([
+                'ss_e_tx_status' => 'inativo',
+                'ss_e_tx_justificativa_exclusao' => $justificativa ? "[Gestão] {$justificativa}" : 'Cancelado pela gestão após recusa do colaborador.',
+            ]);
+
+            return redirect()->back()->with('success', 'Entrega cancelada com sucesso!');
+        }
+
+        if ($action === 'reativar') {
+            $entrega->update([
+                'ss_e_tx_status_assinatura' => 'pendente',
+                'ss_e_tx_justificativa_negacao' => null,
+                'ss_e_tx_assinatura' => null,
+            ]);
+
+            return redirect()->back()->with('success', 'Entrega reenviada para assinatura do colaborador!');
+        }
+
+        return redirect()->back()->with('error', 'Ação inválida.');
+    }
+
+    /**
+     * Cadastro / Atualização de Colaborador na tabela ss_colaborador.
      */
     public function colaboradorStore(Request $request)
     {

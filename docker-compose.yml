@@ -14,7 +14,6 @@ services:
       - db
     volumes:
       - .:/var/www/app
-      - ./docker/entrypoint.sh:/usr/local/bin/entrypoint.sh
       - app_storage:/var/www/app/storage
       - ./storage/logs:/var/www/app/storage/logs
       - ./public/images:/var/www/app/public/images

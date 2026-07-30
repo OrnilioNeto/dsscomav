@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('users', 'participa_treinamentos')) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
             // Campo para indicar que administrador também participa de treinamentos
             $table->boolean('participa_treinamentos')->default(false)->after('role_id');

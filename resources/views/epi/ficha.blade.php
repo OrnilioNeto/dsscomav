@@ -87,7 +87,7 @@
                 <thead>
                     <tr class="bg-gray-100 border-b border-gray-300">
                         <th class="p-2.5 font-bold text-gray-700 uppercase border-r border-gray-300">Data</th>
-                        <th class="p-2.5 font-bold text-gray-700 uppercase border-r border-gray-300">Item / Descrição do EPI</th>
+                        <th class="p-2.5 font-bold text-gray-700 uppercase border-r border-gray-300">Item / Variação / Descrição</th>
                         <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Nº CA</th>
                         <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Qtd</th>
                         <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Vencimento Previsto</th>
@@ -102,6 +102,9 @@
                             </td>
                             <td class="p-2.5 border-r border-gray-300">
                                 <div class="font-bold text-gray-900">{{ $entrega->epi->ss_e_tx_item ?? 'EPI N/D' }}</div>
+                                @if($entrega->ss_e_nb_variacao_id && $entrega->variacao)
+                                    <div class="text-amber-700 font-semibold text-[10px]">{{ $entrega->variacao->ss_ev_tx_nome }}</div>
+                                @endif
                                 <div class="text-gray-500 text-[10px]">{{ $entrega->epi->ss_e_tx_grupo ?? '' }}</div>
                             </td>
                             <td class="p-2.5 text-center font-bold text-gray-800 border-r border-gray-300 whitespace-nowrap">
