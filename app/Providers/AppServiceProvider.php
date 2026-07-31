@@ -51,6 +51,19 @@ class AppServiceProvider extends ServiceProvider
                 if (! Schema::hasColumn('users', 'usuario_teste')) {
                     $table->boolean('usuario_teste')->default(false)->after('ferias_fim');
                 }
+
+                // Campos de fardamento (controle de EPIs/uniformes)
+                if (! Schema::hasColumn('users', 'camisa_tamanho')) {
+                    $table->string('camisa_tamanho', 20)->nullable()->after('cargo');
+                }
+
+                if (! Schema::hasColumn('users', 'calca_tamanho')) {
+                    $table->string('calca_tamanho', 20)->nullable()->after('camisa_tamanho');
+                }
+
+                if (! Schema::hasColumn('users', 'bota_numero')) {
+                    $table->string('bota_numero', 20)->nullable()->after('calca_tamanho');
+                }
             });
         } catch (\Throwable $e) {
             logger()->warning('Falha ao garantir colunas operacionais de users: ' . $e->getMessage());

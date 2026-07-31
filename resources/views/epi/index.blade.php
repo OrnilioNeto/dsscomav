@@ -133,6 +133,9 @@
             <button type="button" onclick="mudarAba('estoque')" id="tab-btn-estoque" class="nav-tab-btn px-5 py-3 text-sm flex items-center cursor-pointer">
                 <i class="fas fa-warehouse mr-2"></i> Controle de Estoque
             </button>
+            <button type="button" onclick="mudarAba('fardamento')" id="tab-btn-fardamento" class="nav-tab-btn px-5 py-3 text-sm flex items-center cursor-pointer">
+                <i class="fas fa-tshirt mr-2"></i> Fardamento
+            </button>
             <button type="button" onclick="mudarAba('kits')" id="tab-btn-kits" class="nav-tab-btn px-5 py-3 text-sm flex items-center cursor-pointer">
                 <i class="fas fa-briefcase-medical mr-2"></i> Kits de Entrega Rápida
             </button>
@@ -544,7 +547,248 @@
                 </div>
             </div>
 
-            <!-- ABA 4: KITS DE ENTREGA RÁPIDA -->
+            <!-- ABA 4: FARDAMENTO (UNIFORMES) -->
+            <div id="tab-content-fardamento" class="aba-content hidden">
+                @php
+                    $fardamentoCores = ['#153B2E', '#F28C2B', '#0E7490', '#7C3AED', '#B45309', '#059669', '#DC2626', '#2563EB', '#9333EA', '#64748B'];
+                    $fardamentoCategorias = [
+                        'camisa' => ['icon' => 'fa-tshirt', 'label' => 'Camisa', 'desc' => 'Tamanhos PP a XGG'],
+                        'calca' => ['icon' => 'fa-vest', 'label' => 'Calça', 'desc' => 'Tamanhos 36 a 52'],
+                        'bota' => ['icon' => 'fa-shoe-prints', 'label' => 'Bota', 'desc' => 'Numeração 33 a 47'],
+                    ];
+                @endphp
+
+                <!-- Cabeçalho -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-tshirt text-emerald-700 mr-2"></i> Gestão de Fardamento
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-1">Distribuição de tamanhos cadastrados dos colaboradores e saldo em banco (via Controle de Estoque) para apoiar os pedidos de uniformes.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" onclick="abrirModalListaFuncionariosFardamento()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
+                            <i class="fas fa-users mr-1"></i> Listar Funcionários
+                        </button>
+                        <span class="px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-bold">
+                            <i class="fas fa-sync-alt mr-1"></i> Saldo atualizado pelos lançamentos de estoque
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Cards por Categoria com Gráfico de Distribuição -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    @foreach($fardamentoCategorias as $tipo => $cat)
+                        @php
+                            $catDados = $fardamentoDados[$tipo] ?? ['total' => 0, 'grupos' => []];
+                            $totalCat = (int) $catDados['total'];
+                            $conicParts = [];
+                            $inicioPct = 0;
+                            $idxCor = 0;
+                            foreach ($catDados['grupos'] as $tam => $info) {
+                                $pct = $totalCat > 0 ? ($info['qtd'] / $totalCat) * 100 : 0;
+                                $fimPct = $inicioPct + $pct;
+                                $cor = $fardamentoCores[$idxCor % count($fardamentoCores)];
+                                $conicParts[] = "{$cor} {$inicioPct}% {$fimPct}%";
+                                $inicioPct = $fimPct;
+                                $idxCor++;
+                            }
+                            $conicStyle = count($conicParts) > 0 ? 'conic-gradient(' . implode(', ', $conicParts) . ')' : 'conic-gradient(#e5e7eb 0% 100%)';
+                            $dominante = null;
+                            $dominanteQtd = 0;
+                            foreach ($catDados['grupos'] as $tam => $info) {
+                                if ($info['qtd'] > $dominanteQtd) {
+                                    $dominante = $tam;
+                                    $dominanteQtd = (int) $info['qtd'];
+                                }
+                            }
+                            $def = $fardamentoDeficit[$tipo] ?? ['demanda' => 0, 'saldo' => 0, 'cobertura' => 0, 'deficit' => 0];
+                        @endphp
+                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                            <div class="px-5 py-4 bg-gradient-to-r from-emerald-950 to-emerald-800 flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center text-lg">
+                                        <i class="fas {{ $cat['icon'] }}"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-white text-sm">{{ $cat['label'] }}</h4>
+                                        <p class="text-[10px] text-emerald-200 font-semibold uppercase tracking-wider">{{ $cat['desc'] }}</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-2xl font-black text-amber-400">{{ $totalCat }}</div>
+                                    <div class="text-[10px] text-emerald-200 font-semibold uppercase">colaboradores</div>
+                                </div>
+                            </div>
+
+                            <div class="p-5 flex-1">
+                                @if($totalCat > 0)
+                                    <div class="flex items-center gap-5">
+                                        <!-- Gráfico Donut -->
+                                        <div class="relative w-32 h-32 rounded-full shrink-0 shadow-inner" style="background: {{ $conicStyle }};">
+                                            <div class="absolute inset-2.5 bg-white rounded-full flex flex-col items-center justify-center shadow-sm">
+                                                <span class="text-xl font-black text-emerald-950 leading-none">{{ $dominante }}</span>
+                                                <span class="text-[9px] text-gray-400 font-bold uppercase mt-1">maioria</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Legenda -->
+                                        <div class="flex-1 min-w-0 space-y-1.5">
+                                            @foreach(array_slice($catDados['grupos'], 0, 5, true) as $tam => $info)
+                                                @php $corLeg = $fardamentoCores[$loop->index % count($fardamentoCores)]; @endphp
+                                                <div class="flex items-center justify-between text-xs">
+                                                    <span class="flex items-center text-gray-700 font-semibold">
+                                                        <span class="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style="background: {{ $corLeg }}"></span>
+                                                        Tamanho {{ $tam }}
+                                                    </span>
+                                                    <span class="font-bold text-gray-900">{{ $info['qtd'] }} <span class="text-gray-400 font-medium">({{ $totalCat > 0 ? round($info['qtd'] / $totalCat * 100) : 0 }}%)</span></span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <!-- Barras por tamanho com botão Ver -->
+                                    <div class="mt-5 pt-4 border-t border-gray-100 space-y-2">
+                                        @foreach($catDados['grupos'] as $tam => $info)
+                                            @php
+                                                $pctBar = $totalCat > 0 ? round($info['qtd'] / $totalCat * 100) : 0;
+                                                $corBar = $fardamentoCores[$loop->index % count($fardamentoCores)];
+                                            @endphp
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-9 text-xs font-black text-gray-700">{{ $tam }}</span>
+                                                <div class="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                                    <div class="h-full rounded-full transition-all" style="width: {{ max(2, $pctBar) }}%; background: {{ $corBar }};"></div>
+                                                </div>
+                                                <span class="w-7 text-right text-xs font-bold text-gray-800">{{ $info['qtd'] }}</span>
+                                                <button type="button" onclick="verFardamentoFuncionarios('{{ $tipo }}', '{{ $tam }}')" class="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 hover:underline shrink-0 cursor-pointer" title="Ver colaboradores com tamanho {{ $tam }}">
+                                                    <i class="fas fa-users mr-0.5"></i> Ver
+                                                </button>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="text-center py-10 text-gray-400">
+                                        <i class="fas {{ $cat['icon'] }} text-4xl mb-3 text-gray-300"></i>
+                                        <p class="text-sm font-semibold text-gray-500">Nenhum colaborador com tamanho cadastrado.</p>
+                                        <p class="text-xs mt-1">Os tamanhos são informados no cadastro do funcionário, na seção "Dados de Fardamento".</p>
+                                    </div>
+                                @endif
+                            </div>
+
+                            <!-- Rodapé: Demanda vs Saldo -->
+                            <div class="px-5 py-3 bg-gray-50 border-t border-gray-200 grid grid-cols-3 gap-2 text-center">
+                                <div>
+                                    <div class="text-sm font-black text-gray-900">{{ $def['demanda'] }}</div>
+                                    <div class="text-[9px] text-gray-500 font-bold uppercase">Demanda</div>
+                                </div>
+                                <div class="border-x border-gray-200">
+                                    <div class="text-sm font-black text-{{ $def['saldo'] > 0 ? 'amber-600' : 'gray-400' }}">{{ $def['saldo'] }}</div>
+                                    <div class="text-[9px] text-gray-500 font-bold uppercase">Saldo em banco</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-black {{ $def['deficit'] > 0 ? 'text-rose-600' : 'text-emerald-600' }}">
+                                        {{ $def['deficit'] > 0 ? '-' . $def['deficit'] : 'OK' }}
+                                    </div>
+                                    <div class="text-[9px] text-gray-500 font-bold uppercase">Déficit p/ pedido</div>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <!-- Saldo em Banco (via Controle de Estoque) -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 px-6 py-4 border-b border-gray-200 bg-gray-50/50">
+                        <div>
+                            <h4 class="text-base font-bold text-gray-900">
+                                <i class="fas fa-boxes text-amber-600 mr-2"></i> Saldo em Banco (Controle de Estoque)
+                            </h4>
+                            <p class="text-xs text-gray-500 mt-0.5">Saldo calculado pelos lançamentos de entrada/saída do Controle de Estoque, por item e variação (tamanho).</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700">
+                                <i class="fas fa-tags text-emerald-600 mr-1"></i> {{ count($fardamentoEstoqueLinhas) }} itens/variações
+                            </span>
+                            <span class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-700">
+                                <i class="fas fa-box text-amber-600 mr-1"></i> {{ number_format($fardamentoEstoqueTotal) }} unidades (rede)
+                            </span>
+                            <button type="button" onclick="mudarAba('estoque')" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow cursor-pointer">
+                                <i class="fas fa-warehouse mr-1"></i> Ir para Controle de Estoque
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">EPI / Peça</th>
+                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Variação / Tamanho</th>
+                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Saldo Filial Ativa</th>
+                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Saldo Rede</th>
+                                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Disponibilidade</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                @forelse($fardamentoEstoqueLinhas as $linha)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-3">
+                                            <div class="font-bold text-emerald-950">{{ $linha['item'] }}</div>
+                                            <div class="text-xs text-gray-500">{{ $linha['grupo'] }} @if($linha['ca']) · CA: {{ $linha['ca'] }} @endif</div>
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            @if($linha['variacao_nome'])
+                                                <span class="px-2.5 py-1 bg-gray-100 border border-gray-200 rounded-full text-xs font-black text-gray-800">{{ $linha['variacao_nome'] }}</span>
+                                            @else
+                                                <span class="text-gray-400 text-xs">Geral</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 text-center font-bold {{ $linha['saldo_local'] > 0 ? 'text-emerald-800' : 'text-gray-400' }}">
+                                            {{ $linha['saldo_local'] }}
+                                        </td>
+                                        <td class="px-4 py-3 text-center font-bold text-gray-900">
+                                            {{ $linha['saldo_rede'] }}
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            @if($linha['disponibilidade'] === 'local')
+                                                <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold">
+                                                    <i class="fas fa-check-circle mr-1"></i> Disponível
+                                                </span>
+                                            @elseif($linha['disponibilidade'] === 'externo')
+                                                <span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold italic">
+                                                    <i class="fas fa-truck mr-1"></i> Em outra filial
+                                                </span>
+                                            @else
+                                                <span class="px-2.5 py-1 bg-rose-100 text-rose-700 rounded-full text-xs font-bold">
+                                                    <i class="fas fa-exclamation-triangle mr-1"></i> Esgotado
+                                                </span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-10 text-center text-gray-400">
+                                            <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
+                                            <p class="font-semibold text-gray-500">Nenhum item de fardamento com saldo.</p>
+                                            <p class="text-xs mt-1 max-w-md mx-auto">
+                                                Cadastre as peças no <strong>Catálogo Universal de EPIs</strong> (ex.: grupo "FARDAMENTO", com variações de tamanho) e registre os lançamentos no <strong>Controle de Estoque</strong> — o saldo aparecerá aqui automaticamente.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-4 text-xs text-gray-600">
+                        <span class="flex items-center"><span class="inline-block w-3 h-3 rounded-full bg-emerald-500 mr-1.5"></span> Disponível na Filial Ativa</span>
+                        <span class="flex items-center"><span class="inline-block w-3 h-3 rounded-full bg-amber-500 mr-1.5"></span> Sem saldo local, mas disponível em outra filial</span>
+                        <span class="flex items-center"><span class="inline-block w-3 h-3 rounded-full bg-rose-400 mr-1.5"></span> Esgotado em toda a rede</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA 5: KITS DE ENTREGA RÁPIDA -->
             <div id="tab-content-kits" class="aba-content hidden">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-base font-bold text-gray-900">
@@ -1086,6 +1330,81 @@
         </form>
     </div>
 </div>
+
+<!-- MODAL: COLABORADORES POR TAMANHO DE FARDAMENTO -->
+<div id="modal-fardamento-funcionarios" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="modal-fardamento-func-titulo" class="text-lg font-bold text-gray-900 flex items-center">
+                <i class="fas fa-users text-emerald-700 mr-2"></i> Colaboradores
+            </h3>
+            <button type="button" onclick="fecharModalFardamentoFuncionarios()" class="text-gray-400 hover:text-gray-700 text-2xl leading-none cursor-pointer">&times;</button>
+        </div>
+        <div id="modal-fardamento-func-lista" class="max-h-96 overflow-y-auto space-y-2"></div>
+    </div>
+</div>
+
+<!-- MODAL: LISTA GERAL DE FUNCIONÁRIOS E FARDAMENTO -->
+<div id="modal-lista-funcionarios-fardamento" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-5xl w-full p-6 flex flex-col max-h-[90vh]">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                <i class="fas fa-user-tie text-emerald-700 mr-2"></i> Funcionários e Fardamento
+            </h3>
+            <button type="button" onclick="fecharModalListaFuncionariosFardamento()" class="text-gray-400 hover:text-gray-700 text-2xl leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <div class="col-span-2 md:col-span-1">
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Buscar Funcionário</label>
+                <input type="text" id="filtro-nome-funcionario" oninput="filtrarListaFuncionariosFardamento()" placeholder="Digite o nome..." class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Camisa</label>
+                <select id="filtro-camisa-funcionario" onchange="filtrarListaFuncionariosFardamento()" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Calça</label>
+                <select id="filtro-calca-funcionario" onchange="filtrarListaFuncionariosFardamento()" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Bota</label>
+                <select id="filtro-bota-funcionario" onchange="filtrarListaFuncionariosFardamento()" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-2">
+            <p class="text-xs text-gray-500">
+                Mostrando <strong id="contador-funcionarios-fardamento" class="text-emerald-700">0</strong> de <strong class="text-gray-800">{{ count($fardamentoFuncionarios) }}</strong> funcionário(s)
+            </p>
+            <button type="button" onclick="limparFiltrosListaFuncionariosFardamento()" class="text-[11px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer">
+                <i class="fas fa-eraser mr-1"></i> Limpar filtros
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto border border-gray-200 rounded-xl min-h-0">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50 sticky top-0">
+                    <tr>
+                        <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Funcionário</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Camisa</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Calça</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Bota</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Cargo / Setor</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-funcionarios-fardamento" class="divide-y divide-gray-200"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('extra_js')
@@ -1093,7 +1412,7 @@
 <script>
     // Função global de troca de abas
     window.mudarAba = function(nomeAba) {
-        var abas = ['sacola', 'catalogo', 'estoque', 'kits', 'fichas', 'filiais'];
+        var abas = ['sacola', 'catalogo', 'estoque', 'fardamento', 'kits', 'fichas', 'filiais'];
         abas.forEach(function(aba) {
             var content = document.getElementById('tab-content-' + aba);
             var btn = document.getElementById('tab-btn-' + aba);
@@ -1998,6 +2317,169 @@
             modal.classList.add('hidden');
             modal.style.setProperty('display', 'none', 'important');
         }
+    };
+
+    // ========== FARDAMENTO (UNIFORMES) ==========
+
+    let fardamentoDadosJs = @json($fardamentoDados);
+
+    window.verFardamentoFuncionarios = function(tipo, tamanho) {
+        var modal = document.getElementById('modal-fardamento-funcionarios');
+        var lista = document.getElementById('modal-fardamento-func-lista');
+        var titulo = document.getElementById('modal-fardamento-func-titulo');
+        if (!modal || !lista) return;
+
+        var grupos = (fardamentoDadosJs[tipo] && fardamentoDadosJs[tipo].grupos) || {};
+        var info = grupos[tamanho];
+
+        if (!info || !info.funcionarios || info.funcionarios.length === 0) {
+            lista.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-user-slash text-3xl mb-2 text-gray-300"></i><p class="text-sm font-semibold text-gray-500">Nenhum colaborador encontrado com este tamanho.</p></div>';
+        } else {
+            lista.innerHTML = info.funcionarios.map(function(f, idx) {
+                var detalhe = [];
+                if (f.cargo) detalhe.push('<i class="fas fa-briefcase mr-1 text-emerald-600"></i>' + window.escFardamento(f.cargo));
+                if (f.setor) detalhe.push('<i class="fas fa-th-large mr-1 text-emerald-600"></i>' + window.escFardamento(f.setor));
+                if (f.empresa) detalhe.push('<i class="fas fa-building mr-1 text-emerald-600"></i>' + window.escFardamento(f.empresa));
+                return '<div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">' +
+                    '<div class="flex items-center space-x-3 min-w-0">' +
+                    '<div class="w-9 h-9 rounded-full bg-emerald-900 text-amber-400 font-black flex items-center justify-center text-xs shrink-0">' + window.iniciaisFardamento(f.nome) + '</div>' +
+                    '<div class="min-w-0">' +
+                    '<div class="font-bold text-gray-900 text-sm truncate">' + window.escFardamento(f.nome) + '</div>' +
+                    '<div class="text-xs text-gray-500 space-x-3 truncate">' + detalhe.join('') + '</div>' +
+                    '</div></div>' +
+                    '<span class="text-xs font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full shrink-0 ml-3">' + (tipo === 'bota' ? 'Nº ' : 'Tamanho ') + window.escFardamento(tamanho) + '</span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        titulo.textContent = 'Colaboradores - ' + (tipo === 'camisa' ? 'Camisa' : tipo === 'calca' ? 'Calça' : 'Bota') + ' ' + (tipo === 'bota' ? 'Nº ' : 'Tamanho ') + tamanho + ' (' + (info ? info.funcionarios.length : 0) + ')';
+
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    window.iniciaisFardamento = function(nome) {
+        var partes = String(nome || '').trim().split(/\s+/).filter(Boolean);
+        var ini = '';
+        for (var i = 0; i < partes.length && ini.length < 2; i++) ini += partes[i][0].toUpperCase();
+        return ini || 'U';
+    };
+
+    window.escFardamento = function(valor) {
+        return String(valor == null ? '' : valor)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    window.fecharModalFardamentoFuncionarios = function() {
+        var modal = document.getElementById('modal-fardamento-funcionarios');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.setProperty('display', 'none', 'important');
+        }
+    };
+
+    // ========== LISTA GERAL DE FUNCIONÁRIOS E FARDAMENTO ==========
+
+    let fardamentoFuncionariosLista = @json($fardamentoFuncionarios);
+
+    var opcoesFiltroFardamento = {
+        camisa: ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XGG'],
+        calca: ['36', '38', '40', '42', '44', '46', '48', '50', '52'],
+        bota: ['33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47']
+    };
+
+    window.abrirModalListaFuncionariosFardamento = function() {
+        var modal = document.getElementById('modal-lista-funcionarios-fardamento');
+        if (!modal) return;
+
+        Object.keys(opcoesFiltroFardamento).forEach(function(tipo) {
+            var sel = document.getElementById('filtro-' + tipo + '-funcionario');
+            if (sel && sel.options.length === 1) {
+                opcoesFiltroFardamento[tipo].forEach(function(v) {
+                    var opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = (tipo === 'bota' ? 'Nº ' : '') + v;
+                    sel.appendChild(opt);
+                });
+            }
+        });
+
+        window.filtrarListaFuncionariosFardamento();
+
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    window.fecharModalListaFuncionariosFardamento = function() {
+        var modal = document.getElementById('modal-lista-funcionarios-fardamento');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.setProperty('display', 'none', 'important');
+        }
+    };
+
+    function badgeTamanhoFardamento(valor, tipo) {
+        if (!valor) return '<span class="text-gray-300 font-bold">—</span>';
+        var prefixo = (tipo === 'bota') ? 'Nº ' : '';
+        return '<span class="inline-block px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-xs font-black">' + prefixo + window.escFardamento(valor) + '</span>';
+    }
+
+    window.filtrarListaFuncionariosFardamento = function() {
+        var nome = (document.getElementById('filtro-nome-funcionario').value || '').trim().toLowerCase();
+        var camisa = document.getElementById('filtro-camisa-funcionario').value;
+        var calca = document.getElementById('filtro-calca-funcionario').value;
+        var bota = document.getElementById('filtro-bota-funcionario').value;
+
+        var filtrados = (fardamentoFuncionariosLista || []).filter(function(f) {
+            if (nome && !String(f.nome || '').toLowerCase().includes(nome)) return false;
+            if (camisa && String(f.camisa || '') !== camisa) return false;
+            if (calca && String(f.calca || '') !== calca) return false;
+            if (bota && String(f.bota || '') !== bota) return false;
+            return true;
+        });
+
+        filtrados.sort(function(a, b) {
+            return String(a.nome).localeCompare(String(b.nome));
+        });
+
+        document.getElementById('contador-funcionarios-fardamento').textContent = filtrados.length;
+
+        var tbody = document.getElementById('tbody-funcionarios-fardamento');
+        if (!tbody) return;
+
+        if (filtrados.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-10 text-center text-gray-400">' +
+                '<i class="fas fa-user-slash text-3xl mb-2 text-gray-300"></i>' +
+                '<p class="text-sm font-semibold text-gray-500">Nenhum funcionário encontrado com os filtros selecionados.</p></td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtrados.map(function(f) {
+            return '<tr class="hover:bg-gray-50">' +
+                '<td class="px-5 py-3">' +
+                '<div class="font-bold text-gray-900">' + window.escFardamento(f.nome) + '</div>' +
+                '</td>' +
+                '<td class="px-4 py-3 text-center">' + badgeTamanhoFardamento(f.camisa) + '</td>' +
+                '<td class="px-4 py-3 text-center">' + badgeTamanhoFardamento(f.calca) + '</td>' +
+                '<td class="px-4 py-3 text-center">' + badgeTamanhoFardamento(f.bota, 'bota') + '</td>' +
+                '<td class="px-4 py-3 text-xs text-gray-600">' +
+                (f.cargo ? window.escFardamento(f.cargo) : '—') +
+                (f.setor ? ' <span class="text-gray-300">·</span> ' + window.escFardamento(f.setor) : '') +
+                '</td>' +
+                '</tr>';
+        }).join('');
+    };
+
+    window.limparFiltrosListaFuncionariosFardamento = function() {
+        document.getElementById('filtro-nome-funcionario').value = '';
+        document.getElementById('filtro-camisa-funcionario').value = '';
+        document.getElementById('filtro-calca-funcionario').value = '';
+        document.getElementById('filtro-bota-funcionario').value = '';
+        window.filtrarListaFuncionariosFardamento();
     };
 
     // ========== VARIAÇÕES DE EPI ==========

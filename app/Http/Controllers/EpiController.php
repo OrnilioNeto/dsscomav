@@ -9,6 +9,7 @@ use App\Models\EpiEstoque;
 use App\Models\EpiKit;
 use App\Models\EpiKitItem;
 use App\Models\EpiVariacao;
+use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -145,6 +146,17 @@ class EpiController extends Controller
             });
         }
 
+        // 9. Campos de fardamento no cadastro de colaboradores (users)
+        if (Schema::hasTable('users')) {
+            foreach (['camisa_tamanho', 'calca_tamanho', 'bota_numero'] as $coluna) {
+                if (!Schema::hasColumn('users', $coluna)) {
+                    Schema::table('users', function (Blueprint $table) use ($coluna) {
+                        $table->string($coluna, 20)->nullable()->after('cargo');
+                    });
+                }
+            }
+        }
+
         // Adicionar coluna de variação nas tabelas existentes (se não existir)
         if (Schema::hasTable('ss_epi_estoque') && !Schema::hasColumn('ss_epi_estoque', 'ss_e_nb_variacao_id')) {
             Schema::table('ss_epi_estoque', function (Blueprint $table) {
@@ -269,6 +281,103 @@ class EpiController extends Controller
         $filiais = $this->getFiliaisList();
         $filiaisCadastradas = DB::table('ss_filial')->orderBy('ss_f_nb_id', 'desc')->get();
 
+        // 7. Fardamento: distribuição de tamanhos cadastrados nos colaboradores
+        $fardamentoDados = $this->getFardamentoDistribuicao();
+        $fardamentoFuncionarios = $fardamentoDados['funcionarios'] ?? [];
+
+        // 8. Fardamento: saldo em banco via lançamentos do Controle de Estoque
+        // Somente itens de fardamento: grupo/subgrupo de fardamento ou peças camisa/calça/bota
+        $fardamentoEpis = Epi::where('ss_e_tx_status', 'ativo')
+            ->where(function ($q) {
+                $q->where(function ($r) {
+                    $r->where('ss_e_tx_grupo', 'LIKE', '%fardamento%')
+                        ->orWhere('ss_e_tx_grupo', 'LIKE', '%uniforme%')
+                        ->orWhere('ss_e_tx_subgrupo', 'LIKE', '%fardamento%')
+                        ->orWhere('ss_e_tx_subgrupo', 'LIKE', '%uniforme%');
+                })
+                ->orWhere(function ($r) {
+                    $r->where('ss_e_tx_item', 'LIKE', '%camisa%')
+                        ->orWhere('ss_e_tx_item', 'LIKE', '%calça%')
+                        ->orWhere('ss_e_tx_item', 'LIKE', '%calca%')
+                        ->orWhere('ss_e_tx_item', 'LIKE', '%bota%');
+                });
+            })
+            ->with(['variacoes' => function ($q) {
+                $q->where('ss_ev_tx_status', 'ativo');
+            }])
+            ->orderBy('ss_e_tx_grupo')
+            ->orderBy('ss_e_tx_item')
+            ->get();
+
+        $fardamentoEstoqueLinhas = [];
+        $fardamentoSaldoPorTipo = ['camisa' => 0, 'calca' => 0, 'bota' => 0];
+
+        foreach ($fardamentoEpis as $epi) {
+            $tipo = $this->detectarTipoFardamento($epi);
+            $epiTemVariacoes = $epi->variacoes->isNotEmpty();
+
+            if ($epiTemVariacoes) {
+                foreach ($epi->variacoes as $v) {
+                    $saldoLocal = $epi->getSaldoPorFilial($filialSelecionada, $v->ss_ev_nb_id);
+                    $saldoRede = $epi->getSaldoTotalRede($v->ss_ev_nb_id);
+
+                    if ($tipo !== null) {
+                        $fardamentoSaldoPorTipo[$tipo] += $saldoRede;
+                    }
+
+                    $fardamentoEstoqueLinhas[] = [
+                        'epi_id' => $epi->ss_e_nb_id,
+                        'grupo' => $epi->ss_e_tx_grupo,
+                        'item' => $epi->ss_e_tx_item,
+                        'ca' => $epi->ss_e_tx_ca,
+                        'variacao_id' => $v->ss_ev_nb_id,
+                        'variacao_nome' => $v->ss_ev_tx_nome,
+                        'saldo_local' => $saldoLocal,
+                        'saldo_rede' => $saldoRede,
+                        'disponibilidade' => $saldoLocal > 0 ? 'local' : ($saldoRede > 0 ? 'externo' : 'esgotado'),
+                    ];
+                }
+            } else {
+                $saldoLocal = $epi->getSaldoPorFilial($filialSelecionada);
+                $saldoRede = $epi->getSaldoTotalRede();
+
+                if ($tipo !== null) {
+                    $fardamentoSaldoPorTipo[$tipo] += $saldoRede;
+                }
+
+                $fardamentoEstoqueLinhas[] = [
+                    'epi_id' => $epi->ss_e_nb_id,
+                    'grupo' => $epi->ss_e_tx_grupo,
+                    'item' => $epi->ss_e_tx_item,
+                    'ca' => $epi->ss_e_tx_ca,
+                    'variacao_id' => null,
+                    'variacao_nome' => null,
+                    'saldo_local' => $saldoLocal,
+                    'saldo_rede' => $saldoRede,
+                    'disponibilidade' => $saldoLocal > 0 ? 'local' : ($saldoRede > 0 ? 'externo' : 'esgotado'),
+                ];
+            }
+        }
+
+        $fardamentoEstoqueTotal = (int) array_sum(array_column($fardamentoEstoqueLinhas, 'saldo_rede'));
+
+        // Demanda cadastrada vs saldo em banco (apoio ao pedido de fardamento)
+        $fardamentoDemanda = [
+            'camisa' => $fardamentoDados['camisa']['total'] ?? 0,
+            'calca' => $fardamentoDados['calca']['total'] ?? 0,
+            'bota' => $fardamentoDados['bota']['total'] ?? 0,
+        ];
+        $fardamentoDeficit = [];
+        foreach ($fardamentoDemanda as $tipo => $demanda) {
+            $saldo = $fardamentoSaldoPorTipo[$tipo] ?? 0;
+            $fardamentoDeficit[$tipo] = [
+                'demanda' => $demanda,
+                'saldo' => $saldo,
+                'cobertura' => $demanda > 0 ? min(100, (int) round($saldo / $demanda * 100)) : 0,
+                'deficit' => max(0, $demanda - $saldo),
+            ];
+        }
+
         return view('epi.index', compact(
             'totalCatalogo',
             'saldoEstoqueTotal',
@@ -283,8 +392,116 @@ class EpiController extends Controller
             'filiais',
             'filialSelecionada',
             'filiaisCadastradas',
-            'saldosVariacao'
+            'saldosVariacao',
+            'fardamentoDados',
+            'fardamentoFuncionarios',
+            'fardamentoEstoqueLinhas',
+            'fardamentoEstoqueTotal',
+            'fardamentoDemanda',
+            'fardamentoSaldoPorTipo',
+            'fardamentoDeficit'
         ));
+    }
+
+    /**
+     * Identifica a categoria de fardamento (camisa, calça ou bota) de um EPI
+     * analisando grupo, subgrupo e nome do item no catálogo.
+     */
+    private function detectarTipoFardamento(Epi $epi): ?string
+    {
+        $texto = mb_strtolower(trim(($epi->ss_e_tx_grupo ?? '') . ' ' . ($epi->ss_e_tx_subgrupo ?? '') . ' ' . ($epi->ss_e_tx_item ?? '')));
+
+        if (str_contains($texto, 'camisa')) {
+            return 'camisa';
+        }
+
+        if (str_contains($texto, 'calça') || str_contains($texto, 'calca')) {
+            return 'calca';
+        }
+
+        if (str_contains($texto, 'bota')) {
+            return 'bota';
+        }
+
+        return null;
+    }
+
+    /**
+     * Monta a distribuição de tamanhos de fardamento (camisa, calça e bota)
+     * a partir dos colaboradores ativos cadastrados no sistema.
+     */
+    private function getFardamentoDistribuicao(): array
+    {
+        $funcionarios = User::where('status', 'ativo')
+            ->where('usuario_teste', false)
+            ->where(function ($q) {
+                $q->whereNull('role_id')
+                    ->orWhereHas('role', function ($r) {
+                        $r->where('nome', '<>', 'super_admin');
+                    });
+            })
+            ->get(['id', 'nome', 'cargo', 'setor', 'empresa', 'camisa_tamanho', 'calca_tamanho', 'bota_numero']);
+
+        $categorias = [
+            'camisa' => 'camisa_tamanho',
+            'calca' => 'calca_tamanho',
+            'bota' => 'bota_numero',
+        ];
+
+        $dados = [];
+        foreach ($categorias as $chave => $coluna) {
+            $grupos = [];
+            $totalComMedida = 0;
+
+            foreach ($funcionarios as $f) {
+                $tamanho = trim((string) ($f->{$coluna} ?? ''));
+                if ($tamanho === '') {
+                    continue;
+                }
+                $totalComMedida++;
+                if (!isset($grupos[$tamanho])) {
+                    $grupos[$tamanho] = ['qtd' => 0, 'funcionarios' => []];
+                }
+                $grupos[$tamanho]['qtd']++;
+                $grupos[$tamanho]['funcionarios'][] = [
+                    'nome' => $f->nome,
+                    'cargo' => $f->cargo,
+                    'setor' => $f->setor,
+                    'empresa' => $f->empresa,
+                ];
+            }
+
+            // Ordenação numérica sensível (36, 38, 40... e PP, P, M, G...)
+            uksort($grupos, function ($a, $b) {
+                $numericA = preg_replace('/\D/', '', (string) $a);
+                $numericB = preg_replace('/\D/', '', (string) $b);
+                if ($numericA !== '' && $numericB !== '' && $numericA !== $numericB) {
+                    return (int) $numericA <=> (int) $numericB;
+                }
+                return strnatcmp((string) $a, (string) $b);
+            });
+
+            $dados[$chave] = [
+                'total' => $totalComMedida,
+                'grupos' => $grupos,
+            ];
+        }
+
+        // Lista plana de todos os funcionários com os 3 tamanhos (modal de consulta)
+        $dados['funcionarios'] = $funcionarios->map(function ($f) {
+            return [
+                'id' => $f->id,
+                'nome' => $f->nome,
+                'cargo' => $f->cargo,
+                'setor' => $f->setor,
+                'empresa' => $f->empresa,
+                'camisa' => $f->camisa_tamanho,
+                'calca' => $f->calca_tamanho,
+                'bota' => $f->bota_numero,
+            ];
+        })->values()->all();
+
+        return $dados;
     }
 
     /**
