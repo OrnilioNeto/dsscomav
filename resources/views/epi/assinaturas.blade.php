@@ -67,7 +67,7 @@
                                     <th class="px-3 py-2 text-left font-bold text-gray-500">EPI</th>
                                     <th class="px-3 py-2 text-center font-bold text-gray-500">Variação</th>
                                     <th class="px-3 py-2 text-center font-bold text-gray-500">Qtd</th>
-                                    <th class="px-3 py-2 text-center font-bold text-gray-500">Vencimento</th>
+                                    <th class="px-3 py-2 text-center font-bold text-gray-500">Validade do CA</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
@@ -76,7 +76,13 @@
                                         <td class="px-3 py-2 font-semibold">{{ $item->epi->ss_e_tx_item ?? 'EPI' }}</td>
                                         <td class="px-3 py-2 text-center">{{ $item->variacao->ss_ev_tx_nome ?? '-' }}</td>
                                         <td class="px-3 py-2 text-center">{{ $item->ss_e_nb_quantidade }}</td>
-                                        <td class="px-3 py-2 text-center">{{ $item->ss_e_tx_vencimento ? date('d/m/Y', strtotime($item->ss_e_tx_vencimento)) : '-' }}</td>
+                                        <td class="px-3 py-2 text-center">
+                                            @if(!empty($item->epi->ss_e_tx_validade_ca))
+                                                {{ date('d/m/Y', strtotime($item->epi->ss_e_tx_validade_ca)) }}
+                                            @else
+                                                <span class="text-gray-400">Não informada</span>
+                                            @endif
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>

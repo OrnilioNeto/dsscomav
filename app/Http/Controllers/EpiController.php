@@ -186,6 +186,13 @@ class EpiController extends Controller
             });
         }
 
+        // Flag de entrega retroativa (atualização de ficha sem baixa de estoque)
+        if (Schema::hasTable('ss_epi_entrega') && !Schema::hasColumn('ss_epi_entrega', 'ss_e_tx_retroativo')) {
+            Schema::table('ss_epi_entrega', function (Blueprint $table) {
+                $table->boolean('ss_e_tx_retroativo')->default(false)->after('ss_e_tx_grupo_assinatura');
+            });
+        }
+
         // [DESATIVADO] Popular EPIs universais se ss_epi estiver vazia
         // if (DB::table('ss_epi')->count() === 0) { ... }
 
@@ -874,38 +881,45 @@ class EpiController extends Controller
     {
         $this->ensureTablesExist();
 
+        // Entrega retroativa: apenas atualiza a ficha do colaborador, sem validar
+        // saldo em estoque e sem gerar movimentação de saída/baixa.
+        $retroativo = $request->boolean('retroativo');
+
         // 1. Processamento Multi-Motorista (Lote Completo)
         if ($request->has('entregas') && is_array($request->input('entregas'))) {
             $entregasLote = $request->input('entregas');
             $totalProcessados = 0;
 
             // Validação estrita de saldo de estoque para cada item do lote
-            foreach ($entregasLote as $entData) {
-                $empId = $entData['ss_e_nb_empresa_id'] ?? $request->input('ss_e_nb_empresa_id', 0);
-                foreach ($entData['itens'] ?? [] as $itemData) {
-                    $epi = Epi::find($itemData['epi_id']);
-                    if (!$epi) continue;
-                    $qtd = (int)$itemData['quantidade'];
-                    $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empId;
-                    $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
-                    $saldoLocal = $epi->getSaldoPorFilial($filialOrigem, $variacaoId);
+            // (ignorada quando a entrega é retroativa)
+            if (!$retroativo) {
+                foreach ($entregasLote as $entData) {
+                    $empId = $entData['ss_e_nb_empresa_id'] ?? $request->input('ss_e_nb_empresa_id', 0);
+                    foreach ($entData['itens'] ?? [] as $itemData) {
+                        $epi = Epi::find($itemData['epi_id']);
+                        if (!$epi) continue;
+                        $qtd = (int)$itemData['quantidade'];
+                        $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empId;
+                        $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
+                        $saldoLocal = $epi->getSaldoPorFilial($filialOrigem, $variacaoId);
 
-                    $infoVariacao = '';
-                    if ($variacaoId) {
-                        $var = EpiVariacao::find($variacaoId);
-                        $infoVariacao = " ({$var->ss_ev_tx_nome})" . ($var ? " ({$var->ss_ev_tx_nome})" : '');
-                    }
+                        $infoVariacao = '';
+                        if ($variacaoId) {
+                            $var = EpiVariacao::find($variacaoId);
+                            $infoVariacao = $var ? " ({$var->ss_ev_tx_nome})" : '';
+                        }
 
-                    if ($saldoLocal < $qtd) {
-                        return response()->json([
-                            'status' => 'error',
-                            'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
-                        ], 422);
+                        if ($saldoLocal < $qtd) {
+                            return response()->json([
+                                'status' => 'error',
+                                'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
+                            ], 422);
+                        }
                     }
                 }
             }
 
-            DB::transaction(function () use ($entregasLote, $request, &$totalProcessados) {
+            DB::transaction(function () use ($entregasLote, $request, $retroativo, &$totalProcessados) {
                 $grupoAssinatura = (string) \Illuminate\Support\Str::uuid();
                 foreach ($entregasLote as $entData) {
                     $colabId = $entData['ss_e_nb_colaborador_id'] ?? null;
@@ -950,18 +964,22 @@ class EpiController extends Controller
                             'ss_e_tx_status_assinatura' => $sig ? 'assinada' : 'pendente',
                             'ss_e_tx_data_assinatura' => $sig ? now() : null,
                             'ss_e_tx_grupo_assinatura' => $requerAssinatura ? $grupoAssinatura : null,
+                            'ss_e_tx_retroativo' => $retroativo,
                         ]);
 
-                        EpiEstoque::create([
-                            'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
-                            'ss_e_nb_variacao_id' => $variacaoId,
-                            'ss_e_nb_empresa_id' => $filialOrigem,
-                            'ss_e_nb_quantidade' => $qtd,
-                            'ss_e_tx_tipo' => 'saida',
-                            'ss_e_tx_data' => now(),
-                            'ss_e_tx_motivo' => "Entrega em lote para Colaborador ID #{$colabId}" . ($filialOrigem != $empId ? " (Transferido da Filial #{$filialOrigem})" : ""),
-                            'ss_e_nb_userCadastro' => Auth::id(),
-                        ]);
+                        // Entrega retroativa não gera baixa/saída de estoque
+                        if (!$retroativo) {
+                            EpiEstoque::create([
+                                'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
+                                'ss_e_nb_variacao_id' => $variacaoId,
+                                'ss_e_nb_empresa_id' => $filialOrigem,
+                                'ss_e_nb_quantidade' => $qtd,
+                                'ss_e_tx_tipo' => 'saida',
+                                'ss_e_tx_data' => now(),
+                                'ss_e_tx_motivo' => "Entrega em lote para Colaborador ID #{$colabId}" . ($filialOrigem != $empId ? " (Transferido da Filial #{$filialOrigem})" : ""),
+                                'ss_e_nb_userCadastro' => Auth::id(),
+                            ]);
+                        }
 
                         $totalProcessados++;
                     }
@@ -994,25 +1012,28 @@ class EpiController extends Controller
         $observacao = $request->input('ss_e_tx_observacao');
 
         // Validação estrita de saldo de estoque individual
-        foreach ($request->input('itens') as $itemData) {
-            $epi = Epi::find($itemData['epi_id']);
-            if (!$epi) continue;
-            $qtd = (int)$itemData['quantidade'];
-            $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empresaId;
-            $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
-            $saldoLocal = $epi->getSaldoPorFilial($filialOrigem, $variacaoId);
+        // (ignorada quando a entrega é retroativa)
+        if (!$retroativo) {
+            foreach ($request->input('itens') as $itemData) {
+                $epi = Epi::find($itemData['epi_id']);
+                if (!$epi) continue;
+                $qtd = (int)$itemData['quantidade'];
+                $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empresaId;
+                $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
+                $saldoLocal = $epi->getSaldoPorFilial($filialOrigem, $variacaoId);
 
-            $infoVariacao = '';
-            if ($variacaoId) {
-                $var = EpiVariacao::find($variacaoId);
-                $infoVariacao = $var ? " ({$var->ss_ev_tx_nome})" : '';
-            }
+                $infoVariacao = '';
+                if ($variacaoId) {
+                    $var = EpiVariacao::find($variacaoId);
+                    $infoVariacao = $var ? " ({$var->ss_ev_tx_nome})" : '';
+                }
 
-            if ($saldoLocal < $qtd) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
-                ], 422);
+                if ($saldoLocal < $qtd) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
+                    ], 422);
+                }
             }
         }
 
@@ -1022,7 +1043,7 @@ class EpiController extends Controller
             $fotoCaminho = '/storage/' . $path;
         }
 
-        DB::transaction(function () use ($colaboradorId, $dataEntrega, $empresaId, $assinatura, $fotoCaminho, $observacao, $request) {
+        DB::transaction(function () use ($colaboradorId, $dataEntrega, $empresaId, $assinatura, $fotoCaminho, $observacao, $retroativo, $request) {
             $grupoAssinatura = (string) \Illuminate\Support\Str::uuid();
             foreach ($request->input('itens') as $itemData) {
                 $epi = Epi::findOrFail($itemData['epi_id']);
@@ -1056,18 +1077,22 @@ class EpiController extends Controller
                     'ss_e_tx_status_assinatura' => $assinatura ? 'assinada' : 'pendente',
                     'ss_e_tx_data_assinatura' => $assinatura ? now() : null,
                     'ss_e_tx_grupo_assinatura' => $reqAss ? $grupoAssinatura : null,
+                    'ss_e_tx_retroativo' => $retroativo,
                 ]);
 
-                EpiEstoque::create([
-                    'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
-                    'ss_e_nb_variacao_id' => $variacaoId,
-                    'ss_e_nb_empresa_id' => $filialOrigem,
-                    'ss_e_nb_quantidade' => $qtd,
-                    'ss_e_tx_tipo' => 'saida',
-                    'ss_e_tx_data' => now(),
-                    'ss_e_tx_motivo' => "Entrega para Colaborador ID #{$colaboradorId}" . ($filialOrigem != $empresaId ? " (Transferido da Filial #{$filialOrigem})" : ""),
-                    'ss_e_nb_userCadastro' => Auth::id(),
-                ]);
+                // Entrega retroativa não gera baixa/saída de estoque
+                if (!$retroativo) {
+                    EpiEstoque::create([
+                        'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
+                        'ss_e_nb_variacao_id' => $variacaoId,
+                        'ss_e_nb_empresa_id' => $filialOrigem,
+                        'ss_e_nb_quantidade' => $qtd,
+                        'ss_e_tx_tipo' => 'saida',
+                        'ss_e_tx_data' => now(),
+                        'ss_e_tx_motivo' => "Entrega para Colaborador ID #{$colaboradorId}" . ($filialOrigem != $empresaId ? " (Transferido da Filial #{$filialOrigem})" : ""),
+                        'ss_e_nb_userCadastro' => Auth::id(),
+                    ]);
+                }
             }
         });
 
@@ -1104,7 +1129,8 @@ class EpiController extends Controller
             ]);
 
             // 2. Se marcado checkbox, estornar item gerando movimentação de 'entrada'
-            if ($estornarEstoque) {
+            // (entregas retroativas nunca deram baixa, então não há estoque a estornar)
+            if ($estornarEstoque && !$entrega->ss_e_tx_retroativo) {
                 EpiEstoque::create([
                     'ss_e_nb_epi_id' => $entrega->ss_e_nb_epi_id,
                     'ss_e_nb_variacao_id' => $entrega->ss_e_nb_variacao_id,
