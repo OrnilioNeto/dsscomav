@@ -182,6 +182,25 @@
                             <input type="date" id="sacola-data-entrega" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500" value="{{ date('Y-m-d') }}">
                         </div>
 
+                        <!-- Flag Entrega Retroativa -->
+                        <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <label class="flex items-start cursor-pointer">
+                                <input type="checkbox" id="sacola-retroativo" onchange="alternarModoRetroativo()" class="mt-0.5 rounded text-amber-600 focus:ring-amber-500 h-4 w-4">
+                                <span class="ml-2">
+                                    <span class="text-xs font-bold text-amber-900">
+                                        <i class="fas fa-history mr-1"></i> Entrega Retroativa
+                                    </span>
+                                    <span class="block text-[11px] text-amber-700 mt-0.5">Apenas atualiza a ficha do funcionário com itens já entregues. Sem validação de saldo e sem baixa no estoque.</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        <!-- Aviso modo retroativo ativo -->
+                        <div id="banner-retroativo" class="hidden mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg text-[11px] text-purple-800 font-semibold">
+                            <i class="fas fa-exclamation-circle mr-1"></i>
+                            Modo retroativo ativo: todos os EPIs cadastrados estão liberados e nenhuma movimentação de estoque será gerada.
+                        </div>
+
                         <hr class="my-4 border-gray-200">
 
                         <h3 class="text-base font-bold text-gray-900 mb-2 flex items-center justify-between">
@@ -216,30 +235,26 @@
                         <div class="space-y-3">
                             <div>
                                 <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Selecionar EPI Individual</label>
-                                <select id="sacola-epi-select" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500">
-                                    <option value="">-- Selecione o EPI --</option>
-                                    @foreach($episCatalogo as $epi)
-                                        @php
-                                            $sAtual = $epi->getSaldoPorFilial($filialSelecionada);
-                                            $sRede = $epi->getSaldoTotalRede();
-                                            // Exibir apenas EPIs com saldo positivo em estoque
-                                            if ($sRede <= 0) {
-                                                continue;
-                                            }
-                                            $label = "{$epi->ss_e_tx_grupo} - {$epi->ss_e_tx_item} " . ($epi->ss_e_tx_ca ? "[CA: {$epi->ss_e_tx_ca}]" : "");
-                                            if ($sAtual > 0) {
-                                                $label .= " (Saldo local: {$sAtual})";
-                                                $style = "font-weight: bold; color: #065f46;";
-                                            } else {
-                                                $label .= " (Sem saldo nesta filial, disponível na rede: {$sRede})";
-                                                $style = "color: #d97706; font-weight: bold; font-style: italic;";
-                                            }
-                                        @endphp
-                                        <option value="{{ $epi->ss_e_nb_id }}" style="{{ $style }}">
-                                            {{ $label }}
-                                        </option>
-                                    @endforeach
-                                </select>
+
+                                <!-- Combobox: botão + dropdown com busca interna -->
+                                <div class="relative" id="sacola-epi-combobox">
+                                    <button type="button" id="sacola-epi-trigger" onclick="toggleDropdownEpi()" class="w-full text-sm border-gray-300 rounded-lg shadow-sm bg-white px-3 py-2 text-left flex items-center justify-between hover:bg-gray-50">
+                                        <span id="sacola-epi-trigger-text" class="text-gray-400">-- Selecione o EPI --</span>
+                                        <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                                    </button>
+
+                                    <div id="sacola-epi-dropdown" class="hidden absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-xl">
+                                        <div class="p-2 border-b border-gray-200">
+                                            <div class="relative">
+                                                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-gray-400">
+                                                    <i class="fas fa-search text-xs"></i>
+                                                </span>
+                                                <input type="text" id="sacola-epi-busca" oninput="filtrarDropdownEpi()" onkeydown="navegarDropdownEpi(event)" placeholder="Buscar por nome ou CA..." class="w-full text-xs border-gray-300 rounded-md pl-7 pr-2 py-1.5 focus:ring-emerald-500 focus:border-emerald-500">
+                                            </div>
+                                        </div>
+                                        <div id="sacola-epi-lista" class="max-h-56 overflow-y-auto py-1"></div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="flex space-x-2">
@@ -898,6 +913,11 @@
                                             </td>
                                             <td class="px-3 py-2 font-semibold text-emerald-950">
                                                 {{ $ent->epi->ss_e_tx_item ?? 'EPI N/D' }}
+                                                @if(!empty($ent->ss_e_tx_retroativo))
+                                                    <span class="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px] font-bold" title="Registro retroativo - sem baixa de estoque">
+                                                        <i class="fas fa-history"></i> Retroativo
+                                                    </span>
+                                                @endif
                                                 @if($ent->ss_e_nb_variacao_id)
                                                     @php $varNome = $ent->variacao ? $ent->variacao->ss_ev_tx_nome : ''; @endphp
                                                     @if($varNome)
@@ -1458,6 +1478,19 @@
         carregarEstoqueDisponivelAPI();
     }
 
+    // Modo Entrega Retroativa: atualiza a ficha sem validar saldo e sem baixa de estoque
+    function retroativoAtivo() {
+        const el = document.getElementById('sacola-retroativo');
+        return !!(el && el.checked);
+    }
+
+    function alternarModoRetroativo() {
+        const banner = document.getElementById('banner-retroativo');
+        if (banner) banner.classList.toggle('hidden', !retroativoAtivo());
+        carregarEstoqueDisponivelAPI();
+        window.renderizarTabelaSacola();
+    }
+
     // Carregar saldos via API em tempo real
     function carregarEstoqueDisponivelAPI() {
         const elChk = document.getElementById('chk-ocultar-esgotados');
@@ -1475,78 +1508,164 @@
             .catch(err => console.error('Erro ao carregar estoque API:', err));
     }
 
-    // Renderizar Dropdown de EPIs com Estilos da Regra 1
-    function renderizarOptionsSelectEpi(ocultarEsgotados) {
-        const select = document.getElementById('sacola-epi-select');
-        if (!select || !Array.isArray(matrizEstoqueApi) || matrizEstoqueApi.length === 0) return;
+    // ===== Combobox de EPI (dropdown com busca por nome ou CA) =====
 
-        select.innerHTML = '<option value="">-- Selecione o EPI --</option>';
+    let epiSelecionadoSacola = null;
+
+    function renderizarOptionsSelectEpi(ocultarEsgotados) {
+        const lista = document.getElementById('sacola-epi-lista');
+        if (!lista || !Array.isArray(matrizEstoqueApi) || matrizEstoqueApi.length === 0) return;
+
+        lista.innerHTML = '';
+
+        const retroativo = retroativoAtivo();
 
         matrizEstoqueApi.forEach(epi => {
-            // Exibir apenas itens que possuem saldo positivo em estoque (local ou em outra filial)
-            if (epi.saldo_rede <= 0) {
+            // Mostrar TODOS os EPIs cadastrados, inclusive com saldo zerado,
+            // exceto quando o gestor marcar "Ocultar itens esgotados"
+            if (ocultarEsgotados && !retroativo && epi.saldo_rede <= 0) {
                 return;
             }
 
-            const option = document.createElement('option');
-            option.value = epi.id;
-
-            let textoSaldo = `(Saldo local: ${epi.saldo_atual})`;
-            if (epi.disponibilidade === 'externo') {
-                textoSaldo = `(Sem saldo nesta filial, disponível na rede: ${epi.saldo_rede})`;
-                option.style.color = '#d97706';
-                option.style.fontWeight = 'bold';
-                option.style.fontStyle = 'italic';
-            } else {
-                option.style.fontWeight = 'bold';
-                option.style.color = '#065f46';
+            let corItem = '#065f46';
+            let textoSaldo = `Saldo local: ${epi.saldo_atual}`;
+            if (retroativo) {
+                corItem = '#7c3aed';
+                textoSaldo = 'Retroativo - sem baixa de estoque';
+            } else if (epi.saldo_rede <= 0) {
+                corItem = '#9ca3af';
+                textoSaldo = 'Esgotado em toda a rede';
+            } else if (epi.disponibilidade === 'externo') {
+                corItem = '#d97706';
+                textoSaldo = `Sem saldo nesta filial, disponível na rede: ${epi.saldo_rede}`;
             }
 
-            option.textContent = `${epi.grupo} - ${epi.item} ${epi.ca ? '[CA: ' + epi.ca + ']' : ''} ${textoSaldo}`;
-            select.appendChild(option);
+            const botao = document.createElement('button');
+            botao.type = 'button';
+            botao.dataset.id = epi.id;
+            botao.className = 'w-full text-left px-3 py-2 hover:bg-emerald-50 border-b border-gray-100 last:border-0 cursor-pointer';
+            botao.innerHTML = `
+                <div class="text-xs font-bold" style="color: ${corItem}">
+                    ${window.escFardamento(epi.item || 'EPI')}
+                    ${epi.ca ? '<span class="text-gray-400 font-semibold">[CA: ' + window.escFardamento(epi.ca) + ']</span>' : ''}
+                </div>
+                <div class="text-[10px] text-gray-500">${window.escFardamento(epi.grupo || '')} &middot; ${textoSaldo}</div>
+            `;
+            botao.addEventListener('click', function() {
+                selecionarEpi(parseInt(this.dataset.id));
+            });
+            lista.appendChild(botao);
         });
+
+        // Estado vazio
+        if (lista.children.length === 0) {
+            lista.innerHTML = '<div class="px-3 py-6 text-center text-xs text-gray-400">Nenhum EPI encontrado.</div>';
+        }
+
+        filtrarDropdownEpi();
     }
+
+    window.toggleDropdownEpi = function() {
+        const dropdown = document.getElementById('sacola-epi-dropdown');
+        if (!dropdown) return;
+
+        const aberto = !dropdown.classList.contains('hidden');
+        if (aberto) {
+            fecharDropdownEpi();
+        } else {
+            dropdown.classList.remove('hidden');
+            dropdown.style.setProperty('display', 'block', 'important');
+            const busca = document.getElementById('sacola-epi-busca');
+            if (busca) {
+                busca.value = '';
+                busca.focus();
+            }
+            filtrarDropdownEpi();
+        }
+    };
+
+    function fecharDropdownEpi() {
+        const dropdown = document.getElementById('sacola-epi-dropdown');
+        if (dropdown) {
+            dropdown.classList.add('hidden');
+            dropdown.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    function selecionarEpi(epiId) {
+        const epiInfo = (Array.isArray(matrizEstoqueApi) ? matrizEstoqueApi : []).find(e => parseInt(e.id) === epiId);
+        if (!epiInfo) return;
+
+        epiSelecionadoSacola = epiInfo;
+
+        const triggerText = document.getElementById('sacola-epi-trigger-text');
+        if (triggerText) {
+            triggerText.textContent = `${epiInfo.item} ${epiInfo.ca ? '[CA: ' + epiInfo.ca + ']' : ''}${epiInfo.saldo_rede > 0 ? ' (Saldo: ' + epiInfo.saldo_rede + ')' : ''}`;
+            triggerText.className = 'text-sm font-bold text-emerald-950';
+        }
+
+        fecharDropdownEpi();
+    }
+
+    // Filtro de busca por nome do EPI ou número do CA
+    function filtrarDropdownEpi() {
+        const busca = document.getElementById('sacola-epi-busca');
+        const lista = document.getElementById('sacola-epi-lista');
+        if (!busca || !lista) return;
+
+        const termo = busca.value.trim().toLowerCase();
+
+        let visiveis = 0;
+        Array.from(lista.children).forEach(item => {
+            const match = termo === '' || item.textContent.toLowerCase().includes(termo);
+            item.style.display = match ? '' : 'none';
+            if (match) visiveis++;
+        });
+
+        const vazio = lista.querySelector('.epi-busca-vazio');
+        if (visiveis === 0) {
+            if (!vazio) {
+                const div = document.createElement('div');
+                div.className = 'epi-busca-vazio px-3 py-6 text-center text-xs text-gray-400';
+                div.textContent = 'Nenhum EPI encontrado para a busca.';
+                lista.appendChild(div);
+            }
+        } else if (vazio) {
+            vazio.remove();
+        }
+    }
+
+    function navegarDropdownEpi(event) {
+        if (event.key === 'Escape') {
+            fecharDropdownEpi();
+        } else if (event.key === 'Enter') {
+            const lista = document.getElementById('sacola-epi-lista');
+            if (!lista) return;
+            const primeiro = Array.from(lista.children).find(item => item.style.display !== 'none' && item.dataset.id);
+            if (primeiro) {
+                selecionarEpi(parseInt(primeiro.dataset.id));
+                event.preventDefault();
+            }
+        }
+    }
+
+    document.addEventListener('click', function(event) {
+        const combobox = document.getElementById('sacola-epi-combobox');
+        const dropdown = document.getElementById('sacola-epi-dropdown');
+        if (combobox && dropdown && !combobox.contains(event.target)) {
+            fecharDropdownEpi();
+        }
+    });
 
     let driverCanvases = {};
 
     // Adicionar EPI Individual à Sacola
     window.adicionarEpiSacola = function() {
-        const select = document.getElementById('sacola-epi-select');
-        const epiId = parseInt(select ? select.value : 0);
+        const epiInfo = epiSelecionadoSacola;
         const qtd = parseInt(document.getElementById('sacola-epi-qtd').value) || 1;
 
-        if (!epiId) {
-            Swal.fire('Atenção', 'Selecione um EPI da lista!', 'warning');
-            return;
-        }
-
-        let epiInfo = null;
-
-        if (Array.isArray(matrizEstoqueApi) && matrizEstoqueApi.length > 0) {
-            epiInfo = matrizEstoqueApi.find(e => parseInt(e.id) === epiId);
-        }
-
-        if (!epiInfo && typeof episCatalogoLista !== 'undefined' && Array.isArray(episCatalogoLista)) {
-            const rawEpi = episCatalogoLista.find(e => parseInt(e.ss_e_nb_id) === epiId);
-            if (rawEpi) {
-                epiInfo = {
-                    id: rawEpi.ss_e_nb_id,
-                    grupo: rawEpi.ss_e_tx_grupo || '',
-                    subgrupo: rawEpi.ss_e_tx_subgrupo || '',
-                    item: rawEpi.ss_e_tx_item || '',
-                    ca: rawEpi.ss_e_tx_ca || '',
-                    vida_util_dias: parseInt(rawEpi.ss_e_nb_vida_util_dias) || 0,
-                    saldo_atual: 99,
-                    saldo_rede: 99,
-                    disponibilidade: 'local',
-                    outras_filiais: [],
-                    variacoes: rawEpi.variacoes || []
-                };
-            }
-        }
-
         if (!epiInfo) {
-            Swal.fire('Atenção', 'EPI selecionado não foi encontrado!', 'warning');
+            Swal.fire('Atenção', 'Selecione um EPI da lista!', 'warning');
             return;
         }
 
@@ -1625,7 +1744,8 @@
             }
 
             // Regra: Apenas adicionar à sacola se o item do kit possuir saldo positivo
-            if (epiInfo && epiInfo.saldo_rede > 0) {
+            // (exceto no modo retroativo, onde todos os EPIs cadastrados são liberados)
+            if (epiInfo && (retroativoAtivo() || epiInfo.saldo_rede > 0)) {
                 window.inserirItemNaSacola(epiInfo, parseInt(ki.ss_ki_nb_quantidade) || 1, false);
                 adicionados++;
             } else {
@@ -1714,7 +1834,10 @@
         let precisaTransferencia = false;
         let filiaisComSaldo = Array.isArray(epiInfo.outras_filiais) ? epiInfo.outras_filiais : [];
 
-        if (epiInfo.saldo_atual < qtd && filiaisComSaldo.length > 0) {
+        const retroativo = retroativoAtivo();
+
+        // Modo retroativo: sem validação/transferência de saldo (apenas atualização de ficha)
+        if (!retroativo && epiInfo.saldo_atual < qtd && filiaisComSaldo.length > 0) {
             precisaTransferencia = true;
             filialOrigem = filiaisComSaldo[0].filial_id;
         }
@@ -1733,7 +1856,9 @@
             filial_origem: filialOrigem,
             outras_filiais: filiaisComSaldo,
             variacao_id: epiInfo.variacao_id || null,
-            variacao_nome: epiInfo.variacao_nome || null
+            variacao_nome: epiInfo.variacao_nome || null,
+            retroativo: retroativo,
+            esgotado: !retroativo && (parseInt(epiInfo.saldo_rede) <= 0)
         };
 
         sacolaItens.push(itemSacola);
@@ -1800,7 +1925,19 @@
             grupo.itens.forEach(item => {
                 const itemIndexInGlobal = sacolaItens.indexOf(item);
                 let alertaOrigemHtml = `<span class="text-xs text-emerald-700 font-semibold"><i class="fas fa-check-circle mr-1"></i> Filial Local</span>`;
-                if (item.precisa_transferencia) {
+                if (item.retroativo) {
+                    alertaOrigemHtml = `
+                        <span class="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded-lg text-[11px] font-bold">
+                            <i class="fas fa-history mr-1"></i> Retroativo - sem baixa de estoque
+                        </span>
+                    `;
+                } else if (item.esgotado) {
+                    alertaOrigemHtml = `
+                        <span class="inline-block px-2 py-1 bg-rose-100 text-rose-700 rounded-lg text-[11px] font-bold">
+                            <i class="fas fa-exclamation-triangle mr-1"></i> Esgotado em toda a rede
+                        </span>
+                    `;
+                } else if (item.precisa_transferencia) {
                     const outrasArr = Array.isArray(item.outras_filiais) ? item.outras_filiais : [];
                     let optionsFiliais = outrasArr.map(f => `<option value="${f.filial_id}" ${f.filial_id == item.filial_origem ? 'selected' : ''}>${f.filial_nome} (Saldo: ${f.saldo})</option>`).join('');
                     alertaOrigemHtml = `
@@ -2021,6 +2158,7 @@
         formData.append('ss_e_tx_data_entrega', dataEntrega);
         formData.append('ss_e_nb_empresa_id', filialGlobalId);
         formData.append('ss_e_tx_observacao', obsVal);
+        formData.append('retroativo', retroativoAtivo() ? 1 : 0);
 
         itensMotorista.forEach((item, idx) => {
             formData.append(`itens[${idx}][epi_id]`, item.epi_id);
@@ -2079,6 +2217,7 @@
                 const bulkPayload = {
                     _token: '{{ csrf_token() }}',
                     ss_e_nb_empresa_id: filialGlobalId,
+                    retroativo: retroativoAtivo() ? 1 : 0,
                     entregas: []
                 };
 

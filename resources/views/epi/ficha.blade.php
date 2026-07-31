@@ -90,7 +90,7 @@
                         <th class="p-2.5 font-bold text-gray-700 uppercase border-r border-gray-300">Item / Variação / Descrição</th>
                         <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Nº CA</th>
                         <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Qtd</th>
-                        <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Vencimento Previsto</th>
+                        <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Validade do CA</th>
                         <th class="p-2.5 font-bold text-gray-700 uppercase text-center">Assinatura / Visto</th>
                     </tr>
                 </thead>
@@ -101,7 +101,12 @@
                                 {{ date('d/m/Y', strtotime($entrega->ss_e_tx_data_entrega)) }}
                             </td>
                             <td class="p-2.5 border-r border-gray-300">
-                                <div class="font-bold text-gray-900">{{ $entrega->epi->ss_e_tx_item ?? 'EPI N/D' }}</div>
+                                <div class="font-bold text-gray-900">
+                                    {{ $entrega->epi->ss_e_tx_item ?? 'EPI N/D' }}
+                                    @if(!empty($entrega->ss_e_tx_retroativo))
+                                        <span class="ml-1 text-[9px] text-purple-800 bg-purple-100 px-1.5 py-0.5 rounded font-bold">Retroativo</span>
+                                    @endif
+                                </div>
                                 @if($entrega->ss_e_nb_variacao_id && $entrega->variacao)
                                     <div class="text-amber-700 font-semibold text-[10px]">{{ $entrega->variacao->ss_ev_tx_nome }}</div>
                                 @endif
@@ -114,7 +119,11 @@
                                 {{ $entrega->ss_e_nb_quantidade }}
                             </td>
                             <td class="p-2.5 text-center text-gray-700 border-r border-gray-300 whitespace-nowrap">
-                                {{ $entrega->ss_e_tx_vencimento ? date('d/m/Y', strtotime($entrega->ss_e_tx_vencimento)) : '-' }}
+                                @if(!empty($entrega->epi->ss_e_tx_validade_ca))
+                                    {{ date('d/m/Y', strtotime($entrega->epi->ss_e_tx_validade_ca)) }}
+                                @else
+                                    <span class="text-gray-400">Não informada</span>
+                                @endif
                             </td>
                             <td class="p-2.5 text-center">
                                 @if($entrega->ss_e_tx_assinatura)
