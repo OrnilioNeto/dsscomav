@@ -277,9 +277,11 @@ class EpiController extends Controller
             ->get();
 
         // 6. Entregas Recentes (Omitindo inativos conforme regra)
+        // Ordenado pela data de LANÇAMENTO (cadastro), mais recentes no topo,
+        // independentemente da data da entrega informada
         $entregasRecentes = EpiEntrega::with(['colaborador', 'epi'])
             ->where('ss_e_tx_status', '<>', 'inativo')
-            ->orderBy('ss_e_tx_data_entrega', 'desc')
+            ->orderBy('ss_e_tx_dataCadastro', 'desc')
             ->orderBy('ss_e_nb_id', 'desc')
             ->limit(100)
             ->get();
@@ -1156,11 +1158,14 @@ class EpiController extends Controller
 
         $colaborador = EpiColaborador::findOrFail($colaborador_id);
         
-        // Omitir registros inativos conforme regra
+        // Omitir registros inativos conforme regra.
+        // Ordenado pela DATA DA ENTREGA do mais antigo para o mais novo:
+        // as entregas mais recentes sempre vão para o fim do documento/ficha.
         $entregas = EpiEntrega::with(['epi', 'variacao'])
             ->where('ss_e_nb_colaborador_id', $colaborador_id)
             ->where('ss_e_tx_status', '<>', 'inativo')
-            ->orderBy('ss_e_tx_data_entrega', 'desc')
+            ->orderBy('ss_e_tx_data_entrega', 'asc')
+            ->orderBy('ss_e_nb_id', 'asc')
             ->get();
 
         return view('epi.ficha', compact('colaborador', 'entregas'));
