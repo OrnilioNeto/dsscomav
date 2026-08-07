@@ -108,8 +108,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/usuarios/{id}/ficha', [App\Http\Controllers\EmployeeFichaController::class, 'manage'])->name('usuarios.ficha.manage');
         Route::post('/usuarios/{id}/ficha/treinamento', [App\Http\Controllers\EmployeeFichaController::class, 'storeTraining'])->name('usuarios.ficha.storeTraining');
         Route::delete('/usuarios/ficha/treinamento/{id}', [App\Http\Controllers\EmployeeFichaController::class, 'destroyTraining'])->name('usuarios.ficha.destroyTraining');
-        Route::post('/usuarios/{id}/ficha/epi', [App\Http\Controllers\EmployeeFichaController::class, 'storeEpi'])->name('usuarios.ficha.storeEpi');
-        Route::delete('/usuarios/ficha/epi/{id}', [App\Http\Controllers\EmployeeFichaController::class, 'destroyEpi'])->name('usuarios.ficha.destroyEpi');
         Route::post('/usuarios/{id}/ficha/regenerar-token', [App\Http\Controllers\EmployeeFichaController::class, 'regenerateToken'])->name('usuarios.ficha.regenerateToken');
 
         // Treinamentos

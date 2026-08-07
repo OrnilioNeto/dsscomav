@@ -99,7 +99,7 @@
                     <i class="fas fa-graduation-cap mr-1.5"></i>Treinamentos ({{ $usuario->employeeTrainings->count() + $plataformaTrainings->count() }})
                 </button>
                 <button data-tab="epis" onclick="switchTab('epis')" class="tab-btn flex-1 py-4 px-2 text-center text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 focus:outline-none transition">
-                    <i class="fas fa-hard-hat mr-1.5"></i>EPIs ({{ $usuario->employeeEpis->count() }})
+                    <i class="fas fa-hard-hat mr-1.5"></i>EPIs ({{ $epiModuloEntregas->count() }})
                 </button>
                 <button data-tab="dss" onclick="switchTab('dss')" class="tab-btn flex-1 py-4 px-2 text-center text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 focus:outline-none transition">
                     <i class="fas fa-video mr-1.5"></i>DSSs ({{ $dssCertificates->count() }})
@@ -175,28 +175,39 @@
                 <div id="tab-epis" class="tab-content space-y-4 hidden">
                     <h3 class="text-lg font-bold text-gray-800 border-b pb-2">Equipamentos de Proteção Individual (EPIs) Entregues</h3>
                     
-                    @if($usuario->employeeEpis->count() > 0)
-                        <div class="space-y-3">
-                            @foreach($usuario->employeeEpis as $epi)
-                                <div class="p-4 rounded-xl border border-gray-200 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                                    <div class="min-w-0 flex-grow">
-                                        <h4 class="font-bold text-gray-800 text-sm sm:text-base">{{ $epi->nome }}</h4>
-                                        @if($epi->observacoes)
-                                            <p class="text-xs text-gray-500 mt-0.5">{{ $epi->observacoes }}</p>
-                                        @endif
-                                        <div class="flex flex-wrap gap-4 mt-2 text-xs text-gray-600 font-medium">
-                                            <span>Quant: <strong class="text-gray-900">{{ $epi->quantidade }}</strong></span>
-                                            @if($epi->ca)
-                                                <span>C.A: <strong class="text-gray-900 font-mono">{{ $epi->ca }}</strong></span>
+                    @if($epiModuloEntregas->count() > 0)
+                        <div>
+                            <p class="text-xs uppercase tracking-wide font-bold text-gray-500 mb-2">Entregas registradas no Módulo de EPI (NR-06)</p>
+                            <div class="space-y-3">
+                                @foreach($epiModuloEntregas as $entrega)
+                                    <div class="p-4 rounded-xl border border-emerald-100 bg-emerald-50/40 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                                        <div class="min-w-0 flex-grow">
+                                            <h4 class="font-bold text-gray-800 text-sm sm:text-base">
+                                                {{ $entrega->epi->ss_e_tx_item ?? 'EPI' }}
+                                                @if($entrega->ss_e_nb_variacao_id && $entrega->variacao)
+                                                    <span class="text-xs font-semibold text-amber-700">/ {{ $entrega->variacao->ss_ev_tx_nome }}</span>
+                                                @endif
+                                            </h4>
+                                            @if($entrega->epi->ss_e_tx_grupo)
+                                                <p class="text-xs text-gray-500 mt-0.5">{{ $entrega->epi->ss_e_tx_grupo }}</p>
                                             @endif
+                                            <div class="flex flex-wrap gap-4 mt-2 text-xs text-gray-600 font-medium">
+                                                <span>Quant: <strong class="text-gray-900">{{ $entrega->ss_e_nb_quantidade }}</strong></span>
+                                                @if(!empty($entrega->epi->ss_e_tx_ca))
+                                                    <span>C.A: <strong class="text-gray-900 font-mono">{{ $entrega->epi->ss_e_tx_ca }}</strong></span>
+                                                @endif
+                                                @if(!empty($entrega->epi->ss_e_tx_validade_ca))
+                                                    <span>Validade do CA: <strong class="text-gray-900">{{ date('d/m/Y', strtotime($entrega->epi->ss_e_tx_validade_ca)) }}</strong></span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 sm:mt-0 sm:ml-4 text-left sm:text-right">
+                                            <span class="text-xs block text-gray-500">Data de Entrega</span>
+                                            <strong class="text-xs sm:text-sm text-gray-900">{{ date('d/m/Y', strtotime($entrega->ss_e_tx_data_entrega)) }}</strong>
                                         </div>
                                     </div>
-                                    <div class="mt-3 sm:mt-0 sm:ml-4 text-left sm:text-right">
-                                        <span class="text-xs block text-gray-500">Data de Entrega</span>
-                                        <strong class="text-xs sm:text-sm text-gray-900">{{ $epi->data_entrega->format('d/m/Y') }}</strong>
-                                    </div>
-                                </div>
-                            @endforeach
+                                @endforeach
+                            </div>
                         </div>
                     @else
                         <div class="text-center py-12 text-gray-500 bg-gray-50 rounded-xl border border-dashed">
