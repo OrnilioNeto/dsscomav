@@ -196,18 +196,34 @@ class EpiController extends Controller
         // [DESATIVADO] Popular EPIs universais se ss_epi estiver vazia
         // if (DB::table('ss_epi')->count() === 0) { ... }
 
-        // Sincronizar colaboradores se ss_colaborador estiver vazia
-        if (Schema::hasTable('users') && DB::table('ss_colaborador')->count() === 0) {
-            $users = DB::table('users')->get();
+        // Sincronização incremental de colaboradores a partir dos usuários:
+        // cria novos funcionários que ainda não existem em ss_colaborador (por CPF)
+        // e atualiza nome/cargo/status dos já existentes. Sempre que o módulo abrir.
+        if (Schema::hasTable('users') && Schema::hasTable('ss_colaborador')) {
+            $users = DB::table('users')->get(['id', 'nome', 'cpf', 'cargo', 'status']);
+
             foreach ($users as $u) {
-                DB::table('ss_colaborador')->insert([
+                $dados = [
                     'ss_c_tx_nome' => $u->nome,
-                    'ss_c_tx_cpf' => $u->cpf,
-                    'ss_c_tx_matricula' => 'MAT-' . str_pad($u->id, 5, '0', STR_PAD_LEFT),
-                    'ss_c_tx_cargo' => $u->cargo ?? 'Funcionário',
-                    'ss_c_tx_status' => $u->status ?? 'ativo',
-                    'ss_c_nb_empresa_id' => 0,
-                ]);
+                    'ss_c_tx_cargo' => $u->cargo ?: 'Funcionário',
+                    'ss_c_tx_status' => $u->status ?: 'ativo',
+                ];
+
+                $existente = DB::table('ss_colaborador')
+                    ->where('ss_c_tx_cpf', $u->cpf)
+                    ->first();
+
+                if ($existente) {
+                    DB::table('ss_colaborador')
+                        ->where('ss_c_nb_id', $existente->ss_c_nb_id)
+                        ->update($dados);
+                } else {
+                    DB::table('ss_colaborador')->insert(array_merge($dados, [
+                        'ss_c_tx_cpf' => $u->cpf,
+                        'ss_c_tx_matricula' => 'MAT-' . str_pad($u->id, 5, '0', STR_PAD_LEFT),
+                        'ss_c_nb_empresa_id' => 0,
+                    ]));
+                }
             }
         }
     }
