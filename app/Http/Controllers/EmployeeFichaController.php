@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\EmployeeTraining;
-use App\Models\EmployeeEpi;
+use App\Models\EpiColaborador;
+use App\Models\EpiEntrega;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class EmployeeFichaController extends Controller
@@ -21,9 +23,6 @@ class EmployeeFichaController extends Controller
             'employeeTrainings' => function ($query) {
                 $query->orderBy('data_treinamento', 'desc');
             },
-            'employeeEpis' => function ($query) {
-                $query->orderBy('data_entrega', 'desc');
-            },
             'certificates.training'
         ])->where('qrcode_token', $token)->firstOrFail();
 
@@ -36,7 +35,22 @@ class EmployeeFichaController extends Controller
             return $cert->training && $cert->training->tipo === 'treinamento';
         })->sortByDesc('data_emissao');
 
-        return view('ficha_publica', compact('usuario', 'dssCertificates', 'plataformaTrainings'));
+        // Entregas de EPI registradas no módulo de Saúde e Segurança (NR-06),
+        // vinculadas ao colaborador pelo CPF. Somente registros ativos.
+        $epiModuloEntregas = collect();
+        if (Schema::hasTable('ss_colaborador') && Schema::hasTable('ss_epi_entrega')) {
+            $colaborador = EpiColaborador::where('ss_c_tx_cpf', $usuario->cpf)->first();
+            if ($colaborador) {
+                $epiModuloEntregas = EpiEntrega::with(['epi', 'variacao'])
+                    ->where('ss_e_nb_colaborador_id', $colaborador->ss_c_nb_id)
+                    ->where('ss_e_tx_status', '<>', 'inativo')
+                    ->orderBy('ss_e_tx_data_entrega', 'desc')
+                    ->orderBy('ss_e_nb_id', 'desc')
+                    ->get();
+            }
+        }
+
+        return view('ficha_publica', compact('usuario', 'dssCertificates', 'plataformaTrainings', 'epiModuloEntregas'));
     }
 
     public function manage($id)
@@ -44,9 +58,6 @@ class EmployeeFichaController extends Controller
         $usuario = User::with([
             'employeeTrainings' => function ($query) {
                 $query->orderBy('data_treinamento', 'desc');
-            },
-            'employeeEpis' => function ($query) {
-                $query->orderBy('data_entrega', 'desc');
             }
         ])->findOrFail($id);
 
@@ -75,31 +86,6 @@ class EmployeeFichaController extends Controller
         $training->delete();
 
         return redirect()->back()->with('success', 'Treinamento removido com sucesso!');
-    }
-
-    public function storeEpi(Request $request, $userId)
-    {
-        $usuario = User::findOrFail($userId);
-
-        $request->validate([
-            'nome' => 'required|string|max:255',
-            'ca' => 'nullable|string|max:255',
-            'quantidade' => 'required|integer|min:1',
-            'data_entrega' => 'required|date',
-            'observacoes' => 'nullable|string',
-        ]);
-
-        $usuario->employeeEpis()->create($request->all());
-
-        return redirect()->back()->with('success', 'Entrega de EPI registrada com sucesso!');
-    }
-
-    public function destroyEpi($id)
-    {
-        $epi = EmployeeEpi::findOrFail($id);
-        $epi->delete();
-
-        return redirect()->back()->with('success', 'EPI removido com sucesso!');
     }
 
     public function regenerateToken($userId)

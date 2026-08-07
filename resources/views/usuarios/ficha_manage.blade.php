@@ -191,83 +191,10 @@
                     <i class="fas fa-hard-hat text-blue-900 mr-3"></i>Entregas de EPIs
                 </h2>
 
-                <!-- Formulário de cadastro de EPI -->
-                <form action="{{ route('usuarios.ficha.storeEpi', $usuario->id) }}" method="POST" class="bg-gray-50 p-4 rounded-lg border mb-6">
-                    @csrf
-                    <h3 class="font-bold text-gray-700 mb-3 text-sm">Registrar Entrega de EPI</h3>
-                    <div class="grid md:grid-cols-3 gap-4 mb-4">
-                        <div class="md:col-span-2">
-                            <label for="e_nome" class="block text-xs font-semibold text-gray-600 mb-1">Nome do EPI *</label>
-                            <input type="text" id="e_nome" name="nome" placeholder="Ex: Óculos de Proteção, Bota com Bico de Aço" required class="w-full rounded border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="e_ca" class="block text-xs font-semibold text-gray-600 mb-1">C.A. (Certificado de Aprovação)</label>
-                            <input type="text" id="e_ca" name="ca" placeholder="Ex: 12345" class="w-full rounded border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="e_quantidade" class="block text-xs font-semibold text-gray-600 mb-1">Quantidade *</label>
-                            <input type="number" id="e_quantidade" name="quantidade" value="1" min="1" required class="w-full rounded border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="e_data_entrega" class="block text-xs font-semibold text-gray-600 mb-1">Data da Entrega *</label>
-                            <input type="date" id="e_data_entrega" name="data_entrega" required class="w-full rounded border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="e_observacoes" class="block text-xs font-semibold text-gray-600 mb-1">Observações (Opcional)</label>
-                            <input type="text" id="e_observacoes" name="observacoes" placeholder="Ex: Substituição por desgaste" class="w-full rounded border-gray-300 text-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded text-sm hover:bg-green-700 transition">
-                            <i class="fas fa-plus mr-1"></i>Registrar Entrega
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Listagem de EPIs Entregues -->
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-100 border-b">
-                            <tr>
-                                <th class="p-3 text-gray-700 font-semibold">EPI</th>
-                                <th class="p-3 text-gray-700 font-semibold">C.A.</th>
-                                <th class="p-3 text-gray-700 font-semibold">Quantidade</th>
-                                <th class="p-3 text-gray-700 font-semibold">Data Entrega</th>
-                                <th class="p-3 text-gray-700 font-semibold text-right">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($usuario->employeeEpis as $epi)
-                                <tr class="border-b hover:bg-gray-50">
-                                    <td class="p-3 font-semibold text-gray-800">
-                                        {{ $epi->nome }}
-                                        @if($epi->observacoes)
-                                            <span class="block text-xs text-gray-500 font-normal">{{ $epi->observacoes }}</span>
-                                        @endif
-                                    </td>
-                                    <td class="p-3 text-gray-600">{{ $epi->ca ?? 'N/A' }}</td>
-                                    <td class="p-3 text-gray-600 font-mono">{{ $epi->quantidade }}</td>
-                                    <td class="p-3 text-gray-600">{{ $epi->data_entrega->format('d/m/Y') }}</td>
-                                    <td class="p-3 text-right">
-                                        <form action="{{ route('usuarios.ficha.destroyEpi', $epi->id) }}" method="POST" class="inline" onsubmit="return confirm('Deseja realmente remover este registro?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900 transition">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="p-4 text-center text-gray-500 italic">
-                                        Nenhuma entrega de EPI registrada.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                <p class="text-sm text-gray-600 mb-4">
+                    As entregas de EPI são registradas exclusivamente pelo Módulo de Saúde e Segurança (NR-06).
+                    <a href="{{ route('epi.index') }}" target="_blank" class="text-blue-700 font-semibold hover:underline">Acessar o Módulo de EPI</a>
+                </p>
             </div>
 
         </div>
