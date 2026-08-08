@@ -142,16 +142,28 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        $treinamentosElegiveis = Training::where('status', 'ativo')
+        // DSS: comportamento atual (público-alvo por tipo de usuário)
+        $dssElegiveis = Training::where('status', 'ativo')
+            ->where('tipo', 'dss')
             ->get()
             ->filter(fn($t) => $user->canAccessTraining($t));
 
-        $treinamentosDisponíveis = $treinamentosElegiveis
+        $treinamentosDisponíveis = $dssElegiveis
             ->filter(fn($t) => $t->isReleased())
             ->values();
 
-        $treinamentosBloqueados = $treinamentosElegiveis
+        $treinamentosBloqueados = $dssElegiveis
             ->filter(fn($t) => !$t->isReleased())
+            ->values();
+
+        // Treinamentos direcionados (tipo=treinamento) liberados para este funcionário
+        $treinamentosDirecionados = Training::where('status', 'ativo')
+            ->where('tipo', 'treinamento')
+            ->whereHas('assignedUsers', function ($query) use ($user) {
+                $query->where('users.id', $user->id);
+            })
+            ->get()
+            ->filter(fn($t) => $t->isReleased())
             ->values();
 
         $progresso = UserProgress::where('user_id', $user->id)->get();
@@ -221,6 +233,7 @@ class DashboardController extends Controller
         return view('dashboard.usuario', [
             'treinamentosDisponíveis' => $treinamentosDisponíveis,
             'treinamentosBloqueados' => $treinamentosBloqueados,
+            'treinamentosDirecionados' => $treinamentosDirecionados,
             'treinamentosConcluidos' => $treinamentosConcluidos,
             'treinamentosPendentes' => $treinamentosPendentes,
             'treinamentosNaoIniciados' => $treinamentosNaoIniciados,

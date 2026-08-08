@@ -44,14 +44,31 @@
 
     <div class="bg-white p-8 rounded-lg shadow-lg mb-6">
         <h2 class="text-2xl font-bold mb-4">Permissões</h2>
-        <div class="space-y-2">
-            @foreach(['motorista', 'funcionario', 'terceirizado'] as $tipo)
-                <label class="flex items-center">
-                    <input type="checkbox" {{ in_array($tipo, (array)$training->tipo_usuario_permitido) ? 'checked' : '' }} disabled class="mr-2">
-                    <span>{{ ucfirst($tipo) }}</span>
-                </label>
-            @endforeach
-        </div>
+        @if($training->tipo === 'treinamento')
+            <p class="text-sm text-gray-600 mb-4">Conteúdo direcionado: apenas os funcionários abaixo têm acesso. ({{ $training->assignedUsers->count() }} atribuído(s))</p>
+            @forelse($training->assignedUsers as $usuario)
+                <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-800">{{ $usuario->nome }}</span>
+                    <span class="text-xs font-semibold px-2 py-1 rounded-full
+                        @if($usuario->tipo_usuario === 'motorista') bg-blue-100 text-blue-900
+                        @elseif($usuario->tipo_usuario === 'funcionario') bg-green-100 text-green-900
+                        @else bg-orange-100 text-orange-900 @endif">
+                        {{ ucfirst($usuario->tipo_usuario) }}
+                    </span>
+                </div>
+            @empty
+                <p class="text-gray-500 italic">Nenhum funcionário atribuído. Sem atribuições, apenas administradores podem assistir.</p>
+            @endforelse
+        @else
+            <div class="space-y-2">
+                @foreach(['motorista', 'funcionario', 'terceirizado'] as $tipo)
+                    <label class="flex items-center">
+                        <input type="checkbox" {{ in_array($tipo, (array)$training->tipo_usuario_permitido) ? 'checked' : '' }} disabled class="mr-2">
+                        <span>{{ ucfirst($tipo) }}</span>
+                    </label>
+                @endforeach
+            </div>
+        @endif
     </div>
 
     <div class="bg-white p-8 rounded-lg shadow-lg mb-6">

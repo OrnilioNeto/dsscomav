@@ -18,10 +18,37 @@ class TrainingController extends Controller
         $this->ensureTrainingMaterialsTableExists();
         $this->ensureTrainingReleaseColumnExists();
         $this->ensureTrainingMandatoryColumnExists();
+        $this->ensureTrainingAssignmentsTableExists();
 
         // Middleware de permissões
         $this->middleware('permission:trainings,view')->only(['index', 'show']);
         $this->middleware('permission:trainings,edit')->except(['index', 'show']);
+    }
+
+    /**
+     * Garante que a tabela training_assignments exista,
+     * se não existir, a cria automaticamente.
+     */
+    private function ensureTrainingAssignmentsTableExists()
+    {
+        try {
+            if (!Schema::hasTable('training_assignments')) {
+                Schema::create('training_assignments', function ($table) {
+                    $table->id();
+                    $table->unsignedBigInteger('training_id');
+                    $table->unsignedBigInteger('user_id');
+                    $table->timestamps();
+
+                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
+                    $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+                    $table->unique(['training_id', 'user_id']);
+                    $table->index('user_id');
+                });
+            }
+        } catch (\Exception $e) {
+            // Se houver erro, apenas registra no log mas não interrompe a execução
+            \Log::warning('Erro ao verificar/criar tabela training_assignments: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -94,16 +121,17 @@ class TrainingController extends Controller
 
     public function create()
     {
-        return view('treinamentos.create');
+        $funcionarios = $this->getAssignableUsers();
+
+        return view('treinamentos.create', compact('funcionarios'));
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'titulo' => 'required|string|max:255',
             'descricao' => 'nullable|string',
             'tipo' => 'required|in:dss,treinamento',
-            'tipo_usuario_permitido' => 'required|array',
             'url_video' => 'required|url',
             'tipo_video' => 'required|in:youtube,vimeo,upload',
             'carga_horaria' => 'required|integer|min:1',
@@ -112,7 +140,17 @@ class TrainingController extends Controller
             'avaliacao_opcoes' => 'required|array|min:2',
             'avaliacao_opcoes.*' => 'required|string|max:255',
             'avaliacao_resposta_correta' => 'required|integer|min:0',
-        ]);
+        ];
+
+        // Treinamento direcionado: atribuições opcionais no cadastro (pode preencher depois)
+        if ($request->input('tipo') === 'treinamento') {
+            $rules['funcionarios'] = 'nullable|array';
+            $rules['funcionarios.*'] = 'exists:users,id';
+        } else {
+            $rules['tipo_usuario_permitido'] = 'required|array';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -124,7 +162,7 @@ class TrainingController extends Controller
             'titulo' => $request->titulo,
             'descricao' => $request->descricao,
             'tipo' => $request->tipo,
-            'tipo_usuario_permitido' => $request->tipo_usuario_permitido,
+            'tipo_usuario_permitido' => $request->tipo_usuario_permitido ?? ['motorista', 'funcionario', 'terceirizado'],
             'url_video' => $request->url_video,
             'tipo_video' => $request->tipo_video,
             'carga_horaria' => $request->carga_horaria,
@@ -151,6 +189,11 @@ class TrainingController extends Controller
         }
 
         $training = Training::create($data);
+
+        // Gravar funcionários direcionados (somente para tipo treinamento)
+        if ($training->tipo === 'treinamento') {
+            $training->assignedUsers()->sync($request->input('funcionarios', []));
+        }
 
         // Processar materiais de apoio enviados durante a criação
         // Importante: quando nome/descrição são opcionais, pode não existir
@@ -221,32 +264,43 @@ class TrainingController extends Controller
 
     public function show($id)
     {
-        $training = Training::with('materials')->findOrFail($id);
+        $training = Training::with('materials', 'assignedUsers')->findOrFail($id);
         return view('treinamentos.show', compact('training'));
     }
 
     public function edit($id)
     {
-        $training = Training::with('materials')->findOrFail($id);
-        return view('treinamentos.edit', compact('training'));
+        $training = Training::with('materials', 'assignedUsers')->findOrFail($id);
+        $funcionarios = $this->getAssignableUsers();
+
+        return view('treinamentos.edit', compact('training', 'funcionarios'));
     }
 
     public function update(Request $request, $id)
     {
         $training = Training::findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'titulo' => 'required|string|max:255',
             'descricao' => 'nullable|string',
             'tipo' => 'required|in:dss,treinamento',
-            'tipo_usuario_permitido' => 'required|array',
             'carga_horaria' => 'required|integer|min:1',
             'obrigatorio' => 'nullable|boolean',
             'avaliacao_pergunta' => 'required|string|max:500',
             'avaliacao_opcoes' => 'required|array|min:2',
             'avaliacao_opcoes.*' => 'required|string|max:255',
             'avaliacao_resposta_correta' => 'required|integer|min:0',
-        ]);
+        ];
+
+        // Treinamento direcionado: atribuições opcionais no cadastro (pode preencher depois)
+        if ($request->input('tipo') === 'treinamento') {
+            $rules['funcionarios'] = 'nullable|array';
+            $rules['funcionarios.*'] = 'exists:users,id';
+        } else {
+            $rules['tipo_usuario_permitido'] = 'required|array';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -258,7 +312,7 @@ class TrainingController extends Controller
             'titulo' => $request->titulo,
             'descricao' => $request->descricao,
             'tipo' => $request->tipo,
-            'tipo_usuario_permitido' => $request->tipo_usuario_permitido,
+            'tipo_usuario_permitido' => $request->tipo_usuario_permitido ?? $training->tipo_usuario_permitido,
             'carga_horaria' => $request->carga_horaria,
             'status' => $request->status ?? $training->status,
             'obrigatorio' => $request->boolean('obrigatorio'),
@@ -281,6 +335,13 @@ class TrainingController extends Controller
 
         $training->update($updateData);
 
+        // Sincronizar funcionários direcionados (limpa se virar DSS)
+        if ($training->tipo === 'treinamento') {
+            $training->assignedUsers()->sync($request->input('funcionarios', []));
+        } else {
+            $training->assignedUsers()->sync([]);
+        }
+
         return redirect()->route('treinamentos.show', $training)->with('success', 'Treinamento atualizado!');
     }
 
@@ -290,5 +351,23 @@ class TrainingController extends Controller
         $training->delete();
 
         return redirect()->route('treinamentos.index')->with('success', 'Treinamento deletado!');
+    }
+
+    /**
+     * Usuários que podem receber um treinamento direcionado:
+     * ativos, que não são super_admin (inclui usuários de teste).
+     */
+    private function getAssignableUsers()
+    {
+        return \App\Models\User::where('status', 'ativo')
+            ->where(function ($query) {
+                $query->whereNull('role_id')
+                    ->orWhereHas('role', function ($role) {
+                        $role->where('nome', '<>', 'super_admin');
+                    })
+                    ->orWhere('participa_treinamentos', true);
+            })
+            ->orderBy('nome')
+            ->get();
     }
 }
