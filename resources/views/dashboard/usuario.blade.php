@@ -128,6 +128,86 @@
     <!-- Treinamentos Disponíveis -->
     <div class="space-y-4" id="secoes-treinamentos">
 
+        {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- MEUS TREINAMENTOS (direcionados pela administração)         --}}
+        {{-- ═══════════════════════════════════════════════════════════ --}}
+        @if(count($treinamentosDirecionados) > 0)
+        <div class="bg-white rounded-xl shadow-md border-l-4 border-purple-600 overflow-hidden secao-treinamento"
+             id="secao-direcionados">
+
+            <button type="button"
+                    onclick="toggleSecao('direcionados')"
+                    class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-purple-50 transition-colors focus:outline-none group">
+                <div class="flex items-center gap-3">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-full bg-purple-100">
+                        <i class="fas fa-graduation-cap text-purple-600 text-lg"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            Meus Treinamentos
+                            <span class="text-sm font-bold bg-purple-600 text-white px-2 py-0.5 rounded-full">{{ count($treinamentosDirecionados) }}</span>
+                        </h2>
+                        <p class="text-xs text-gray-500">Conteúdos liberados para você pela administração</p>
+                    </div>
+                </div>
+                <i id="icon-direcionados" class="fas fa-chevron-up text-gray-400 group-hover:text-purple-600 transition-transform text-lg"></i>
+            </button>
+
+            <div id="body-direcionados" class="px-6 pb-6">
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                    @foreach($treinamentosDirecionados as $training)
+                        @php
+                            $userProgress = $progresso->where('training_id', $training->id)->first();
+                            $porcentagem = $userProgress->porcentagem_assistida ?? 0;
+                            $concluido = $userProgress->concluido ?? false;
+                            $iniciado = !empty($userProgress);
+                        @endphp
+                        <div class="border-2 border-purple-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow bg-gradient-to-br from-purple-50 to-white">
+                            <div class="bg-gradient-to-r from-purple-600 to-purple-700 h-36 flex items-center justify-center text-white relative">
+                                <i class="fas fa-graduation-cap text-5xl opacity-50"></i>
+                                @if($concluido)
+                                    <div class="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-bold">
+                                        CONCLUÍDO
+                                    </div>
+                                @elseif($iniciado)
+                                    <div class="absolute top-2 right-2 bg-purple-800 text-white px-2 py-1 rounded-full text-xs font-bold">
+                                        {{ $porcentagem }}%
+                                    </div>
+                                @else
+                                    <div class="absolute top-2 right-2 bg-purple-900 text-white px-2 py-1 rounded-full text-xs font-bold">
+                                        LIBERADO
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="p-4">
+                                <div class="flex items-start justify-between mb-2">
+                                    <h3 class="font-bold text-gray-800 leading-snug">{{ $training->titulo }}</h3>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
+                                <div class="mb-3">
+                                    <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                        <span>Progresso</span><span>{{ $porcentagem }}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-purple-600 h-2 rounded-full" style="width: {{ $porcentagem }}%"></div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 text-sm text-gray-600 mb-3">
+                                    <span><i class="fas fa-clock text-purple-500"></i> {{ $training->carga_horaria }} min</span>
+                                    <span><i class="fas fa-{{ $training->obrigatorio ? 'exclamation-circle text-purple-600' : 'check text-green-600' }}"></i> {{ $training->obrigatorio ? 'Obrigatório' : 'Opcional' }}</span>
+                                </div>
+                                <a href="{{ route('treinamentos.player', $training->id) }}"
+                                   class="block w-full bg-purple-600 text-white text-center py-2 rounded hover:bg-purple-700 transition font-semibold">
+                                    <i class="fas {{ $concluido ? 'fa-redo' : ($iniciado ? 'fa-play' : 'fa-play-circle') }} mr-2"></i>{{ $concluido ? 'Reabrir' : ($iniciado ? 'Continuar' : 'Assistir') }}
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
+
         @php
             // Define qual seção fica no topo (expandida por padrão)
             // Prioridade: pendentes > não iniciados > concluídos > bloqueados

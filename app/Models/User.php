@@ -84,6 +84,11 @@ class User extends Authenticatable
         return $this->hasMany(EmployeeTraining::class);
     }
 
+    public function assignedTrainings()
+    {
+        return $this->belongsToMany(Training::class, 'training_assignments')->withTimestamps();
+    }
+
     public function employeeEpis()
     {
         return $this->hasMany(EmployeeEpi::class);
@@ -144,6 +149,11 @@ class User extends Authenticatable
     {
         if ($this->isSuperAdmin() || $this->isAdmin()) {
             return true;
+        }
+
+        // Treinamento direcionado: somente funcionários atribuídos têm acesso
+        if ($training->tipo === 'treinamento') {
+            return $training->assignedUsers()->where('users.id', $this->id)->exists();
         }
 
         // Regra de bloqueio para novos cadastrados:

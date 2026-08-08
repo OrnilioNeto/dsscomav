@@ -260,7 +260,7 @@ class TrainingMaterialController extends Controller
         $training = $material->training;
         $user = Auth::user();
 
-        if (!$training->isPermittedFor($user->tipo_usuario)) {
+        if (!$training->isPermittedFor($user->tipo_usuario) && !$user->canAccessTraining($training)) {
             return redirect()->back()->with('error', 'Você não tem acesso a este material.');
         }
 

@@ -26,7 +26,7 @@ class TrainingPlayerController extends Controller
             abort(403, 'Treinamento ainda não liberado.');
         }
 
-        // Obter ou criar progresso
+        // Obter ou criar progresso.
         $progress = UserProgress::firstOrCreate(
             [
                 'user_id' => $user->id,
@@ -194,9 +194,6 @@ class TrainingPlayerController extends Controller
             'avaliacao_tentativas' => 0,
             'avaliacao_resposta_usuario' => (int) $request->answer,
         ]));
-
-        // Recarregar os dados do progresso do banco para obter a porcentagem_assistida mais recente
-        $progress->refresh();
 
         if (($isTestUser || $progress->porcentagem_assistida >= 99) && !$progress->concluido) {
             $progress->update([

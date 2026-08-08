@@ -56,6 +56,11 @@ class Training extends Model
         return $this->hasMany(TrainingMaterial::class)->orderBy('ordem');
     }
 
+    public function assignedUsers()
+    {
+        return $this->belongsToMany(User::class, 'training_assignments')->withTimestamps();
+    }
+
     // Métodos auxiliares
     public function isPermittedFor($tipoUsuario)
     {
@@ -72,6 +77,23 @@ class Training extends Model
 
     public function getTaxaConclusao()
     {
+        // Para treinamento direcionado, o público-alvo são os funcionários atribuídos
+        if ($this->tipo === 'treinamento') {
+            $total = $this->assignedUsers()->count();
+
+            if ($total === 0) {
+                return 0;
+            }
+
+            $concluido = $this->progress()
+                ->where('concluido', true)
+                ->whereIn('user_id', $this->assignedUsers()->select('users.id'))
+                ->distinct('user_id')
+                ->count();
+
+            return round(($concluido / $total) * 100, 2);
+        }
+
         $total = User::kpiEligible()
             ->eligibleForTrainingKpi($this)
             ->where('status', 'ativo')
