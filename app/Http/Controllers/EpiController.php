@@ -1313,6 +1313,42 @@ class EpiController extends Controller
     }
 
     /**
+     * API: Retorna os funcionários com entregas ativas de um EPI específico.
+     */
+    public function getEntregasPorEpi($epiId)
+    {
+        $this->ensureTablesExist();
+
+        $epi = Epi::findOrFail($epiId);
+
+        $entregas = EpiEntrega::with(['colaborador', 'variacao'])
+            ->where('ss_e_nb_epi_id', $epiId)
+            ->whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])
+            ->orderBy('ss_e_tx_data_entrega', 'desc')
+            ->get()
+            ->map(function ($ent) {
+                return [
+                    'id' => $ent->ss_e_nb_id,
+                    'colaborador' => $ent->colaborador->ss_c_tx_nome ?? 'N/D',
+                    'matricula' => $ent->colaborador->ss_c_tx_matricula ?? '-',
+                    'cargo' => $ent->colaborador->ss_c_tx_cargo ?? '-',
+                    'variacao' => $ent->variacao->ss_ev_tx_nome ?? null,
+                    'quantidade' => (int) $ent->ss_e_nb_quantidade,
+                    'data_entrega' => $ent->ss_e_tx_data_entrega ? date('d/m/Y', strtotime($ent->ss_e_tx_data_entrega)) : null,
+                    'vencimento' => $ent->ss_e_tx_vencimento ? date('d/m/Y', strtotime($ent->ss_e_tx_vencimento)) : null,
+                    'status_assinatura' => $ent->ss_e_tx_status_assinatura ?? null,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'status' => 'success',
+            'epi' => $epi->ss_e_tx_item,
+            'data' => $entregas,
+        ]);
+    }
+
+    /**
      * Registra uma devolução/encerramento de EPI entregue.
      * Destinos: estoque (retorna ao estoque), descarte (encerra) ou inspecao (pendência do gestor).
      */
