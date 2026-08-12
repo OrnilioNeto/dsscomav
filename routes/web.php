@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/entrega/{id}/cancelar', [\App\Http\Controllers\EpiController::class, 'entregaCancelar'])->name('epi.entrega.cancelar');
         Route::post('/entrega/{id}/vencimento', [\App\Http\Controllers\EpiController::class, 'editarVencimentoEntrega'])->name('epi.entrega.vencimento');
         Route::get('/colaborador/{id}/entregas', [\App\Http\Controllers\EpiController::class, 'getEntregasColaborador'])->name('epi.colaborador.entregas');
+        Route::get('/{epiId}/entregas', [\App\Http\Controllers\EpiController::class, 'getEntregasPorEpi'])->name('epi.entregas-por-epi');
         Route::post('/devolucao', [\App\Http\Controllers\EpiController::class, 'devolucaoStore'])->name('epi.devolucao.store');
         Route::post('/devolucao/{id}/decidir', [\App\Http\Controllers\EpiController::class, 'inspecaoDecidir'])->name('epi.devolucao.decidir');
         Route::get('/ficha/{colaborador_id}', [\App\Http\Controllers\EpiController::class, 'fichaColaborador'])->name('epi.ficha');

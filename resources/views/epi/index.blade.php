@@ -209,6 +209,7 @@
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Validade do CA</th>
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Situação</th>
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Vida útil</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Funcionários</th>
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Ação</th>
                                     </tr>
                                 </thead>
@@ -229,6 +230,11 @@
                                             </td>
                                             <td class="px-3 py-2 text-center {{ $epi->ss_e_nb_vida_util_dias <= 0 ? 'text-rose-600 font-bold' : 'text-gray-600' }}">
                                                 {{ $epi->ss_e_nb_vida_util_dias > 0 ? $epi->ss_e_nb_vida_util_dias . ' dias' : 'Não configurada' }}
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
+                                                <button onclick="abrirModalEpiEntregas({{ $epi->ss_e_nb_id }}, '{{ addslashes($epi->ss_e_tx_item ?? '') }}')" class="text-emerald-700 hover:text-emerald-900 font-bold cursor-pointer text-sm" title="Ver funcionários com este EPI">
+                                                    <i class="fas fa-chevron-down"></i>
+                                                </button>
                                             </td>
                                             <td class="px-3 py-2 text-center">
                                                 <button onclick="editarEpi({{ json_encode($epi) }})" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
@@ -1816,6 +1822,19 @@
     </div>
 </div>
 
+<!-- MODAL: FUNCIONÁRIOS COM UM EPI ESPECÍFICO -->
+<div id="modal-epi-entregas" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="modal-epi-entregas-titulo" class="text-lg font-bold text-gray-900 flex items-center">
+                <i class="fas fa-users text-emerald-700 mr-2"></i> Funcionários com este EPI
+            </h3>
+            <button type="button" onclick="fecharModalEpiEntregas()" class="text-gray-400 hover:text-gray-700 text-2xl leading-none cursor-pointer">&times;</button>
+        </div>
+        <div id="modal-epi-entregas-corpo" class="flex-1 overflow-y-auto min-h-0"></div>
+    </div>
+</div>
+
 <!-- MODAL: CADASTRAR / EDITAR FILIAL -->
 <div id="modal-filial" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
@@ -3060,6 +3079,76 @@
 
     window.fecharModalDevolucao = function() {
         var modal = document.getElementById('modal-devolucao');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.setProperty('display', 'none', 'important');
+        }
+    };
+
+    // Funcionários com um EPI específico (seta na lista de CAs com atenção)
+    window.abrirModalEpiEntregas = function(epiId, itemNome) {
+        var modal = document.getElementById('modal-epi-entregas');
+        if (!modal) return;
+        document.getElementById('modal-epi-entregas-titulo').textContent = 'Funcionários com "' + itemNome + '"';
+        var corpo = document.getElementById('modal-epi-entregas-corpo');
+        corpo.innerHTML = '<div class="text-center text-gray-400 py-8"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="text-sm mt-2">Carregando...</p></div>';
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+
+        fetch(`{{ url('/epi') }}/${epiId}/entregas`)
+            .then(r => r.json())
+            .then(res => {
+                var entregas = res.data || [];
+                if (!entregas.length) {
+                    corpo.innerHTML = '<div class="p-6 text-center text-gray-400 text-sm">Nenhum funcionário com este EPI no momento (entregas ativas).</div>';
+                    return;
+                }
+                var html = '<table class="min-w-full divide-y divide-gray-200 text-xs">' +
+                    '<thead class="bg-gray-50"><tr>' +
+                    '<th class="px-3 py-2 text-left font-bold text-gray-500">Funcionário</th>' +
+                    '<th class="px-3 py-2 text-center font-bold text-gray-500">Matrícula</th>' +
+                    '<th class="px-3 py-2 text-center font-bold text-gray-500">Cargo</th>' +
+                    '<th class="px-3 py-2 text-center font-bold text-gray-500">Variação</th>' +
+                    '<th class="px-3 py-2 text-center font-bold text-gray-500">Qtd</th>' +
+                    '<th class="px-3 py-2 text-center font-bold text-gray-500">Entrega</th>' +
+                    '<th class="px-3 py-2 text-center font-bold text-gray-500">Vencimento</th>' +
+                    '<th class="px-3 py-2 text-center font-bold text-gray-500">Assinatura</th>' +
+                    '</tr></thead><tbody class="divide-y divide-gray-100">';
+                entregas.forEach(function(e) {
+                    var vencida = '';
+                    if (e.vencimento) {
+                        var partes = e.vencimento.split('/');
+                        var d = new Date(partes[2], partes[1] - 1, partes[0]);
+                        if (d < new Date()) {
+                            vencida = ' <span class="px-1 py-0.5 bg-rose-100 text-rose-700 rounded text-[9px] font-bold">Vencida</span>';
+                        }
+                    }
+                    var ass = e.status_assinatura === 'assinada'
+                        ? '<span class="px-1 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[9px] font-bold">Assinada</span>'
+                        : e.status_assinatura === 'negada'
+                            ? '<span class="px-1 py-0.5 bg-rose-100 text-rose-800 rounded text-[9px] font-bold">Recusada</span>'
+                            : '<span class="px-1 py-0.5 bg-amber-100 text-amber-800 rounded text-[9px] font-bold">Pendente</span>';
+                    html += '<tr>' +
+                        '<td class="px-3 py-2 font-bold text-gray-900">' + escFardamento(e.colaborador) + '</td>' +
+                        '<td class="px-3 py-2 text-center text-gray-600">' + escFardamento(e.matricula) + '</td>' +
+                        '<td class="px-3 py-2 text-center text-gray-600">' + escFardamento(e.cargo) + '</td>' +
+                        '<td class="px-3 py-2 text-center text-gray-600">' + (e.variacao ? escFardamento(e.variacao) : '-') + '</td>' +
+                        '<td class="px-3 py-2 text-center font-bold text-gray-800">' + e.quantidade + '</td>' +
+                        '<td class="px-3 py-2 text-center text-gray-600">' + (e.data_entrega || '-') + '</td>' +
+                        '<td class="px-3 py-2 text-center text-gray-600">' + (e.vencimento || '-') + vencida + '</td>' +
+                        '<td class="px-3 py-2 text-center">' + ass + '</td>' +
+                        '</tr>';
+                });
+                html += '</tbody></table>';
+                corpo.innerHTML = html;
+            })
+            .catch(() => {
+                corpo.innerHTML = '<div class="p-6 text-center text-rose-500 text-sm">Falha ao carregar as entregas deste EPI.</div>';
+            });
+    };
+
+    window.fecharModalEpiEntregas = function() {
+        var modal = document.getElementById('modal-epi-entregas');
         if (modal) {
             modal.classList.add('hidden');
             modal.style.setProperty('display', 'none', 'important');
