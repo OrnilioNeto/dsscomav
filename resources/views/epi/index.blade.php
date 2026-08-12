@@ -68,6 +68,23 @@
         </div>
     @endif
 
+    @if($errors->any())
+        <div class="mb-4 p-4 bg-rose-50 border-l-4 border-rose-500 text-rose-800 rounded shadow-sm flex items-start justify-between">
+            <div class="flex items-start">
+                <i class="fas fa-exclamation-triangle text-rose-500 text-xl mr-3 mt-0.5"></i>
+                <div>
+                    <strong class="block text-sm font-bold mb-1">Erros encontrados:</strong>
+                    <ul class="list-disc list-inside text-xs space-y-0.5">
+                        @foreach($errors->all() as $erro)
+                            <li>{{ $erro }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+            <button onclick="this.parentElement.remove()" class="text-rose-600 hover:text-rose-900">&times;</button>
+        </div>
+    @endif
+
     <!-- Cabeçalho do Módulo -->
     <div class="glass-card p-6 mb-6">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -139,7 +156,7 @@
 
         <div id="monitoramento-validade-body">
             <!-- KPIs de Validade -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
             <div class="bg-rose-50 p-3 rounded-xl border border-rose-100 text-center">
                 <div class="text-2xl font-bold text-rose-700">{{ $caStats['vencidos'] }}</div>
                 <div class="text-[10px] font-bold text-rose-600 uppercase mt-0.5">CAs Vencidos</div>
@@ -163,6 +180,10 @@
             <div class="bg-amber-50 p-3 rounded-xl border border-amber-100 text-center">
                 <div class="text-2xl font-bold text-amber-800">{{ $entregasVencendoCount }}</div>
                 <div class="text-[10px] font-bold text-amber-700 uppercase mt-0.5">Entregas vencem em 30d</div>
+            </div>
+            <div class="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center">
+                <div class="text-2xl font-bold text-violet-700">{{ $devolucoesPendentesCount }}</div>
+                <div class="text-[10px] font-bold text-violet-600 uppercase mt-0.5">Pendências de inspeção</div>
             </div>
         </div>
 
@@ -306,6 +327,9 @@
                                                 <button onclick="abrirModalVencimentoEntrega({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}', '{{ $ent->ss_e_tx_vencimento ?? '' }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
                                                     <i class="fas fa-calendar-alt mr-1"></i> Editar Vencimento
                                                 </button>
+                                                <button onclick="abrirModalDevolucao({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}', {{ $ent->colaborador->ss_c_nb_id ?? 'null' }})" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold cursor-pointer" title="Registrar devolução / saída do EPI">
+                                                    <i class="fas fa-undo-alt mr-1"></i> Devolver / Saída
+                                                </button>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -341,6 +365,12 @@
             </button>
             <button type="button" onclick="mudarAba('filiais')" id="tab-btn-filiais" class="nav-tab-btn px-5 py-3 text-sm flex items-center cursor-pointer">
                 <i class="fas fa-building mr-2"></i> Cadastro de Filiais
+            </button>
+            <button type="button" onclick="mudarAba('devolucoes')" id="tab-btn-devolucoes" class="nav-tab-btn px-5 py-3 text-sm flex items-center cursor-pointer">
+                <i class="fas fa-undo-alt mr-2"></i> Devoluções & Inspeção
+                @if($devolucoesPendentesCount > 0)
+                    <span class="ml-1.5 px-1.5 py-0.5 bg-rose-500 text-white text-[10px] font-bold rounded-full">{{ $devolucoesPendentesCount }}</span>
+                @endif
             </button>
             <a href="{{ route('epi.gestao-assinaturas') }}" class="nav-tab-btn px-5 py-3 text-sm flex items-center text-emerald-700 hover:text-emerald-900 cursor-pointer">
                 <i class="fas fa-file-signature mr-2"></i> Gestão de Assinaturas
@@ -1179,6 +1209,9 @@
                                                 <button onclick="abrirModalVencimentoEntrega({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}', '{{ $ent->ss_e_tx_vencimento ?? '' }}')" class="text-blue-600 hover:text-blue-800 font-bold mr-2" title="Editar Vencimento">
                                                     <i class="fas fa-calendar-alt"></i> Venc.
                                                 </button>
+                                                <button onclick="abrirModalDevolucao({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}')" class="text-amber-600 hover:text-amber-800 font-bold mr-2" title="Registrar Devolução / Encerrar controle">
+                                                    <i class="fas fa-undo-alt"></i> Devolver
+                                                </button>
                                                 <button onclick="abrirModalCancelarEntrega({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}')" class="text-rose-600 hover:text-rose-800 font-bold" title="Cancelar / Inativar Entrega">
                                                     <i class="fas fa-ban"></i> Inativar
                                                 </button>
@@ -1268,6 +1301,170 @@
                             @endforelse
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- ABA 7: DEVOLUÇÕES & INSPEÇÃO -->
+            <div id="tab-content-devolucoes" class="aba-content hidden">
+                @php
+                    $labelsDevolucaoMotivo = [
+                        'avaria' => 'Avaria / Danificado',
+                        'perdido' => 'Perdido',
+                        'extraviado' => 'Extraviado',
+                        'devolvido_empresa' => 'Devolvido à empresa',
+                        'vencido' => 'Vencido',
+                        'outro' => 'Outro',
+                    ];
+                    $labelsDevolucaoDestino = [
+                        'estoque' => 'Retorno ao estoque',
+                        'descarte' => 'Descarte',
+                        'inspecao' => 'Inspeção',
+                    ];
+                    $labelsDevolucaoResultado = [
+                        'estornado' => 'Estornado ao estoque',
+                        'descartado' => 'Descartado',
+                    ];
+                @endphp
+
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-undo-alt text-emerald-700 mr-2"></i> Devoluções & Inspeção de EPIs
+                        </h3>
+                        <p class="text-xs text-gray-500">Encerre o controle de um EPI entregue informando o motivo e o destino (retorno ao estoque, descarte ou inspeção).</p>
+                    </div>
+                    <button type="button" onclick="abrirModalDevolucao()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
+                        <i class="fas fa-plus mr-1"></i> + Registrar Devolução
+                    </button>
+                </div>
+
+                <!-- Pendências de Inspeção -->
+                <div class="border border-amber-300 rounded-xl overflow-hidden mb-6">
+                    <div class="bg-amber-50 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+                        <span class="text-sm font-bold text-amber-900 uppercase"><i class="fas fa-search mr-1"></i> Pendências de Inspeção ({{ $devolucoesPendentesCount }})</span>
+                        <span class="text-[10px] text-amber-700 font-semibold">Avalie os itens: estornar para o estoque ou confirmar descarte</span>
+                    </div>
+                    @if($devolucoesPendentes->isNotEmpty())
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Colaborador</th>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">EPI</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Qtd</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Motivo</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Registrado por</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Data</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($devolucoesPendentes as $dev)
+                                        <tr class="hover:bg-amber-50/40">
+                                            <td class="px-3 py-2 font-bold text-gray-900">{{ $dev->colaborador->ss_c_tx_nome ?? 'N/D' }}</td>
+                                            <td class="px-3 py-2 font-semibold text-emerald-950">
+                                                {{ $dev->epi->ss_e_tx_item ?? 'EPI N/D' }}
+                                                @if($dev->epi && $dev->epi->ss_e_tx_ca)
+                                                    <span class="text-gray-400 font-normal">(CA {{ $dev->epi->ss_e_tx_ca }})</span>
+                                                @endif
+                                                @if($dev->variacao)
+                                                    <div class="text-[10px] text-gray-500">{{ $dev->variacao->ss_ev_tx_nome }}</div>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-center font-bold text-gray-800">{{ $dev->ss_ed_nb_quantidade }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-700">{{ $labelsDevolucaoMotivo[$dev->ss_ed_tx_motivo] ?? $dev->ss_ed_tx_motivo }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ $dev->usuarioRegistro->nome ?? '-' }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ date('d/m/Y H:i', strtotime($dev->ss_ed_tx_data_registro)) }}</td>
+                                            <td class="px-3 py-2 text-center space-x-1 whitespace-nowrap">
+                                                <form method="POST" action="{{ route('epi.devolucao.decidir', $dev->ss_ed_nb_id) }}" class="inline" onsubmit="return confirm('Confirmar estorno deste item para o estoque?')">
+                                                    @csrf
+                                                    <input type="hidden" name="action" value="estornar">
+                                                    <button type="submit" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
+                                                        <i class="fas fa-box-open mr-1"></i> Estornar ao estoque
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="{{ route('epi.devolucao.decidir', $dev->ss_ed_nb_id) }}" class="inline" onsubmit="return confirm('Confirmar descarte deste item? Ele não voltará ao estoque.')">
+                                                    @csrf
+                                                    <input type="hidden" name="action" value="descartar">
+                                                    <button type="submit" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
+                                                        <i class="fas fa-trash mr-1"></i> Descartar
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="p-4 text-center text-gray-400 text-sm">Nenhuma pendência de inspeção no momento.</div>
+                    @endif
+                </div>
+
+                <!-- Histórico de Devoluções (Auditoria) -->
+                <div class="border border-gray-200 rounded-xl overflow-hidden">
+                    <div class="bg-gray-50 px-4 py-3">
+                        <span class="text-sm font-bold text-gray-800 uppercase"><i class="fas fa-history mr-1"></i> Histórico de Devoluções (auditoria)</span>
+                    </div>
+                    @if($devolucoesHistorico->isNotEmpty())
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Data</th>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Colaborador</th>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">EPI</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Qtd</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Motivo</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Destino</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Situação</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Registrado por</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Decidido por</th>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Observação</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($devolucoesHistorico as $dev)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-3 py-2 text-gray-600 whitespace-nowrap">{{ date('d/m/Y H:i', strtotime($dev->ss_ed_tx_data_registro)) }}</td>
+                                            <td class="px-3 py-2 font-bold text-gray-900">{{ $dev->colaborador->ss_c_tx_nome ?? 'N/D' }}</td>
+                                            <td class="px-3 py-2 font-semibold text-emerald-950">
+                                                {{ $dev->epi->ss_e_tx_item ?? 'EPI N/D' }}
+                                                @if($dev->variacao)
+                                                    <div class="text-[10px] text-gray-500">{{ $dev->variacao->ss_ev_tx_nome }}</div>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-center font-bold text-gray-800">{{ $dev->ss_ed_nb_quantidade }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-700">{{ $labelsDevolucaoMotivo[$dev->ss_ed_tx_motivo] ?? $dev->ss_ed_tx_motivo }}</td>
+                                            <td class="px-3 py-2 text-center">
+                                                @if($dev->ss_ed_tx_destino === 'estoque')
+                                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px] font-bold">Estoque</span>
+                                                @elseif($dev->ss_ed_tx_destino === 'descarte')
+                                                    <span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Descarte</span>
+                                                @else
+                                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">Inspeção</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
+                                                @if($dev->ss_ed_tx_status === 'pendente')
+                                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">Aguardando decisão</span>
+                                                @elseif($dev->ss_ed_tx_resultado_inspecao)
+                                                    <span class="px-1.5 py-0.5 {{ $dev->ss_ed_tx_resultado_inspecao === 'estornado' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600' }} rounded text-[10px] font-bold">{{ $labelsDevolucaoResultado[$dev->ss_ed_tx_resultado_inspecao] ?? $dev->ss_ed_tx_resultado_inspecao }}</span>
+                                                @else
+                                                    <span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-bold">Concluída</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ $dev->usuarioRegistro->nome ?? '-' }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ $dev->usuarioDecisao->nome ?? '-' }}</td>
+                                            <td class="px-3 py-2 text-gray-500 max-w-[200px]">{{ $dev->ss_ed_tx_observacao ?? '-' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="p-4 text-center text-gray-400 text-sm">Nenhuma devolução registrada ainda.</div>
+                    @endif
                 </div>
             </div>
 
@@ -1551,6 +1748,74 @@
     </div>
 </div>
 
+<!-- MODAL: REGISTRAR DEVOLUÇÃO / ENCERRAMENTO DE EPI -->
+<div id="modal-devolucao" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full p-6 max-h-[90vh] overflow-y-auto">
+        <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fas fa-undo-alt text-amber-600 mr-2"></i> Registrar Devolução de EPI
+        </h3>
+        <p id="desc-devolucao" class="text-xs text-gray-600 mb-4">Informe o colaborador, a entrega, o motivo e o destino do item.</p>
+
+        <form id="form-devolucao" method="POST" action="{{ route('epi.devolucao.store') }}">
+            @csrf
+            <input type="hidden" name="ss_ed_nb_entrega_id" id="devolucao-entrega-id">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Colaborador *</label>
+                    <select id="devolucao-colaborador" onchange="carregarEntregasDevolucao(this.value)" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                        <option value="">-- Selecione o Colaborador --</option>
+                        @foreach($colaboradores as $c)
+                            <option value="{{ $c->ss_c_nb_id }}">{{ $c->ss_c_tx_nome }} ({{ $c->ss_c_tx_cargo ?? 'Sem Cargo' }} - Mat: {{ $c->ss_c_tx_matricula ?? 'S/N' }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Entrega / EPI *</label>
+                    <select id="devolucao-entrega" required onchange="atualizarQtdMaxDevolucao()" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                        <option value="">-- Selecione a entrega --</option>
+                    </select>
+                    <div id="devolucao-entrega-info" class="text-[10px] text-gray-400 mt-1"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Quantidade *</label>
+                    <input type="number" id="devolucao-qtd" name="ss_ed_nb_quantidade" min="1" value="1" required class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                    <div class="text-[10px] text-gray-400 mt-1">Se devolver menos que o total, a entrega continua ativa para o restante.</div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Motivo da devolução *</label>
+                    <select name="ss_ed_tx_motivo" required class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                        <option value="avaria">Avaria / Danificado</option>
+                        <option value="perdido">Perdido</option>
+                        <option value="extraviado">Extraviado</option>
+                        <option value="devolvido_empresa">Devolvido à empresa</option>
+                        <option value="vencido">Vencido</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Destino do item *</label>
+                    <select name="ss_ed_tx_destino" id="devolucao-destino" required onchange="atualizarAvisoDestinoDevolucao()" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                        <option value="estoque">Volta para o estoque (fica disponível para nova entrega)</option>
+                        <option value="descarte">Descarte / Encerra o controle (não volta ao estoque)</option>
+                        <option value="inspecao">Vai para inspeção (gestor avalia depois: estornar ou descartar)</option>
+                    </select>
+                    <div id="devolucao-destino-aviso" class="mt-1 text-[10px] font-semibold text-emerald-600">O item voltará ao estoque e ficará disponível para novas entregas.</div>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Observação</label>
+                    <textarea name="ss_ed_tx_observacao" rows="2" class="w-full text-xs border-gray-300 rounded-lg shadow-sm" placeholder="Detalhes adicionais (opcional)..."></textarea>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" onclick="fecharModalDevolucao()" class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg">Cancelar</button>
+                <button type="submit" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow">Registrar Devolução</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- MODAL: CADASTRAR / EDITAR FILIAL -->
 <div id="modal-filial" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
@@ -1700,7 +1965,7 @@
 
     // Função global de troca de abas
     window.mudarAba = function(nomeAba) {
-        var abas = ['sacola', 'catalogo', 'estoque', 'fardamento', 'kits', 'fichas', 'filiais'];
+        var abas = ['sacola', 'catalogo', 'estoque', 'fardamento', 'kits', 'fichas', 'filiais', 'devolucoes'];
         abas.forEach(function(aba) {
             var content = document.getElementById('tab-content-' + aba);
             var btn = document.getElementById('tab-btn-' + aba);
@@ -2693,6 +2958,108 @@
 
     window.fecharModalVencimentoEntrega = function() {
         var modal = document.getElementById('modal-vencimento-entrega');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.setProperty('display', 'none', 'important');
+        }
+    };
+
+    // Devolução / encerramento de EPI
+    let devolucaoPreEntrega = null;
+
+    window.abrirModalDevolucao = function(entregaId, itemNome, colaboradorId) {
+        var modal = document.getElementById('modal-devolucao');
+        if (!modal) return;
+        var desc = document.getElementById('desc-devolucao');
+        if (desc) desc.textContent = itemNome
+            ? 'Encerrando o controle do item: "' + itemNome + '". Informe o motivo e o destino.'
+            : 'Informe o colaborador e a entrega para registrar a devolução.';
+        var input = document.getElementById('devolucao-entrega-id');
+        if (input) input.value = '';
+        document.getElementById('devolucao-qtd').value = '1';
+        document.getElementById('devolucao-entrega').innerHTML = '<option value="">-- Selecione a entrega --</option>';
+        document.getElementById('devolucao-entrega-info').textContent = '';
+        devolucaoPreEntrega = entregaId || null;
+        var selColab = document.getElementById('devolucao-colaborador');
+        if (selColab) {
+            selColab.value = colaboradorId || '';
+            if (colaboradorId) carregarEntregasDevolucao(colaboradorId);
+        }
+        atualizarAvisoDestinoDevolucao();
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    window.carregarEntregasDevolucao = function(colaboradorId) {
+        var sel = document.getElementById('devolucao-entrega');
+        if (!sel) return;
+        document.getElementById('devolucao-entrega-info').textContent = '';
+        if (!colaboradorId) {
+            sel.innerHTML = '<option value="">-- Selecione a entrega --</option>';
+            return;
+        }
+        sel.innerHTML = '<option value="">Carregando...</option>';
+        fetch(`{{ url('/epi/colaborador') }}/${colaboradorId}/entregas`)
+            .then(r => r.json())
+            .then(res => {
+                sel.innerHTML = '<option value="">-- Selecione a entrega --</option>';
+                var entregas = res.data || [];
+                if (!entregas.length) {
+                    sel.innerHTML = '<option value="">Nenhuma entrega ativa para este colaborador</option>';
+                    return;
+                }
+                entregas.forEach(function(e) {
+                    var opt = document.createElement('option');
+                    opt.value = e.id;
+                    opt.textContent = e.item + (e.variacao ? ' (' + e.variacao + ')' : '') + ' - Qtd: ' + e.quantidade + (e.vencimento ? ' - Venc: ' + e.vencimento : '');
+                    opt.dataset.quantidade = e.quantidade;
+                    opt.dataset.info = (e.ca ? 'CA: ' + e.ca + ' | ' : '') + 'Entrega: ' + (e.data_entrega || '-') + (e.vencimento ? ' | Venc: ' + e.vencimento : '');
+                    sel.appendChild(opt);
+                });
+                if (devolucaoPreEntrega) {
+                    sel.value = String(devolucaoPreEntrega);
+                    atualizarQtdMaxDevolucao();
+                    devolucaoPreEntrega = null;
+                }
+            })
+            .catch(() => {
+                sel.innerHTML = '<option value="">Falha ao carregar entregas</option>';
+            });
+    };
+
+    window.atualizarQtdMaxDevolucao = function() {
+        var sel = document.getElementById('devolucao-entrega');
+        var qtd = document.getElementById('devolucao-qtd');
+        var info = document.getElementById('devolucao-entrega-info');
+        var hiddenId = document.getElementById('devolucao-entrega-id');
+        var opt = sel.selectedOptions[0];
+        if (opt && opt.dataset.quantidade) {
+            qtd.max = opt.dataset.quantidade;
+            qtd.value = opt.dataset.quantidade;
+            if (info) info.textContent = opt.dataset.info || '';
+            if (hiddenId) hiddenId.value = sel.value;
+        } else {
+            qtd.max = 9999;
+            if (info) info.textContent = '';
+            if (hiddenId) hiddenId.value = '';
+        }
+    };
+
+    window.atualizarAvisoDestinoDevolucao = function() {
+        var sel = document.getElementById('devolucao-destino');
+        var aviso = document.getElementById('devolucao-destino-aviso');
+        if (!sel || !aviso) return;
+        var mapa = {
+            'estoque': 'O item voltará ao estoque e ficará disponível para novas entregas.',
+            'descarte': 'O controle de validade deste item será encerrado. Nada retorna ao estoque.',
+            'inspecao': 'O item ficará na fila de inspeção. O gestor decidirá depois se volta ao estoque ou é descartado.'
+        };
+        aviso.textContent = mapa[sel.value] || '';
+        aviso.className = 'mt-1 text-[10px] font-semibold ' + (sel.value === 'estoque' ? 'text-emerald-600' : sel.value === 'descarte' ? 'text-rose-600' : 'text-amber-600');
+    };
+
+    window.fecharModalDevolucao = function() {
+        var modal = document.getElementById('modal-devolucao');
         if (modal) {
             modal.classList.add('hidden');
             modal.style.setProperty('display', 'none', 'important');

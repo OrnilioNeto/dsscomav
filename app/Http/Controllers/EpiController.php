@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Epi;
 use App\Models\EpiColaborador;
+use App\Models\EpiDevolucao;
 use App\Models\EpiEntrega;
 use App\Models\EpiEstoque;
 use App\Models\EpiKit;
@@ -193,6 +194,31 @@ class EpiController extends Controller
             });
         }
 
+        // Trilha de devoluções / encerramento de EPIs (auditoria)
+        if (!Schema::hasTable('ss_epi_devolucao')) {
+            Schema::create('ss_epi_devolucao', function (Blueprint $table) {
+                $table->id('ss_ed_nb_id');
+                $table->unsignedBigInteger('ss_ed_nb_entrega_id')->nullable();
+                $table->unsignedBigInteger('ss_ed_nb_epi_id');
+                $table->unsignedBigInteger('ss_ed_nb_colaborador_id')->nullable();
+                $table->unsignedBigInteger('ss_ed_nb_empresa_id')->nullable();
+                $table->unsignedBigInteger('ss_ed_nb_variacao_id')->nullable();
+                $table->unsignedInteger('ss_ed_nb_quantidade')->default(1);
+                $table->string('ss_ed_tx_motivo', 50);
+                $table->string('ss_ed_tx_destino', 20)->default('descarte');
+                $table->string('ss_ed_tx_status', 20)->default('concluida');
+                $table->string('ss_ed_tx_resultado_inspecao', 20)->nullable();
+                $table->text('ss_ed_tx_observacao')->nullable();
+                $table->unsignedBigInteger('ss_ed_nb_userRegistro')->nullable();
+                $table->dateTime('ss_ed_tx_data_registro')->nullable();
+                $table->unsignedBigInteger('ss_ed_nb_userDecisao')->nullable();
+                $table->dateTime('ss_ed_tx_data_decisao')->nullable();
+                $table->index(['ss_ed_nb_entrega_id']);
+                $table->index(['ss_ed_nb_epi_id']);
+                $table->index(['ss_ed_tx_status']);
+            });
+        }
+
         // [DESATIVADO] Popular EPIs universais se ss_epi estiver vazia
         // if (DB::table('ss_epi')->count() === 0) { ... }
 
@@ -243,11 +269,11 @@ class EpiController extends Controller
         // 1. Estatísticas Rápidas
         $totalCatalogo = Epi::where('ss_e_tx_status', 'ativo')->count();
         
-        $totalEntradasEstoque = DB::table('ss_epi_estoque')->where('ss_e_tx_tipo', 'entrada')->sum('ss_e_nb_quantidade');
+        $totalEntradasEstoque = DB::table('ss_epi_estoque')->whereIn('ss_e_tx_tipo', ['entrada', 'devolucao'])->sum('ss_e_nb_quantidade');
         $totalSaidasEstoque = DB::table('ss_epi_estoque')->whereIn('ss_e_tx_tipo', ['saida', 'substituicao'])->sum('ss_e_nb_quantidade');
         $saldoEstoqueTotal = max(0, $totalEntradasEstoque - $totalSaidasEstoque);
 
-        $totalEntregasAtivas = EpiEntrega::where('ss_e_tx_status', '<>', 'inativo')->count();
+        $totalEntregasAtivas = EpiEntrega::whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])->count();
         $totalColaboradoresElegiveis = EpiColaborador::elegiveisParaEntrega()->count();
 
         // 1.1 Monitoramento de validade: CAs (vencido / vencendo / sem data)
@@ -282,23 +308,36 @@ class EpiController extends Controller
         $hojeStr = now()->format('Y-m-d');
         $vencimentoLimite = now()->addDays(30)->format('Y-m-d');
 
-        $entregasVencidasCount = EpiEntrega::where('ss_e_tx_status', '<>', 'inativo')
+        $entregasVencidasCount = EpiEntrega::whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])
             ->whereNotNull('ss_e_tx_vencimento')
             ->where('ss_e_tx_vencimento', '<', $hojeStr)
             ->count();
 
-        $entregasVencendoCount = EpiEntrega::where('ss_e_tx_status', '<>', 'inativo')
+        $entregasVencendoCount = EpiEntrega::whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])
             ->whereNotNull('ss_e_tx_vencimento')
             ->where('ss_e_tx_vencimento', '>=', $hojeStr)
             ->where('ss_e_tx_vencimento', '<=', $vencimentoLimite)
             ->count();
 
         $entregasAlerta = EpiEntrega::with(['colaborador', 'epi'])
-            ->where('ss_e_tx_status', '<>', 'inativo')
+            ->whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])
             ->whereNotNull('ss_e_tx_vencimento')
             ->where('ss_e_tx_vencimento', '<=', $vencimentoLimite)
             ->orderBy('ss_e_tx_vencimento')
             ->limit(100)
+            ->get();
+
+        // 1.4 Devoluções: pendências de inspeção e histórico auditável
+        $devolucoesPendentes = EpiDevolucao::with(['colaborador', 'epi', 'variacao'])
+            ->where('ss_ed_tx_status', 'pendente')
+            ->orderBy('ss_ed_tx_data_registro', 'asc')
+            ->get();
+
+        $devolucoesPendentesCount = $devolucoesPendentes->count();
+
+        $devolucoesHistorico = EpiDevolucao::with(['colaborador', 'epi', 'variacao', 'usuarioRegistro', 'usuarioDecisao'])
+            ->orderBy('ss_ed_tx_data_registro', 'desc')
+            ->limit(150)
             ->get();
 
         // 2. Consulta do Catálogo de EPIs
@@ -343,11 +382,11 @@ class EpiController extends Controller
             ->limit(100)
             ->get();
 
-        // 6. Entregas Recentes (Omitindo inativos conforme regra)
+        // 6. Entregas Recentes (Omitindo inativos e devolvidos conforme regra)
         // Ordenado pela data de LANÇAMENTO (cadastro), mais recentes no topo,
         // independentemente da data da entrega informada
         $entregasRecentes = EpiEntrega::with(['colaborador', 'epi'])
-            ->where('ss_e_tx_status', '<>', 'inativo')
+            ->whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])
             ->orderBy('ss_e_tx_dataCadastro', 'desc')
             ->orderBy('ss_e_nb_id', 'desc')
             ->limit(100)
@@ -466,6 +505,9 @@ class EpiController extends Controller
             'entregasVencidasCount',
             'entregasVencendoCount',
             'entregasAlerta',
+            'devolucoesPendentes',
+            'devolucoesPendentesCount',
+            'devolucoesHistorico',
             'episCatalogo',
             'gruposUnicos',
             'colaboradores',
@@ -1240,6 +1282,173 @@ class EpiController extends Controller
         $entrega->update(['ss_e_tx_vencimento' => $request->input('ss_e_tx_vencimento')]);
 
         return redirect()->back()->with('success', "Vencimento da entrega #{$entrega->ss_e_nb_id} atualizado para {$novaData}!");
+    }
+
+    /**
+     * API: Retorna as entregas ativas de um colaborador (para o modal de devolução).
+     */
+    public function getEntregasColaborador($colaboradorId)
+    {
+        $this->ensureTablesExist();
+
+        $entregas = EpiEntrega::with(['epi', 'variacao'])
+            ->where('ss_e_nb_colaborador_id', $colaboradorId)
+            ->whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])
+            ->orderBy('ss_e_tx_data_entrega', 'desc')
+            ->get()
+            ->map(function ($ent) {
+                return [
+                    'id' => $ent->ss_e_nb_id,
+                    'item' => $ent->epi->ss_e_tx_item ?? 'EPI N/D',
+                    'variacao' => $ent->variacao->ss_ev_tx_nome ?? null,
+                    'quantidade' => (int) $ent->ss_e_nb_quantidade,
+                    'data_entrega' => $ent->ss_e_tx_data_entrega ? date('d/m/Y', strtotime($ent->ss_e_tx_data_entrega)) : null,
+                    'vencimento' => $ent->ss_e_tx_vencimento ? date('d/m/Y', strtotime($ent->ss_e_tx_vencimento)) : null,
+                    'ca' => $ent->epi->ss_e_tx_ca ?? null,
+                ];
+            })
+            ->values();
+
+        return response()->json(['status' => 'success', 'data' => $entregas]);
+    }
+
+    /**
+     * Registra uma devolução/encerramento de EPI entregue.
+     * Destinos: estoque (retorna ao estoque), descarte (encerra) ou inspecao (pendência do gestor).
+     */
+    public function devolucaoStore(Request $request)
+    {
+        $this->ensureTablesExist();
+
+        $request->validate([
+            'ss_ed_nb_entrega_id' => 'required|integer',
+            'ss_ed_nb_quantidade' => 'required|integer|min:1',
+            'ss_ed_tx_motivo' => 'required|in:avaria,perdido,extraviado,devolvido_empresa,vencido,outro',
+            'ss_ed_tx_destino' => 'required|in:estoque,descarte,inspecao',
+        ], [
+            'ss_ed_nb_entrega_id.required' => 'Selecione a entrega que será devolvida.',
+            'ss_ed_nb_quantidade.required' => 'Informe a quantidade devolvida.',
+            'ss_ed_nb_quantidade.min' => 'A quantidade devolvida deve ser maior que zero.',
+            'ss_ed_tx_motivo.required' => 'Selecione o motivo da devolução.',
+            'ss_ed_tx_destino.required' => 'Selecione o destino do item (estoque, descarte ou inspeção).',
+        ]);
+
+        $entrega = EpiEntrega::findOrFail($request->input('ss_ed_nb_entrega_id'));
+
+        if (in_array($entrega->ss_e_tx_status, ['inativo', 'devolvido'])) {
+            return redirect()->back()->with('error', 'Esta entrega já foi encerrada ou inativada!');
+        }
+
+        $quantidade = (int) $request->input('ss_ed_nb_quantidade');
+
+        if ($quantidade > (int) $entrega->ss_e_nb_quantidade) {
+            return redirect()->back()->with('error', 'A quantidade devolvida não pode ser maior que a quantidade entregue (' . $entrega->ss_e_nb_quantidade . ')!');
+        }
+
+        $motivo = $request->input('ss_ed_tx_motivo');
+        $destino = $request->input('ss_ed_tx_destino');
+        $observacao = $request->input('ss_ed_tx_observacao');
+
+        $labelsMotivo = [
+            'avaria' => 'Avaria / Danificado',
+            'perdido' => 'Perdido',
+            'extraviado' => 'Extraviado',
+            'devolvido_empresa' => 'Devolvido à empresa',
+            'vencido' => 'Vencido',
+            'outro' => 'Outro',
+        ];
+        $motivoLabel = $labelsMotivo[$motivo] ?? $motivo;
+
+        DB::transaction(function () use ($entrega, $quantidade, $motivo, $motivoLabel, $destino, $observacao) {
+            $devolucao = EpiDevolucao::create([
+                'ss_ed_nb_entrega_id' => $entrega->ss_e_nb_id,
+                'ss_ed_nb_epi_id' => $entrega->ss_e_nb_epi_id,
+                'ss_ed_nb_colaborador_id' => $entrega->ss_e_nb_colaborador_id,
+                'ss_ed_nb_empresa_id' => $entrega->ss_e_nb_empresa_id,
+                'ss_ed_nb_variacao_id' => $entrega->ss_e_nb_variacao_id,
+                'ss_ed_nb_quantidade' => $quantidade,
+                'ss_ed_tx_motivo' => $motivo,
+                'ss_ed_tx_destino' => $destino,
+                'ss_ed_tx_status' => $destino === 'inspecao' ? 'pendente' : 'concluida',
+                'ss_ed_tx_observacao' => $observacao,
+                'ss_ed_nb_userRegistro' => Auth::id(),
+                'ss_ed_tx_data_registro' => now(),
+            ]);
+
+            $devolucaoId = $devolucao->ss_ed_nb_id;
+
+            // Retorno ao estoque (imediato ou após inspeção)
+            if ($destino === 'estoque') {
+                EpiEstoque::create([
+                    'ss_e_nb_epi_id' => $entrega->ss_e_nb_epi_id,
+                    'ss_e_nb_empresa_id' => $entrega->ss_e_nb_empresa_id ?? 0,
+                    'ss_e_nb_variacao_id' => $entrega->ss_e_nb_variacao_id,
+                    'ss_e_nb_quantidade' => $quantidade,
+                    'ss_e_tx_tipo' => 'devolucao',
+                    'ss_e_tx_data' => now(),
+                    'ss_e_tx_motivo' => "Devolução #{$devolucaoId} - {$motivoLabel}: retorno ao estoque" . ($observacao ? " - {$observacao}" : ''),
+                    'ss_e_nb_userCadastro' => Auth::id(),
+                ]);
+            }
+
+            // Encerra o monitoramento de validade da entrega quando devolvido o total
+            if ($quantidade >= (int) $entrega->ss_e_nb_quantidade) {
+                $entrega->update([
+                    'ss_e_tx_status' => 'devolvido',
+                    'ss_e_tx_justificativa_exclusao' => "Devolução #{$devolucaoId} - {$motivoLabel}" . ($observacao ? " - {$observacao}" : ''),
+                ]);
+            }
+        });
+
+        return redirect()->back()->with('success', 'Devolução registrada com sucesso!');
+    }
+
+    /**
+     * Decisão do gestor sobre devoluções em pendência de inspeção:
+     * estornar (volta ao estoque) ou descartar (encerra o item).
+     */
+    public function inspecaoDecidir(Request $request, $id)
+    {
+        $this->ensureTablesExist();
+
+        $request->validate([
+            'action' => 'required|in:estornar,descartar',
+        ]);
+
+        $devolucao = EpiDevolucao::findOrFail($id);
+
+        if ($devolucao->ss_ed_tx_status !== 'pendente') {
+            return redirect()->back()->with('error', 'Esta devolução já foi decidida!');
+        }
+
+        $action = $request->input('action');
+        $resultado = $action === 'estornar' ? 'estornado' : 'descartado';
+
+        DB::transaction(function () use ($devolucao, $action, $resultado) {
+            $devolucao->update([
+                'ss_ed_tx_status' => 'concluida',
+                'ss_ed_tx_resultado_inspecao' => $resultado,
+                'ss_ed_nb_userDecisao' => Auth::id(),
+                'ss_ed_tx_data_decisao' => now(),
+            ]);
+
+            if ($action === 'estornar') {
+                EpiEstoque::create([
+                    'ss_e_nb_epi_id' => $devolucao->ss_ed_nb_epi_id,
+                    'ss_e_nb_empresa_id' => $devolucao->ss_ed_nb_empresa_id ?? 0,
+                    'ss_e_nb_variacao_id' => $devolucao->ss_ed_nb_variacao_id,
+                    'ss_e_nb_quantidade' => $devolucao->ss_ed_nb_quantidade,
+                    'ss_e_tx_tipo' => 'devolucao',
+                    'ss_e_tx_data' => now(),
+                    'ss_e_tx_motivo' => "Aprovado na inspeção (devolução #{$devolucao->ss_ed_nb_id}): item estornado para o estoque",
+                    'ss_e_nb_userCadastro' => Auth::id(),
+                ]);
+            }
+        });
+
+        return redirect()->back()->with('success', $action === 'estornar'
+            ? "Item da devolução #{$devolucao->ss_ed_nb_id} estornado para o estoque com sucesso!"
+            : "Item da devolução #{$devolucao->ss_ed_nb_id} confirmado como descarte!");
     }
 
     /**

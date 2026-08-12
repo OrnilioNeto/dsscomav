@@ -107,6 +107,9 @@
                                     @if(!empty($entrega->ss_e_tx_retroativo))
                                         <span class="ml-1 text-[9px] text-purple-800 bg-purple-100 px-1.5 py-0.5 rounded font-bold">Retroativo</span>
                                     @endif
+                                    @if($entrega->ss_e_tx_status === 'devolvido')
+                                        <span class="ml-1 text-[9px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold" title="{{ $entrega->ss_e_tx_justificativa_exclusao ?? '' }}">Devolvido</span>
+                                    @endif
                                 </div>
                                 @if($entrega->ss_e_nb_variacao_id && $entrega->variacao)
                                     <div class="text-amber-700 font-semibold text-[10px]">{{ $entrega->variacao->ss_ev_tx_nome }}</div>

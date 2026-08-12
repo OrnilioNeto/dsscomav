@@ -170,7 +170,7 @@ class Epi extends Model
             $query->where('ss_e_nb_variacao_id', $variacaoId);
         }
 
-        $entradas = (int) (clone $query)->where('ss_e_tx_tipo', 'entrada')->sum('ss_e_nb_quantidade');
+        $entradas = (int) (clone $query)->whereIn('ss_e_tx_tipo', ['entrada', 'devolucao'])->sum('ss_e_nb_quantidade');
         $saidas = (int) (clone $query)->whereIn('ss_e_tx_tipo', ['saida', 'substituicao'])->sum('ss_e_nb_quantidade');
 
         return max(0, $entradas - $saidas);
@@ -188,7 +188,7 @@ class Epi extends Model
             $query->where('ss_e_nb_variacao_id', $variacaoId);
         }
 
-        $entradas = (int) (clone $query)->where('ss_e_tx_tipo', 'entrada')->sum('ss_e_nb_quantidade');
+        $entradas = (int) (clone $query)->whereIn('ss_e_tx_tipo', ['entrada', 'devolucao'])->sum('ss_e_nb_quantidade');
         $saidas = (int) (clone $query)->whereIn('ss_e_tx_tipo', ['saida', 'substituicao'])->sum('ss_e_nb_quantidade');
 
         return max(0, $entradas - $saidas);
