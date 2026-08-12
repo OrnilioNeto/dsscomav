@@ -59,6 +59,16 @@
 </head>
 <body class="bg-gray-50" style="--primary: #153B2E; --primary-700:#0F2B22; --accent:#F28C2B;">
     @if(Auth::check())
+        @php
+            $epiAlertaCount = 0;
+            if (Auth::check() && (Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('epi'))) {
+                try {
+                    if (\Illuminate\Support\Facades\Schema::hasTable('ss_epi')) {
+                        $epiAlertaCount = \App\Models\Epi::contarCaCriticos(30)['total'];
+                    }
+                } catch (\Throwable $e) {}
+            }
+        @endphp
         <nav class="site-nav shadow-lg">
             <div class="max-w-7xl mx-auto px-4">
                 <div class="flex justify-between items-center h-16">
@@ -85,6 +95,9 @@
                         @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('epi'))
                             <a href="{{ route('epi.index') }}" class="site-link-hover nav-link flex items-center text-amber-300 hover:text-amber-200 font-semibold">
                                 <i class="fas fa-hard-hat mr-1.5"></i><span>Gestão de EPIs</span>
+                                @if($epiAlertaCount > 0)
+                                    <span class="ml-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1.5 bg-rose-500 text-white text-[10px] font-bold rounded-full" title="Itens com CA vencido, vencendo ou sem validade">● {{ $epiAlertaCount }}</span>
+                                @endif
                             </a>
                         @endif
 
@@ -221,6 +234,9 @@
                         @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('epi'))
                             <a href="{{ route('epi.index') }}" class="block px-3 py-2 rounded text-amber-300 site-link-hover font-medium">
                                 <i class="fas fa-hard-hat mr-2"></i> Gestão de EPIs
+                                @if($epiAlertaCount > 0)
+                                    <span class="ml-1 px-1.5 py-0.5 bg-rose-500 text-white text-xs rounded-full">{{ $epiAlertaCount }}</span>
+                                @endif
                             </a>
                         @endif
                         @if($pendentesCount > 0)

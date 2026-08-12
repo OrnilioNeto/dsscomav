@@ -121,7 +121,204 @@
         </div>
     </div>
 
-    <!-- Navegação de Abas -->
+    <!-- MONITORAMENTO DE VALIDADE (CA / VIDA ÚTIL / VENCIMENTOS) -->
+    <div class="glass-card p-5 mb-6 border-l-4 border-amber-400">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                <i class="fas fa-bell text-amber-500 mr-2"></i> Monitoramento de Validade
+                <span class="ml-3 text-xs font-semibold text-gray-400 hidden md:inline">CAs, vida útil e vencimentos que precisam de atenção</span>
+            </h2>
+            <div class="flex items-center gap-3">
+                <span class="text-[11px] text-gray-400 font-semibold">Atualizado em {{ date('d/m/Y H:i') }}</span>
+                <button type="button" onclick="toggleMonitoramentoValidade()" id="btn-toggle-monitoramento" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border border-gray-300 text-xs font-bold cursor-pointer transition" title="Ocultar / Exibir painel">
+                    <i id="icone-toggle-monitoramento" class="fas fa-chevron-up transition-transform duration-200"></i>
+                    <span id="texto-toggle-monitoramento">Ocultar</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="monitoramento-validade-body">
+            <!-- KPIs de Validade -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+            <div class="bg-rose-50 p-3 rounded-xl border border-rose-100 text-center">
+                <div class="text-2xl font-bold text-rose-700">{{ $caStats['vencidos'] }}</div>
+                <div class="text-[10px] font-bold text-rose-600 uppercase mt-0.5">CAs Vencidos</div>
+            </div>
+            <div class="bg-amber-50 p-3 rounded-xl border border-amber-100 text-center">
+                <div class="text-2xl font-bold text-amber-800">{{ $caStats['expirando'] }}</div>
+                <div class="text-[10px] font-bold text-amber-700 uppercase mt-0.5">CAs vencem em 30d</div>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 text-center">
+                <div class="text-2xl font-bold text-gray-700">{{ $caStats['sem_data'] }}</div>
+                <div class="text-[10px] font-bold text-gray-500 uppercase mt-0.5">CAs sem validade</div>
+            </div>
+            <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 text-center">
+                <div class="text-2xl font-bold text-indigo-700">{{ $vidaUtilStats['nao_configurada'] }}</div>
+                <div class="text-[10px] font-bold text-indigo-600 uppercase mt-0.5">Vida útil não config.</div>
+            </div>
+            <div class="bg-rose-50 p-3 rounded-xl border border-rose-100 text-center">
+                <div class="text-2xl font-bold text-rose-700">{{ $entregasVencidasCount }}</div>
+                <div class="text-[10px] font-bold text-rose-600 uppercase mt-0.5">Entregas vencidas</div>
+            </div>
+            <div class="bg-amber-50 p-3 rounded-xl border border-amber-100 text-center">
+                <div class="text-2xl font-bold text-amber-800">{{ $entregasVencendoCount }}</div>
+                <div class="text-[10px] font-bold text-amber-700 uppercase mt-0.5">Entregas vencem em 30d</div>
+            </div>
+        </div>
+
+        @if($episCaProblema->isEmpty() && $episVidaUtilProblema->isEmpty() && $entregasAlerta->isEmpty())
+            <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-700 text-sm font-semibold">
+                <i class="fas fa-check-circle mr-1"></i> Nenhum alerta: todos os CAs estão em dia, a vida útil está configurada e não há entregas vencidas ou vencendo.
+            </div>
+        @else
+            <div class="space-y-4">
+                <!-- Tabela: Itens do catálogo com CA crítico -->
+                @if($episCaProblema->isNotEmpty())
+                    <div class="border border-rose-200 rounded-lg overflow-hidden">
+                        <div class="bg-rose-50 px-4 py-2.5 flex items-center justify-between">
+                            <span class="text-xs font-bold text-rose-800 uppercase"><i class="fas fa-certificate mr-1"></i> CAs do catálogo com atenção ({{ $episCaProblema->count() }})</span>
+                            <span class="text-[10px] text-rose-500 font-semibold">Edite o item para informar a nova data de validade do CA</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Item</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">CA</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Validade do CA</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Situação</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Vida útil</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($episCaProblema as $epi)
+                                        @php [$caLabel, $caCls] = $epi->status_ca_badge; @endphp
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-3 py-2">
+                                                <div class="font-bold text-gray-900">{{ $epi->ss_e_tx_item }}</div>
+                                                <div class="text-[10px] text-gray-500">{{ $epi->ss_e_tx_grupo }}</div>
+                                            </td>
+                                            <td class="px-3 py-2 text-center font-mono font-bold text-gray-800">{{ $epi->ss_e_tx_ca }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-600">
+                                                {{ $epi->ss_e_tx_validade_ca ? date('d/m/Y', strtotime($epi->ss_e_tx_validade_ca)) : '-' }}
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $caCls }}">{{ $caLabel }}</span>
+                                            </td>
+                                            <td class="px-3 py-2 text-center {{ $epi->ss_e_nb_vida_util_dias <= 0 ? 'text-rose-600 font-bold' : 'text-gray-600' }}">
+                                                {{ $epi->ss_e_nb_vida_util_dias > 0 ? $epi->ss_e_nb_vida_util_dias . ' dias' : 'Não configurada' }}
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
+                                                <button onclick="editarEpi({{ json_encode($epi) }})" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
+                                                    <i class="fas fa-edit mr-1"></i> Editar / Regularizar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
+                <!-- Tabela: Itens com vida útil não configurada -->
+                @if($episVidaUtilProblema->isNotEmpty())
+                    <div class="border border-indigo-200 rounded-lg overflow-hidden">
+                        <div class="bg-indigo-50 px-4 py-2.5 flex items-center justify-between">
+                            <span class="text-xs font-bold text-indigo-800 uppercase"><i class="fas fa-clock mr-1"></i> EPIs com vida útil não configurada ({{ $episVidaUtilProblema->count() }})</span>
+                            <span class="text-[10px] text-indigo-500 font-semibold">Defina a validade em dias (ex.: 365) no cadastro do item</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Item</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Grupo</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Vida útil (dias)</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($episVidaUtilProblema as $epi)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-3 py-2 font-bold text-gray-900">{{ $epi->ss_e_tx_item }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ $epi->ss_e_tx_grupo }}</td>
+                                            <td class="px-3 py-2 text-center">
+                                                <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded text-[10px] font-bold">Não configurada (0)</span>
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
+                                                <button onclick="editarEpi({{ json_encode($epi) }})" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
+                                                    <i class="fas fa-edit mr-1"></i> Editar / Regularizar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
+                <!-- Tabela: Entregas vencidas ou vencendo -->
+                @if($entregasAlerta->isNotEmpty())
+                    <div class="border border-amber-200 rounded-lg overflow-hidden">
+                        <div class="bg-amber-50 px-4 py-2.5 flex items-center justify-between">
+                            <span class="text-xs font-bold text-amber-800 uppercase"><i class="fas fa-truck mr-1"></i> Entregas vencidas ou vencendo em 30 dias ({{ $entregasAlerta->count() }} exibidas)</span>
+                            <span class="text-[10px] text-amber-600 font-semibold">Regularize a data de vencimento da entrega ou realize nova entrega</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Colaborador</th>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">EPI entregue</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Qtd</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Entrega</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Vencimento</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Situação</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @php $hojeCompara = now()->format('Y-m-d'); @endphp
+                                    @foreach($entregasAlerta as $ent)
+                                        @php $estaVencida = $ent->ss_e_tx_vencimento < $hojeCompara; @endphp
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-3 py-2 font-bold text-gray-900">{{ $ent->colaborador->ss_c_tx_nome ?? 'N/D' }}</td>
+                                            <td class="px-3 py-2 font-semibold text-emerald-950">
+                                                {{ $ent->epi->ss_e_tx_item ?? 'EPI N/D' }}
+                                                @if($ent->epi && $ent->epi->ss_e_tx_ca)
+                                                    <span class="text-gray-400 font-normal">(CA {{ $ent->epi->ss_e_tx_ca }})</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-center font-bold text-gray-800">{{ $ent->ss_e_nb_quantidade }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ date('d/m/Y', strtotime($ent->ss_e_tx_data_entrega)) }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ $ent->ss_e_tx_vencimento ? date('d/m/Y', strtotime($ent->ss_e_tx_vencimento)) : '-' }}</td>
+                                            <td class="px-3 py-2 text-center">
+                                                @if($estaVencida)
+                                                    <span class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Vencida</span>
+                                                @else
+                                                    <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">Vence em 30 dias</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
+                                                <button onclick="abrirModalVencimentoEntrega({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}', '{{ $ent->ss_e_tx_vencimento ?? '' }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
+                                                    <i class="fas fa-calendar-alt mr-1"></i> Editar Vencimento
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @endif
+        </div>
+    </div>
+
     <div class="glass-card mb-6 overflow-hidden">
         <div class="flex flex-wrap border-b border-gray-200 bg-gray-50/50 px-2 pt-2">
             <button type="button" onclick="mudarAba('sacola')" id="tab-btn-sacola" class="nav-tab-btn active px-5 py-3 text-sm flex items-center cursor-pointer">
@@ -378,8 +575,13 @@
                                     </td>
                                     <td class="px-4 py-3 text-center text-xs">
                                         @if($epi->ss_e_tx_ca)
+                                            @php [$caLabel, $caCls] = $epi->status_ca_badge; @endphp
                                             <span class="font-bold px-2 py-0.5 bg-gray-100 border border-gray-300 rounded">CA: {{ $epi->ss_e_tx_ca }}</span>
-                                            <div class="text-gray-400 mt-0.5">Val: {{ $epi->ss_e_tx_validade_ca ? date('d/m/Y', strtotime($epi->ss_e_tx_validade_ca)) : '-' }}</div>
+                                            <div class="mt-0.5">
+                                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold {{ $caCls }}" title="Validade: {{ $epi->ss_e_tx_validade_ca ? date('d/m/Y', strtotime($epi->ss_e_tx_validade_ca)) : 'não informada' }}">
+                                                    {{ $caLabel }}
+                                                </span>
+                                            </div>
                                         @else
                                             <span class="text-gray-400">-</span>
                                         @endif
@@ -399,7 +601,11 @@
                                         @endif
                                     </td>
                                     <td class="px-4 py-3 text-center font-semibold text-xs">
-                                        {{ $epi->ss_e_nb_vida_util_dias }} dias
+                                        @if($epi->ss_e_nb_vida_util_dias > 0)
+                                            {{ $epi->ss_e_nb_vida_util_dias }} dias
+                                        @else
+                                            <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded text-[10px] font-bold">Não configurada</span>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3 text-center font-bold text-emerald-800">
                                         {{ $epi->getSaldoTotalRede() }}
@@ -932,7 +1138,16 @@
                                                 {{ $ent->ss_e_nb_quantidade }}
                                             </td>
                                             <td class="px-3 py-2 text-center text-gray-600">
-                                                {{ $ent->ss_e_tx_vencimento ? date('d/m/Y', strtotime($ent->ss_e_tx_vencimento)) : '-' }}
+                                                @if($ent->ss_e_tx_vencimento)
+                                                    {{ date('d/m/Y', strtotime($ent->ss_e_tx_vencimento)) }}
+                                                    @if($ent->ss_e_tx_vencimento < now()->format('Y-m-d'))
+                                                        <div class="mt-0.5"><span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Vencida</span></div>
+                                                    @elseif($ent->ss_e_tx_vencimento <= now()->addDays(30)->format('Y-m-d'))
+                                                        <div class="mt-0.5"><span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">Vence em 30 dias</span></div>
+                                                    @endif
+                                                @else
+                                                    -
+                                                @endif
                                             </td>
                                             <td class="px-3 py-2 text-center">
                                                 @if($ent->ss_e_tx_assinatura)
@@ -961,6 +1176,9 @@
                                                 @endif
                                             </td>
                                             <td class="px-3 py-2 text-center">
+                                                <button onclick="abrirModalVencimentoEntrega({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}', '{{ $ent->ss_e_tx_vencimento ?? '' }}')" class="text-blue-600 hover:text-blue-800 font-bold mr-2" title="Editar Vencimento">
+                                                    <i class="fas fa-calendar-alt"></i> Venc.
+                                                </button>
                                                 <button onclick="abrirModalCancelarEntrega({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}')" class="text-rose-600 hover:text-rose-800 font-bold" title="Cancelar / Inativar Entrega">
                                                     <i class="fas fa-ban"></i> Inativar
                                                 </button>
@@ -1310,6 +1528,29 @@
     </div>
 </div>
 
+<!-- MODAL: EDITAR VENCIMENTO DA ENTREGA (REGULARIZAÇÃO DE VALIDADE) -->
+<div id="modal-vencimento-entrega" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fas fa-calendar-alt text-blue-600 mr-2"></i> Editar Vencimento da Entrega
+        </h3>
+        <p id="desc-vencimento-entrega" class="text-xs text-gray-600 mb-4"></p>
+
+        <form id="form-vencimento-entrega" method="POST" action="">
+            @csrf
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nova Data de Vencimento *</label>
+                <input type="date" name="ss_e_tx_vencimento" id="input-vencimento-entrega" required class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" onclick="fecharModalVencimentoEntrega()" class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg">Cancelar</button>
+                <button type="submit" class="px-5 py-2 bg-blue-700 text-white text-xs font-bold rounded-lg hover:bg-blue-800 shadow">Salvar Vencimento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- MODAL: CADASTRAR / EDITAR FILIAL -->
 <div id="modal-filial" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
@@ -1430,6 +1671,33 @@
 @section('extra_js')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    // Oculta / exibe o painel de Monitoramento de Validade (estado salvo no navegador)
+    window.toggleMonitoramentoValidade = function() {
+        var body = document.getElementById('monitoramento-validade-body');
+        var icone = document.getElementById('icone-toggle-monitoramento');
+        var texto = document.getElementById('texto-toggle-monitoramento');
+        if (!body) return;
+        var oculto = body.classList.toggle('hidden');
+        if (icone) icone.style.transform = oculto ? 'rotate(180deg)' : '';
+        if (texto) texto.textContent = oculto ? 'Exibir' : 'Ocultar';
+        try { localStorage.setItem('epi_monitoramento_oculto', oculto ? '1' : '0'); } catch (e) {}
+    };
+
+    // Restaura o estado salvo do painel ao carregar a página
+    (function() {
+        var body = document.getElementById('monitoramento-validade-body');
+        if (!body) return;
+        var oculto = false;
+        try { oculto = localStorage.getItem('epi_monitoramento_oculto') === '1'; } catch (e) {}
+        if (oculto) {
+            body.classList.add('hidden');
+            var icone = document.getElementById('icone-toggle-monitoramento');
+            var texto = document.getElementById('texto-toggle-monitoramento');
+            if (icone) icone.style.transform = 'rotate(180deg)';
+            if (texto) texto.textContent = 'Exibir';
+        }
+    })();
+
     // Função global de troca de abas
     window.mudarAba = function(nomeAba) {
         var abas = ['sacola', 'catalogo', 'estoque', 'fardamento', 'kits', 'fichas', 'filiais'];
@@ -2405,6 +2673,26 @@
 
     window.fecharModalCancelarEntrega = function() {
         var modal = document.getElementById('modal-cancelar-entrega');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.setProperty('display', 'none', 'important');
+        }
+    };
+
+    // Regularização manual do vencimento de uma entrega
+    window.abrirModalVencimentoEntrega = function(entregaId, itemNome, vencimentoAtual) {
+        var modal = document.getElementById('modal-vencimento-entrega');
+        if (!modal) return;
+        document.getElementById('desc-vencimento-entrega').textContent = 'Ajuste a data de vencimento da entrega do item: "' + itemNome + '".';
+        const form = document.getElementById('form-vencimento-entrega');
+        form.action = `{{ url('/epi/entrega') }}/${entregaId}/vencimento`;
+        document.getElementById('input-vencimento-entrega').value = vencimentoAtual || '';
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    window.fecharModalVencimentoEntrega = function() {
+        var modal = document.getElementById('modal-vencimento-entrega');
         if (modal) {
             modal.classList.add('hidden');
             modal.style.setProperty('display', 'none', 'important');

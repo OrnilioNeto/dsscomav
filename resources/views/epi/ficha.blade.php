@@ -92,6 +92,7 @@
                         <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Qtd</th>
                         <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Validade do CA</th>
                         <th class="p-2.5 font-bold text-gray-700 uppercase text-center">Assinatura / Visto</th>
+                        <th class="p-2.5 font-bold text-gray-700 uppercase text-center no-print">Ações</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-300">
@@ -134,10 +135,16 @@
                                     <span class="text-gray-400 font-italic">Sem Visto</span>
                                 @endif
                             </td>
+                            <td class="p-2.5 text-center no-print">
+                                <button onclick="abrirModalVencimentoFicha({{ $entrega->ss_e_nb_id }}, '{{ addslashes($entrega->epi->ss_e_tx_item ?? '') }}', '{{ $entrega->ss_e_tx_vencimento ?? '' }}')" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold" title="Editar vencimento da entrega">
+                                    <i class="fas fa-calendar-alt mr-1"></i> Editar Vencimento
+                                </button>
+                                <div class="text-[10px] text-gray-400 mt-1">Venc: {{ $entrega->ss_e_tx_vencimento ? date('d/m/Y', strtotime($entrega->ss_e_tx_vencimento)) : '-' }}</div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="p-6 text-center text-gray-400 italic">Nenhum registro de entrega de EPI ativo encontrado para este colaborador.</td>
+                            <td colspan="7" class="p-6 text-center text-gray-400 italic">Nenhum registro de entrega de EPI ativo encontrado para este colaborador.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -159,6 +166,49 @@
         </div>
 
     </div>
+
+    <!-- MODAL: EDITAR VENCIMENTO DA ENTREGA (SOMENTE TELA, NÃO IMPRIME) -->
+    <div id="modal-vencimento-ficha" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+                <i class="fas fa-calendar-alt text-blue-600 mr-2"></i> Editar Vencimento da Entrega
+            </h3>
+            <p id="desc-vencimento-ficha" class="text-xs text-gray-600 mb-4"></p>
+
+            <form id="form-vencimento-ficha" method="POST" action="">
+                @csrf
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nova Data de Vencimento *</label>
+                    <input type="date" name="ss_e_tx_vencimento" id="input-vencimento-ficha" required class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="fecharModalVencimentoFicha()" class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-700 text-white text-xs font-bold rounded-lg hover:bg-blue-800 shadow">Salvar Vencimento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        window.abrirModalVencimentoFicha = function(entregaId, itemNome, vencimentoAtual) {
+            var modal = document.getElementById('modal-vencimento-ficha');
+            if (!modal) return;
+            document.getElementById('desc-vencimento-ficha').textContent = 'Ajuste a data de vencimento da entrega do item: "' + itemNome + '".';
+            document.getElementById('form-vencimento-ficha').action = '{{ url("/epi/entrega") }}/' + entregaId + '/vencimento';
+            document.getElementById('input-vencimento-ficha').value = vencimentoAtual || '';
+            modal.classList.remove('hidden');
+            modal.style.setProperty('display', 'flex', 'important');
+        };
+
+        window.fecharModalVencimentoFicha = function() {
+            var modal = document.getElementById('modal-vencimento-ficha');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.setProperty('display', 'none', 'important');
+            }
+        };
+    </script>
 
 </body>
 </html>
