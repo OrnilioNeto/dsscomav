@@ -55,6 +55,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/kits/{id}', [\App\Http\Controllers\EpiController::class, 'kitDestroy'])->name('epi.kits.destroy');
         Route::post('/entrega', [\App\Http\Controllers\EpiController::class, 'entregaStore'])->name('epi.entrega.store');
         Route::post('/entrega/{id}/cancelar', [\App\Http\Controllers\EpiController::class, 'entregaCancelar'])->name('epi.entrega.cancelar');
+        Route::post('/entrega/{id}/vencimento', [\App\Http\Controllers\EpiController::class, 'editarVencimentoEntrega'])->name('epi.entrega.vencimento');
         Route::get('/ficha/{colaborador_id}', [\App\Http\Controllers\EpiController::class, 'fichaColaborador'])->name('epi.ficha');
         Route::post('/colaborador', [\App\Http\Controllers\EpiController::class, 'colaboradorStore'])->name('epi.colaborador.store');
         Route::post('/filiais', [\App\Http\Controllers\EpiController::class, 'filialStore'])->name('epi.filiais.store');

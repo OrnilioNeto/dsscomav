@@ -250,6 +250,57 @@ class EpiController extends Controller
         $totalEntregasAtivas = EpiEntrega::where('ss_e_tx_status', '<>', 'inativo')->count();
         $totalColaboradoresElegiveis = EpiColaborador::elegiveisParaEntrega()->count();
 
+        // 1.1 Monitoramento de validade: CAs (vencido / vencendo / sem data)
+        $caStats = Epi::contarCaCriticos(30);
+
+        $ordemCa = ['vencido' => 0, 'expirando_30' => 1, 'expirando_60' => 2, 'expirando_90' => 3, 'sem_data' => 4];
+        $episCaProblema = Epi::with('variacoes')
+            ->where('ss_e_tx_status', 'ativo')
+            ->get()
+            ->filter(function ($epi) {
+                return in_array($epi->status_ca, ['vencido', 'expirando_30', 'expirando_60', 'expirando_90', 'sem_data']);
+            })
+            ->sortBy(function ($epi) use ($ordemCa) {
+                return $ordemCa[$epi->status_ca];
+            })
+            ->values();
+
+        // 1.2 Monitoramento de validade: vida útil em dias não configurada
+        $episVidaUtilProblema = Epi::where('ss_e_tx_status', 'ativo')
+            ->where('ss_e_nb_vida_util_dias', '<=', 0)
+            ->orderBy('ss_e_tx_grupo')
+            ->orderBy('ss_e_tx_item')
+            ->get();
+
+        $vidaUtilStats = [
+            'total_ativo'     => (int) $totalCatalogo,
+            'nao_configurada' => $episVidaUtilProblema->count(),
+            'com_valor'       => max(0, (int) $totalCatalogo - $episVidaUtilProblema->count()),
+        ];
+
+        // 1.3 Monitoramento de validade: entregas ativas vencidas ou vencendo em 30 dias
+        $hojeStr = now()->format('Y-m-d');
+        $vencimentoLimite = now()->addDays(30)->format('Y-m-d');
+
+        $entregasVencidasCount = EpiEntrega::where('ss_e_tx_status', '<>', 'inativo')
+            ->whereNotNull('ss_e_tx_vencimento')
+            ->where('ss_e_tx_vencimento', '<', $hojeStr)
+            ->count();
+
+        $entregasVencendoCount = EpiEntrega::where('ss_e_tx_status', '<>', 'inativo')
+            ->whereNotNull('ss_e_tx_vencimento')
+            ->where('ss_e_tx_vencimento', '>=', $hojeStr)
+            ->where('ss_e_tx_vencimento', '<=', $vencimentoLimite)
+            ->count();
+
+        $entregasAlerta = EpiEntrega::with(['colaborador', 'epi'])
+            ->where('ss_e_tx_status', '<>', 'inativo')
+            ->whereNotNull('ss_e_tx_vencimento')
+            ->where('ss_e_tx_vencimento', '<=', $vencimentoLimite)
+            ->orderBy('ss_e_tx_vencimento')
+            ->limit(100)
+            ->get();
+
         // 2. Consulta do Catálogo de EPIs
         $queryCatalogo = Epi::query();
         if (!empty($buscaCatalogo)) {
@@ -408,6 +459,13 @@ class EpiController extends Controller
             'saldoEstoqueTotal',
             'totalEntregasAtivas',
             'totalColaboradoresElegiveis',
+            'caStats',
+            'episCaProblema',
+            'episVidaUtilProblema',
+            'vidaUtilStats',
+            'entregasVencidasCount',
+            'entregasVencendoCount',
+            'entregasAlerta',
             'episCatalogo',
             'gruposUnicos',
             'colaboradores',
@@ -1163,6 +1221,25 @@ class EpiController extends Controller
         });
 
         return redirect()->back()->with('success', 'Entrega cancelada e inativada com sucesso!');
+    }
+
+    /**
+     * Ajusta manualmente a data de vencimento de uma entrega de EPI
+     * (regularização de validade quando a vida útil foi corrigida no catálogo).
+     */
+    public function editarVencimentoEntrega(Request $request, $id)
+    {
+        $this->ensureTablesExist();
+
+        $request->validate([
+            'ss_e_tx_vencimento' => 'required|date',
+        ]);
+
+        $entrega = EpiEntrega::findOrFail($id);
+        $novaData = date('d/m/Y', strtotime($request->input('ss_e_tx_vencimento')));
+        $entrega->update(['ss_e_tx_vencimento' => $request->input('ss_e_tx_vencimento')]);
+
+        return redirect()->back()->with('success', "Vencimento da entrega #{$entrega->ss_e_nb_id} atualizado para {$novaData}!");
     }
 
     /**
