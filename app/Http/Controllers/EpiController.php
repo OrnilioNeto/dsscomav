@@ -24,7 +24,7 @@ class EpiController extends Controller
     /**
      * Garante auto-criação e seeder automatizado das 6 tabelas em qualquer ambiente/banco.
      */
-    private function ensureTablesExist(): void
+    public function ensureTablesExist(): void
     {
         if (self::$tablesEnsured) {
             return;

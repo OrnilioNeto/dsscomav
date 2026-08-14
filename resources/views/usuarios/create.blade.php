@@ -51,7 +51,7 @@
                     <select name="role_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                         @foreach($roles as $role)
                             @if($role->nome !== 'super_admin')
-                                <option value="{{ $role->id }}">{{ $role->descricao ?: ucfirst(str_replace('_', ' ', $role->nome)) }}</option>
+                                <option value="{{ $role->id }}">{{ ucfirst(str_replace('_', ' ', $role->nome)) }}</option>
                             @endif
                         @endforeach
                     </select>
@@ -137,44 +137,6 @@
                     <div>
                         <label class="block text-gray-700 font-semibold mb-2">Cargo</label>
                         <input type="text" name="cargo" value="{{ old('cargo') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Dados de Fardamento (EPIs) -->
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
-                <h3 class="text-lg font-bold text-emerald-900 flex items-center">
-                    <i class="fas fa-tshirt text-emerald-700 mr-2"></i>Dados de Fardamento
-                    <span class="ml-2 text-xs font-semibold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Controle de EPIs</span>
-                </h3>
-                <p class="text-sm text-gray-600 mt-1 mb-4">Informe os tamanhos para auxiliar a gestão de pedidos de fardamento.</p>
-                <div class="grid md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Tamanho da Camisa</label>
-                        <select name="camisa_tamanho" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white">
-                            <option value="">Não informado</option>
-                            @foreach(['PP', 'P', 'M', 'G', 'GG', 'XG', 'XGG'] as $tamanho)
-                                <option value="{{ $tamanho }}" {{ old('camisa_tamanho') === $tamanho ? 'selected' : '' }}>{{ $tamanho }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Tamanho da Calça</label>
-                        <select name="calca_tamanho" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white">
-                            <option value="">Não informado</option>
-                            @foreach(['36', '38', '40', '42', '44', '46', '48', '50', '52'] as $tamanho)
-                                <option value="{{ $tamanho }}" {{ old('calca_tamanho') === $tamanho ? 'selected' : '' }}>{{ $tamanho }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Numeração da Bota</label>
-                        <select name="bota_numero" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white">
-                            <option value="">Não informado</option>
-                            @for($numero = 33; $numero <= 47; $numero++)
-                                <option value="{{ $numero }}" {{ old('bota_numero') == $numero ? 'selected' : '' }}>{{ $numero }}</option>
-                            @endfor
-                        </select>
                     </div>
                 </div>
             </div>
