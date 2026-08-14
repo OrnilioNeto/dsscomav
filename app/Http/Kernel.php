@@ -41,6 +41,7 @@ class Kernel extends HttpKernel
         ],
 
         'api' => [
+            \App\Http\Middleware\ForceApiRootUrl::class,
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
@@ -66,6 +67,8 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'permission' => \App\Http\Middleware\CheckPermission::class,
         'admin' => \App\Http\Middleware\CheckAdmin::class,
+        'api.permission' => \App\Http\Middleware\ApiCheckPermission::class,
+        'api.admin' => \App\Http\Middleware\ApiCheckAdmin::class,
     ];
 
     /**
@@ -86,5 +89,7 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'permission' => \App\Http\Middleware\CheckPermission::class,
         'admin' => \App\Http\Middleware\CheckAdmin::class,
+        'api.permission' => \App\Http\Middleware\ApiCheckPermission::class,
+        'api.admin' => \App\Http\Middleware\ApiCheckAdmin::class,
     ];
 }

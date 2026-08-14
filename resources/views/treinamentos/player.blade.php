@@ -98,14 +98,8 @@
         @endif
 
         <div class="mt-5 flex justify-center">
-            <button id="assessment-btn" type="button" class="hidden relative overflow-hidden rounded-lg bg-emerald-600 px-6 py-3 font-bold text-white transition disabled:opacity-60 disabled:cursor-not-allowed">
-                <!-- Barra de progresso interna para contagem regressiva -->
-                <div id="btn-progress" class="absolute left-0 top-0 h-full bg-emerald-800/60 transition-all duration-300" style="width: 0%;"></div>
-                <!-- Conteúdo do botão -->
-                <span class="relative z-10 flex items-center justify-center">
-                    <i class="fas fa-clipboard-check mr-2"></i>
-                    <span id="btn-text">Realizar avaliação</span>
-                </span>
+            <button id="assessment-btn" type="button" class="hidden rounded-lg bg-emerald-600 px-6 py-3 font-bold text-white hover:bg-emerald-700 transition">
+                <i class="fas fa-clipboard-check mr-2"></i>Realizar avaliação
             </button>
         </div>
     </div>
@@ -156,14 +150,6 @@
                     <div class="text-green-600 font-semibold">
                         <i class="fas fa-check-circle mr-2"></i>Concluído em {{ $progress->data_conclusao->format('d/m/Y H:i') }}
                     </div>
-                    @if(Auth::user()->hasPermission('social', 'view'))
-                        <div class="mt-4 pt-4 border-t border-gray-100">
-                            <p class="text-sm text-gray-600 mb-3">Compartilhe sua conquista e seu ranking com seus colegas de trabalho!</p>
-                            <a href="{{ route('social.feed', ['share_training_id' => $training->id]) }}" class="inline-flex items-center text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 px-4 py-2.5 rounded-lg transition shadow-sm">
-                                <i class="fas fa-share-alt mr-1.5"></i> Compartilhar Conquista
-                            </a>
-                        </div>
-                    @endif
                 @endif
             </div>
         </div>
@@ -174,7 +160,7 @@
                 <li>Assista o vídeo completamente para desbloquear a avaliação.</li>
                 <li><strong>Não é permitido adiantar o vídeo.</strong></li>
                 <li><strong>A velocidade de reprodução está bloqueada em 1x (normal).</strong></li>
-                <li>Assista ao vídeo completamente (100%) e aguarde a liberação do botão para realizar a avaliação.</li>
+                <li>A partir de 90% será liberado o botão para realizar a avaliação.</li>
                 <li>Responda corretamente para concluir o treinamento.</li>
             </ul>
         </div>
@@ -236,7 +222,7 @@
 
     let currentProgress = {{ $progress->porcentagem_assistida }};
     let assessmentOpened = {{ $progress->avaliacao_aprovada ? 'true' : 'false' }};
-    let assessmentUnlocked = {{ (auth()->user()->isTestUser() || $progress->porcentagem_assistida >= 100) ? 'true' : 'false' }};
+    let assessmentUnlocked = {{ (auth()->user()->isTestUser() || $progress->porcentagem_assistida >= 99) ? 'true' : 'false' }};
     let lastUpdateTime = 0;
     let lastSafeTime = {{ (int) $progress->tempo_assistido }};
     let assessmentAttempt = {{ (int) ($progress->avaliacao_tentativas ?? 0) }};
@@ -261,56 +247,19 @@
         return tempoAtual <= ultimoTempo;
     }
 
-    let countdownActive = false;
-
-    function unlockAssessmentButton(immediate = false) {
+    function unlockAssessmentButton() {
         if (!hasAssessment || assessmentOpened) return;
 
+        assessmentUnlocked = true;
         const button = document.getElementById('assessment-btn');
         const status = document.getElementById('assessment-status');
-        const btnText = document.getElementById('btn-text');
-        const btnProgress = document.getElementById('btn-progress');
 
-        if (!button) return;
+        if (button) {
+            button.classList.remove('hidden');
+        }
 
-        button.classList.remove('hidden');
-
-        if (immediate) {
-            assessmentUnlocked = true;
-            button.removeAttribute('disabled');
-            if (btnProgress) btnProgress.style.width = '0%';
-            if (btnText) btnText.textContent = 'Realizar avaliação';
-            if (status) status.textContent = 'A avaliação está liberada. Clique no botão abaixo do vídeo para continuar.';
-        } else {
-            if (assessmentUnlocked || countdownActive) return;
-            countdownActive = true;
-            
-            // Força salvar progresso 100% no servidor de imediato
-            salvarProgresso(100);
-
-            let secondsLeft = 6;
-            button.setAttribute('disabled', 'true');
-            if (status) status.textContent = 'Sincronizando progresso... Por favor, aguarde.';
-
-            const updateTimer = () => {
-                if (secondsLeft <= 0) {
-                    assessmentUnlocked = true;
-                    countdownActive = false;
-                    button.removeAttribute('disabled');
-                    if (btnProgress) btnProgress.style.width = '0%';
-                    if (btnText) btnText.textContent = 'Realizar avaliação';
-                    if (status) status.textContent = 'A avaliação está liberada. Clique no botão abaixo do vídeo para continuar.';
-                } else {
-                    const elapsed = 6 - secondsLeft;
-                    const percent = (elapsed / 6) * 100;
-                    if (btnProgress) btnProgress.style.width = percent + '%';
-                    if (btnText) btnText.textContent = `Aguarde... (${Math.ceil(secondsLeft)}s)`;
-                    
-                    secondsLeft -= 0.1;
-                    setTimeout(updateTimer, 100);
-                }
-            };
-            updateTimer();
+        if (status) {
+            status.textContent = 'A avaliação já está liberada. Clique no botão abaixo do vídeo para continuar.';
         }
     }
 
@@ -359,12 +308,8 @@
                 porcentagem_assistida: currentProgress
             })
         }).then(r => r.json()).then(data => {
-            if (data.show_assessment || currentProgress >= 100) {
-                if (isTestUser) {
-                    unlockAssessmentButton(true);
-                } else if (currentProgress >= 100) {
-                    unlockAssessmentButton(false);
-                }
+            if (data.show_assessment || currentProgress >= 99) {
+                unlockAssessmentButton();
             }
         }).catch(e => console.error(e));
     }
@@ -437,8 +382,8 @@
     document.getElementById('assessment-form').addEventListener('submit', handleAssessmentSubmit);
     document.getElementById('assessment-btn')?.addEventListener('click', openAssessment);
 
-    if (isTestUser || currentProgress >= 100) {
-        unlockAssessmentButton(true);
+    if (isTestUser || currentProgress >= 99) {
+        unlockAssessmentButton();
     }
 
     if (trainingType === 'upload') {
@@ -546,8 +491,8 @@
                 ultimoEnvio = agora;
             }
 
-            if (percent >= 100 && hasReallyStartedPlayback) {
-                unlockAssessmentButton(false);
+            if (percent >= 99 && hasReallyStartedPlayback) {
+                unlockAssessmentButton();
             }
         });
 
@@ -558,7 +503,6 @@
             // marcar conclusão com horário local
             salvarProgresso(100, true);
             playStartedAt = null;
-            unlockAssessmentButton(false);
         });
 
         document.getElementById('play-btn').addEventListener('click', () => video.play());
@@ -654,8 +598,8 @@
                                         ultimoEnvio = agora;
                                     }
 
-                                    if (percent >= 100 && hasReallyStartedPlayback) {
-                                        unlockAssessmentButton(false);
+                                    if (percent >= 99 && hasReallyStartedPlayback) {
+                                        unlockAssessmentButton();
                                     }
                                 }, 1000);
                             }
@@ -678,7 +622,6 @@
                                 ultimoTempo = youtubeDuration;
                                 watchedSeconds = youtubeDuration;
                                 salvarProgresso(100, true);
-                                unlockAssessmentButton(false);
                                 closeAssessment();
                             }
 

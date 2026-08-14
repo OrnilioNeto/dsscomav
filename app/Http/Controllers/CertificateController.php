@@ -160,6 +160,41 @@ class CertificateController extends Controller
             ->header('Content-Disposition', 'attachment; filename="certificado-' . $certificate->codigo_certificado . '.pdf"');
     }
 
+    /**
+     * Versão para API: gera o PDF on-the-fly e devolve o stream binário.
+     */
+    public function streamPdfForApi(Certificate $certificate)
+    {
+        $certificate->loadMissing(['user', 'training']);
+
+        $qrDataUri = null;
+        $qrBinary = @file_get_contents($certificate->qr_code_url);
+        if ($qrBinary !== false) {
+            $qrDataUri = 'data:image/png;base64,' . base64_encode($qrBinary);
+        }
+
+        $html = view('certificados.pdf', [
+            'certificate' => $certificate,
+            'validationUrl' => $certificate->validation_url,
+            'qrDataUri' => $qrDataUri,
+            'tempoAssistidoFormatado' => gmdate('H:i:s', max(0, (int) $certificate->tempo_assistido_segundos)),
+        ])->render();
+
+        $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetCreator('Plataforma DSS');
+        $pdf->SetAuthor('Plataforma DSS');
+        $pdf->SetTitle('Certificado - ' . $certificate->user->nome);
+        $pdf->SetSubject('Certificado de Conclusão');
+        $pdf->SetMargins(10, 10, 10);
+        $pdf->SetAutoPageBreak(true, 10);
+        $pdf->AddPage();
+        $pdf->writeHTML($html, true, false, true, false, '');
+
+        return response($pdf->Output('certificado-' . $certificate->codigo_certificado . '.pdf', 'S'))
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="certificado-' . $certificate->codigo_certificado . '.pdf"');
+    }
+
     public function myCertificates()
     {
         $user = auth()->user();

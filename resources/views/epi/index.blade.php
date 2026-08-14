@@ -636,7 +636,7 @@
                                             <span class="text-gray-400">-</span>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-3 text-center font-semibold text-xs">
+                                    <td class="px-4 py-3 text-center font-semibold text-xs" title="Usado como fallback quando a movimentação de entrada não informa a validade do lote. A validade do lote tem prioridade no vencimento das entregas.">
                                         @if($epi->ss_e_nb_vida_util_dias > 0)
                                             {{ $epi->ss_e_nb_vida_util_dias }} dias
                                         @else
@@ -744,6 +744,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">EPI</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Tipo</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Qtd</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Validade do Lote</th>
                                 <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Valor Total</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">NF / Fornecedor</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Motivo / Foto</th>
@@ -769,12 +770,27 @@
                                             <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-xs">Entrada</span>
                                         @elseif($mov->ss_e_tx_tipo === 'saida')
                                             <span class="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold text-xs">Saída</span>
+                                        @elseif($mov->ss_e_tx_tipo === 'devolucao')
+                                            <span class="px-2 py-0.5 bg-teal-100 text-teal-800 rounded font-bold text-xs">Devolução</span>
                                         @else
                                             <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-bold text-xs">Substituição</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3 text-center font-bold text-gray-900">
                                         {{ $mov->ss_e_nb_quantidade }}
+                                    </td>
+                                    <td class="px-4 py-3 text-center text-xs">
+                                        @if($mov->ss_e_tx_validade)
+                                            {{ date('d/m/Y', strtotime($mov->ss_e_tx_validade)) }}
+                                            @if($mov->ss_e_tx_validade < now()->format('Y-m-d'))
+                                                <div class="mt-0.5"><span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Vencida</span></div>
+                                            @endif
+                                        @else
+                                            <span class="text-gray-400">-</span>
+                                        @endif
+                                        @if($mov->ss_e_tx_data_recebimento)
+                                            <div class="text-[10px] text-gray-400">Receb: {{ date('d/m/Y', strtotime($mov->ss_e_tx_data_recebimento)) }}</div>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-3 text-right text-xs text-gray-700">
                                         {{ $mov->ss_e_db_valor_total ? 'R$ ' . number_format($mov->ss_e_db_valor_total, 2, ',', '.') : '-' }}
@@ -1639,6 +1655,15 @@
                 <div>
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Valor Unitário (R$)</label>
                     <input type="number" step="0.01" name="ss_e_db_valor_unitario" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Recebimento</label>
+                    <input type="date" name="ss_e_tx_data_recebimento" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Validade do Lote *</label>
+                    <input type="date" name="ss_e_tx_validade" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                    <div class="text-[10px] text-gray-400 mt-0.5">A validade informada aqui define o vencimento das entregas deste EPI (tem prioridade sobre a vida útil do cadastro).</div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Chave / Nº Nota Fiscal</label>
