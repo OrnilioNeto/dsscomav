@@ -845,6 +845,8 @@ class EpiController extends Controller
         $request->validate([
             'ss_e_nb_epi_id' => 'required|integer',
             'ss_e_tx_tipo' => 'required|in:entrada,saida,substituicao',
+            'ss_e_tx_data_recebimento' => 'nullable|date',
+            'ss_e_tx_validade' => 'nullable|date',
         ]);
 
         $epiId = $request->input('ss_e_nb_epi_id');
@@ -1057,11 +1059,7 @@ class EpiController extends Controller
                         $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empId;
                         $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
 
-                        $diasVidaUtil = (int)$epi->ss_e_nb_vida_util_dias;
-                        $vencimento = null;
-                        if ($diasVidaUtil > 0) {
-                            $vencimento = date('Y-m-d', strtotime("{$dtEntrega} + {$diasVidaUtil} days"));
-                        }
+                        $vencimento = $this->calcularVencimentoEntrega($epi->ss_e_nb_id, $variacaoId, $dtEntrega);
 
                         $requerAssinatura = $sig ? false : true;
 
@@ -1169,11 +1167,7 @@ class EpiController extends Controller
                 $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empresaId;
                 $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
 
-                $diasVidaUtil = (int)$epi->ss_e_nb_vida_util_dias;
-                $vencimento = null;
-                if ($diasVidaUtil > 0) {
-                    $vencimento = date('Y-m-d', strtotime("{$dataEntrega} + {$diasVidaUtil} days"));
-                }
+                $vencimento = $this->calcularVencimentoEntrega($epi->ss_e_nb_id, $variacaoId, $dataEntrega);
 
                 $reqAss = $assinatura ? false : true;
 
@@ -1282,6 +1276,37 @@ class EpiController extends Controller
         $entrega->update(['ss_e_tx_vencimento' => $request->input('ss_e_tx_vencimento')]);
 
         return redirect()->back()->with('success', "Vencimento da entrega #{$entrega->ss_e_nb_id} atualizado para {$novaData}!");
+    }
+
+    /**
+     * Calcula o vencimento de uma entrega:
+     * 1) Validade do lote (última entrada com validade informada, por variação quando aplicável);
+     * 2) Fallback: data da entrega + vida útil em dias do catálogo.
+     * Retorna 'Y-m-d' ou null.
+     */
+    private function calcularVencimentoEntrega(int $epiId, ?int $variacaoId, string $dataEntrega): ?string
+    {
+        $validadeLote = DB::table('ss_epi_estoque')
+            ->where('ss_e_nb_epi_id', $epiId)
+            ->where('ss_e_tx_tipo', 'entrada')
+            ->whereNotNull('ss_e_tx_validade')
+            ->when($variacaoId, function ($q) use ($variacaoId) {
+                return $q->where('ss_e_nb_variacao_id', $variacaoId);
+            })
+            ->max('ss_e_tx_validade');
+
+        if ($validadeLote) {
+            return $validadeLote;
+        }
+
+        $epi = Epi::find($epiId);
+        $diasVidaUtil = $epi ? (int) $epi->ss_e_nb_vida_util_dias : 0;
+
+        if ($diasVidaUtil > 0) {
+            return date('Y-m-d', strtotime("{$dataEntrega} + {$diasVidaUtil} days"));
+        }
+
+        return null;
     }
 
     /**
