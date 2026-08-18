@@ -379,8 +379,37 @@ class EpiController extends Controller
         // 5. Movimentações de Estoque Recentes
         $estoqueMovimentos = EpiEstoque::with(['epi', 'variacao'])
             ->orderBy('ss_e_tx_data', 'desc')
-            ->limit(100)
+            ->limit(200)
             ->get();
+
+        // 5.1 Gráfico: fluxo de entradas x saídas dos últimos 14 dias
+        $ultimosDiasGrafico = 14;
+        $estoqueGrafico = [];
+        $graficoInicio = now()->subDays($ultimosDiasGrafico - 1)->format('Y-m-d');
+        $driver = DB::connection()->getDriverName();
+        $dateExpr = $driver === 'sqlite' ? "strftime('%Y-%m-%d', ss_e_tx_data)" : 'DATE(ss_e_tx_data)';
+
+        $linhasGrafico = DB::table('ss_epi_estoque')
+            ->selectRaw("{$dateExpr} AS dia, ss_e_tx_tipo AS tipo, SUM(ss_e_nb_quantidade) AS total")
+            ->whereRaw("{$dateExpr} >= ?", [$graficoInicio])
+            ->groupBy('dia', 'tipo')
+            ->get();
+
+        $mapaGrafico = [];
+        foreach ($linhasGrafico as $l) {
+            $mapaGrafico[$l->dia][$l->tipo] = (int) $l->total;
+        }
+
+        for ($i = $ultimosDiasGrafico - 1; $i >= 0; $i--) {
+            $dia = now()->subDays($i);
+            $chave = $dia->format('Y-m-d');
+            $mapa = $mapaGrafico[$chave] ?? [];
+            $estoqueGrafico[] = [
+                'label' => $dia->format('d/m'),
+                'entradas' => ($mapa['entrada'] ?? 0) + ($mapa['devolucao'] ?? 0),
+                'saidas' => ($mapa['saida'] ?? 0) + ($mapa['substituicao'] ?? 0),
+            ];
+        }
 
         // 6. Entregas Recentes (Omitindo inativos e devolvidos conforme regra)
         // Ordenado pela data de LANÇAMENTO (cadastro), mais recentes no topo,
@@ -513,6 +542,7 @@ class EpiController extends Controller
             'colaboradores',
             'kits',
             'estoqueMovimentos',
+            'estoqueGrafico',
             'entregasRecentes',
             'filiais',
             'filialSelecionada',
