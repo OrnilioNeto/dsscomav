@@ -96,6 +96,9 @@ class TrainingController extends Controller
             } elseif ($training->tipo === 'dss' && !$training->isReleased()) {
                 $item['progress'] = null;
                 $bloqueados[] = $item;
+            } elseif ($training->tipo === 'treinamento' && !$training->isReleased()) {
+                // Mesma regra do web: direcionados não liberados ficam ocultos
+                continue;
             } elseif ($training->tipo === 'treinamento') {
                 $direcionados[] = $item;
             } else {

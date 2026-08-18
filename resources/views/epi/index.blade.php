@@ -550,6 +550,7 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                     <!-- Filtros -->
                     <form method="GET" action="{{ route('epi.index') }}" class="flex flex-wrap items-center gap-3">
+                        <input type="hidden" name="tab" value="catalogo">
                         <input type="hidden" name="filial_id" value="{{ $filialSelecionada }}">
                         <input type="text" name="busca_catalogo" value="{{ request('busca_catalogo') }}" placeholder="Buscar por item, grupo, CA..." class="text-sm border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500 px-3 py-2">
                         
@@ -682,61 +683,170 @@
                 </div>
             </div>
 
-            <!-- ABA 3: CONTROLE DE ESTOQUE (MOVIMENTAÇÕES POR FILIAL) -->
+            <!-- ABA 3: CONTROLE DE ESTOQUE -->
             <div id="tab-content-estoque" class="aba-content hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-base font-bold text-gray-900">
-                        <i class="fas fa-boxes text-amber-600 mr-2"></i> Saldo Atual por EPI e Variação
-                    </h3>
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900">
+                            <i class="fas fa-boxes text-amber-600 mr-2"></i> Controle de Estoque
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            Os saldos acompanham o seletor de filial no topo da página. Clique em um item para ver a distribuição entre filiais.
+                        </p>
+                    </div>
                     <button type="button" onclick="abrirModalNovaEntradaEstoque()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
                         <i class="fas fa-plus mr-1"></i> + Registrar Lançamento / Entrada
                     </button>
                 </div>
 
-                <!-- Tabela de Saldo por Variação -->
-                <div class="overflow-x-auto border border-gray-200 rounded-xl bg-white mb-6">
+                <!-- KPIs -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><i class="fas fa-boxes"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase leading-tight">Saldo total (rede)</p>
+                            <p id="kpi-saldo-rede" class="text-2xl font-black text-gray-900 leading-tight">-</p>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center shrink-0"><i class="fas fa-warehouse"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase leading-tight">Saldo na filial</p>
+                            <p id="kpi-saldo-filial" class="text-2xl font-black text-gray-900 leading-tight">-</p>
+                            <p id="kpi-filial-nome" class="text-[10px] text-gray-400 truncate">-</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="setFiltroStatusEstoque('ok')" class="text-left bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 hover:border-emerald-400 hover:shadow cursor-pointer">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="fas fa-check-circle"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase leading-tight">Itens com saldo</p>
+                            <p id="kpi-com-saldo" class="text-2xl font-black text-emerald-700 leading-tight">-</p>
+                        </div>
+                    </button>
+                    <button type="button" onclick="setFiltroStatusEstoque('esgotado')" class="text-left bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 hover:border-rose-400 hover:shadow cursor-pointer">
+                        <div class="w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase leading-tight">Itens esgotados</p>
+                            <p id="kpi-esgotados" class="text-2xl font-black text-rose-700 leading-tight">-</p>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Fluxo dos últimos 14 dias -->
+                <div class="bg-white border border-gray-200 rounded-xl p-4 mb-5">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <h4 class="text-sm font-bold text-gray-900"><i class="fas fa-chart-bar text-amber-600 mr-2"></i> Fluxo de Entradas x Saídas (últimos 14 dias)</h4>
+                        <div class="flex items-center gap-4 text-[11px] font-bold">
+                            <span class="flex items-center gap-1 text-emerald-700"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block"></span> Entradas</span>
+                            <span class="flex items-center gap-1 text-rose-700"><span class="w-2.5 h-2.5 rounded-sm bg-rose-400 inline-block"></span> Saídas</span>
+                        </div>
+                    </div>
+                    @php
+                        $maxGrafico = max(array_map(fn ($g) => $g['entradas'] + $g['saidas'], $estoqueGrafico)) ?: 1;
+                    @endphp
+                    <div class="flex items-end gap-1 h-28">
+                        @forelse($estoqueGrafico as $g)
+                            @php
+                                $pctEnt = $g['entradas'] > 0 ? max(4, (int) round($g['entradas'] / $maxGrafico * 100)) : 0;
+                                $pctSai = $g['saidas'] > 0 ? max(4, (int) round($g['saidas'] / $maxGrafico * 100)) : 0;
+                            @endphp
+                            <div class="flex-1 flex flex-col items-center justify-end h-full" title="{{ $g['label'] }} — Entradas: {{ $g['entradas'] }} · Saídas: {{ $g['saidas'] }}">
+                                <div class="flex items-end gap-0.5 w-full justify-center" style="height: calc(100% - 18px);">
+                                    <div class="w-2.5 bg-emerald-500 rounded-t-sm" style="height: {{ $pctEnt }}%;"></div>
+                                    <div class="w-2.5 bg-rose-400 rounded-t-sm" style="height: {{ $pctSai }}%;"></div>
+                                </div>
+                                <div class="text-[9px] text-gray-400 mt-0.5">{{ $g['label'] }}</div>
+                            </div>
+                        @empty
+                            <div class="w-full text-center text-xs text-gray-400 py-8">Sem movimentações de estoque nos últimos 14 dias.</div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <!-- Toolbar de filtros -->
+                <div class="flex flex-wrap items-center gap-2 mb-4">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" id="filtro-estoque-busca" oninput="filtroEstoque.busca = this.value; renderizarControleEstoque();" placeholder="Buscar item, grupo, CA..." class="pl-8 pr-3 py-2 text-xs border-gray-300 rounded-lg shadow-sm w-56">
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button type="button" id="filtro-estoque-todos" onclick="setFiltroStatusEstoque('todos')" class="px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-emerald-900 text-white">Todos</button>
+                        <button type="button" id="filtro-estoque-ok" onclick="setFiltroStatusEstoque('ok')" class="px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200">Com saldo</button>
+                        <button type="button" id="filtro-estoque-baixo" onclick="setFiltroStatusEstoque('baixo')" class="px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200">Baixo estoque (0)</button>
+                        <button type="button" id="filtro-estoque-esgotado" onclick="setFiltroStatusEstoque('esgotado')" class="px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200">Esgotados</button>
+                    </div>
+                    <div class="ml-auto flex items-center gap-2">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase">Limiar baixo:</label>
+                        <select id="filtro-estoque-limiar" onchange="filtroEstoque.limiar = parseInt(this.value); setFiltroStatusEstoque(filtroEstoque.status);" class="text-xs border-gray-300 rounded-lg shadow-sm">
+                            <option value="2">≤ 2</option>
+                            <option value="5" selected>≤ 5</option>
+                            <option value="10">≤ 10</option>
+                            <option value="20">≤ 20</option>
+                        </select>
+                        <select id="filtro-estoque-ordem" onchange="filtroEstoque.ordem = this.value; renderizarControleEstoque();" class="text-xs border-gray-300 rounded-lg shadow-sm">
+                            <option value="nome">Nome (A-Z)</option>
+                            <option value="saldo-asc">Menor saldo</option>
+                            <option value="saldo-desc">Maior saldo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Tabela de Saldos por EPI -->
+                <div class="overflow-x-auto border border-gray-200 rounded-xl bg-white mb-8">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">EPI</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Variação</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Saldo Total (Rede)</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Variações (saldo)</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Saldo total (rede)</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Status</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Saldo na filial</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Ação</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @php $temSaldoVariacao = false; @endphp
-                            @foreach($episCatalogo as $epi)
-                                @if(isset($saldosVariacao[$epi->ss_e_nb_id]) && count($saldosVariacao[$epi->ss_e_nb_id]) > 0)
-                                    @foreach($epi->variacoes->where('ss_ev_tx_status', 'ativo') as $v)
-                                        @php 
-                                            $saldoVar = $saldosVariacao[$epi->ss_e_nb_id][$v->ss_ev_nb_id] ?? 0;
-                                            $temSaldoVariacao = true;
-                                        @endphp
-                                        <tr class="hover:bg-gray-50 {{ $saldoVar <= 0 ? 'text-gray-400' : '' }}">
-                                            <td class="px-4 py-3 font-semibold">{{ $epi->ss_e_tx_item }}</td>
-                                            <td class="px-4 py-3">{{ $v->ss_ev_tx_nome }}</td>
-                                            <td class="px-4 py-3 text-center font-bold {{ $saldoVar <= 0 ? 'text-rose-500' : 'text-emerald-700' }}">
-                                                {{ $saldoVar }}
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                @endif
-                            @endforeach
-                            @if(!$temSaldoVariacao)
-                                <tr>
-                                    <td colspan="3" class="px-4 py-8 text-center text-gray-400">Nenhum EPI com variações cadastradas.</td>
-                                </tr>
-                            @endif
+                        <tbody id="estoque-linhas">
+                            <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Carregando estoque...</td></tr>
                         </tbody>
                     </table>
+                    <div id="estoque-vazio" class="hidden text-center text-gray-400 py-8 text-sm">
+                        Nenhum item encontrado com os filtros selecionados.
+                    </div>
+                    <div class="px-4 py-2 border-t border-gray-100 text-[11px] text-gray-400">
+                        <span id="estoque-contagem"></span>
+                    </div>
                 </div>
 
-                <h3 class="text-base font-bold text-gray-900 mb-4">
+                <h3 class="text-base font-bold text-gray-900 mb-1">
                     <i class="fas fa-history text-amber-600 mr-2"></i> Movimentações de Inventário
                 </h3>
+                <p class="text-xs text-gray-500 mb-3">Filtre por tipo, período e texto. A borda colorida indica o sentido de cada movimentação.</p>
+
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                    <button type="button" id="filtro-mov-todos" onclick="setFiltroTipoMovimentacao('todos')" class="px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-emerald-900 text-white">Todas</button>
+                    <button type="button" id="filtro-mov-entrada" onclick="setFiltroTipoMovimentacao('entrada')" class="px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200">Entradas</button>
+                    <button type="button" id="filtro-mov-saida" onclick="setFiltroTipoMovimentacao('saida')" class="px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200">Saídas</button>
+                    <button type="button" id="filtro-mov-devolucao" onclick="setFiltroTipoMovimentacao('devolucao')" class="px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200">Devoluções</button>
+                    <button type="button" id="filtro-mov-substituicao" onclick="setFiltroTipoMovimentacao('substituicao')" class="px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200">Substituições</button>
+                    <select id="filtro-mov-periodo" onchange="filtroMovimentacoes.periodo = parseInt(this.value); aplicarFiltroMovimentacoes();" class="text-xs border-gray-300 rounded-lg shadow-sm ml-1">
+                        <option value="0">Todo o período</option>
+                        <option value="7">Últimos 7 dias</option>
+                        <option value="30">Últimos 30 dias</option>
+                        <option value="90">Últimos 90 dias</option>
+                    </select>
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" id="filtro-mov-busca" oninput="filtroMovimentacoes.busca = this.value; aplicarFiltroMovimentacoes();" placeholder="Buscar item, motivo, NF..." class="pl-8 pr-3 py-2 text-xs border-gray-300 rounded-lg shadow-sm w-56">
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 mb-3">
+                    <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold"><i class="fas fa-arrow-down mr-1"></i>Entradas: <span id="mov-total-entradas">0</span></span>
+                    <span class="px-3 py-1 rounded-full bg-rose-100 text-rose-800 text-[11px] font-bold"><i class="fas fa-arrow-up mr-1"></i>Saídas: <span id="mov-total-saidas">0</span></span>
+                    <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] font-bold"><i class="fas fa-list mr-1"></i><span id="mov-contagem">0</span> movimentações</span>
+                </div>
 
                 <div class="overflow-x-auto border border-gray-200 rounded-xl bg-white">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm" id="tabela-movimentacoes">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Data / Registro</th>
@@ -752,7 +862,11 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             @forelse($estoqueMovimentos as $mov)
-                                <tr class="hover:bg-gray-50">
+                                <tr class="hover:bg-gray-50 border-l-4 {{ $mov->ss_e_tx_tipo === 'entrada' ? 'border-emerald-500' : ($mov->ss_e_tx_tipo === 'saida' ? 'border-rose-500' : ($mov->ss_e_tx_tipo === 'devolucao' ? 'border-teal-500' : 'border-amber-500')) }}"
+                                    data-tipo="{{ $mov->ss_e_tx_tipo }}"
+                                    data-ts="{{ strtotime($mov->ss_e_tx_data) * 1000 }}"
+                                    data-qtd="{{ $mov->ss_e_nb_quantidade }}"
+                                    data-busca="{{ mb_strtolower(($mov->epi->ss_e_tx_item ?? '') . ' ' . ($mov->variacao->ss_ev_tx_nome ?? '') . ' ' . ($mov->ss_e_tx_motivo ?? '') . ' ' . ($mov->ss_e_tx_chave_nf ?? '') . ' ' . ($mov->ss_e_tx_fornecedor ?? '') . ' ' . ($filiais[$mov->ss_e_nb_empresa_id ?? 0] ?? 'Matriz')) }}">
                                     <td class="px-4 py-3 text-xs text-gray-600">
                                         {{ date('d/m/Y H:i', strtotime($mov->ss_e_tx_data)) }}
                                     </td>
@@ -811,12 +925,15 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr>
-                                    <td colspan="8" class="px-4 py-8 text-center text-gray-400">Nenhuma movimentação de estoque registrada.</td>
+                                <tr id="mov-sem-registro">
+                                    <td colspan="9" class="px-4 py-8 text-center text-gray-400">Nenhuma movimentação de estoque registrada.</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
+                    <div id="mov-vazio" class="hidden text-center text-gray-400 py-8 text-sm">
+                        Nenhuma movimentação encontrada com os filtros selecionados.
+                    </div>
                 </div>
             </div>
 
@@ -1123,6 +1240,10 @@
                         </h3>
 
                         <input type="text" id="input-filtro-colaborador" onkeyup="filtrarListaColaboradores()" placeholder="Buscar colaborador por nome..." class="w-full text-xs border-gray-300 rounded-lg shadow-sm mb-3">
+
+                        <div class="hidden text-center text-gray-400 py-6 text-xs mb-2" id="lista-colaboradores-vazia">
+                            Nenhum colaborador encontrado com o filtro informado.
+                        </div>
 
                         <div class="max-h-96 overflow-y-auto divide-y divide-gray-100" id="lista-colaboradores-fichas">
                             @foreach($colaboradores as $c)
@@ -2036,6 +2157,18 @@
                 }
             }
         });
+        // Persiste a aba ativa na URL e nos formulários de filtro, para que
+        // recarregamentos (ex: aplicar filtro no catálogo) mantenham a aba aberta
+        try {
+            var url = new URL(window.location.href);
+            if (url.searchParams.get('tab') !== nomeAba) {
+                url.searchParams.set('tab', nomeAba);
+                window.history.replaceState({}, '', url);
+            }
+        } catch (e) {}
+        document.querySelectorAll('input[name="tab"]').forEach(function(el) {
+            el.value = nomeAba;
+        });
     };
 
     // Variáveis Globais de Estado
@@ -2048,6 +2181,16 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         carregarEstoqueDisponivelAPI();
+        aplicarFiltroMovimentacoes();
+
+        // Restaura a aba ativa vinda da URL (ex: filtro aplicado no catálogo)
+        try {
+            var abaUrl = new URLSearchParams(window.location.search).get('tab');
+            var abasValidas = ['sacola', 'catalogo', 'estoque', 'fardamento', 'kits', 'fichas', 'filiais', 'devolucoes'];
+            if (abaUrl && abasValidas.indexOf(abaUrl) !== -1) {
+                window.mudarAba(abaUrl);
+            }
+        } catch (e) {}
     });
 
     function atualizarFilialGlobal(filialId) {
@@ -2080,6 +2223,7 @@
                 if (data && data.status === 'success') {
                     matrizEstoqueApi = data.data;
                     renderizarOptionsSelectEpi(ocultarEsgotados);
+                    if (typeof renderizarControleEstoque === 'function') renderizarControleEstoque();
                 }
             })
             .catch(err => console.error('Erro ao carregar estoque API:', err));
@@ -2751,7 +2895,7 @@
         })
         .then(res => res.json())
         .then(resData => {
-            if (resData.status === 'success') {
+            if (resData && resData.status === 'success') {
                 Swal.fire({
                     toast: true,
                     position: 'top-end',
@@ -2765,7 +2909,7 @@
                 window.renderizarTabelaSacola();
                 carregarEstoqueDisponivelAPI();
             } else {
-                Swal.fire('Erro!', 'Falha ao registrar a entrega do motorista.', 'error');
+                Swal.fire('Erro!', (resData && resData.message) || 'Falha ao registrar a entrega do motorista.', 'error');
             }
         })
         .catch(err => {
@@ -2826,12 +2970,12 @@
                 })
                 .then(res => res.json())
                 .then(resData => {
-                    if (resData.status === 'success') {
+                    if (resData && resData.status === 'success') {
                         Swal.fire('Sucesso!', resData.message, 'success').then(() => {
                             window.location.reload();
                         });
                     } else {
-                        Swal.fire('Erro!', 'Ocorreu uma falha ao registrar as entregas em lote.', 'error');
+                        Swal.fire('Erro!', (resData && resData.message) || 'Ocorreu uma falha ao registrar as entregas em lote.', 'error');
                     }
                 })
                 .catch(err => {
@@ -2919,9 +3063,16 @@
         }
     };
 
-    window.abrirModalNovaEntradaEstoque = function() {
+    window.abrirModalNovaEntradaEstoque = function(epiId) {
         var modal = document.getElementById('modal-estoque-entrada');
         if (modal) {
+            if (epiId) {
+                var select = document.getElementById('estoque-epi-select');
+                if (select) {
+                    select.value = String(epiId);
+                    window.atualizarVariacoesEstoque(epiId);
+                }
+            }
             modal.classList.remove('hidden');
             modal.style.setProperty('display', 'flex', 'important');
         }
@@ -3336,6 +3487,36 @@
         return '<span class="inline-block px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-xs font-black">' + prefixo + window.escFardamento(valor) + '</span>';
     }
 
+    // Filtro da lista de colaboradores (aba Fichas & Histórico)
+    window.filtrarListaColaboradores = function() {
+        var input = document.getElementById('input-filtro-colaborador');
+        var lista = document.getElementById('lista-colaboradores-fichas');
+        var vazio = document.getElementById('lista-colaboradores-vazia');
+        if (!lista) return;
+
+        var busca = ((input && input.value) || '').trim().toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        var linhas = lista.querySelectorAll('.colab-item-row');
+        var visiveis = 0;
+
+        linhas.forEach(function(linha) {
+            var nomeEl = linha.querySelector('.colab-nome');
+            var nome = (nomeEl ? nomeEl.textContent : '').toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            var corresponde = !busca || nome.indexOf(busca) !== -1;
+            if (corresponde) {
+                linha.classList.remove('hidden');
+                linha.style.display = '';
+            } else {
+                linha.classList.add('hidden');
+                linha.style.display = 'none';
+            }
+            if (corresponde) visiveis++;
+        });
+
+        if (vazio) vazio.classList.toggle('hidden', visiveis > 0);
+    };
+
     window.filtrarListaFuncionariosFardamento = function() {
         var nome = (document.getElementById('filtro-nome-funcionario').value || '').trim().toLowerCase();
         var camisa = document.getElementById('filtro-camisa-funcionario').value;
@@ -3455,5 +3636,217 @@
 
         recalcularTotalVariacoes();
     };
+
+    // ===== CONTROLE DE ESTOQUE (ABA 3) =====
+    let filtroEstoque = { busca: '', status: 'todos', limiar: 5, ordem: 'nome' };
+    let filtroMovimentacoes = { tipo: 'todos', periodo: 0, busca: '' };
+
+    function setTextConteudo(id, valor) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = valor;
+    }
+
+    function statusItemEstoque(item) {
+        if (item.saldo_rede <= 0) return 'esgotado';
+        if (item.saldo_rede <= filtroEstoque.limiar) return 'baixo';
+        return 'ok';
+    }
+
+    function setFiltroStatusEstoque(status) {
+        filtroEstoque.status = status;
+        [
+            ['filtro-estoque-todos', 'todos'],
+            ['filtro-estoque-ok', 'ok'],
+            ['filtro-estoque-baixo', 'baixo'],
+            ['filtro-estoque-esgotado', 'esgotado']
+        ].forEach(function(par) {
+            var btn = document.getElementById(par[0]);
+            if (!btn) return;
+            var ativo = par[1] === status;
+            btn.className = ativo
+                ? 'px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-emerald-900 text-white'
+                : 'px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200';
+        });
+        renderizarControleEstoque();
+    }
+
+    function renderizarControleEstoque() {
+        var corpo = document.getElementById('estoque-linhas');
+        if (!corpo) return;
+        var dados = Array.isArray(matrizEstoqueApi) ? matrizEstoqueApi : [];
+        var busca = filtroEstoque.busca.trim().toLowerCase();
+
+        // KPIs
+        var saldoRede = 0, saldoFilial = 0, comSaldo = 0, esgotados = 0, baixos = 0;
+        dados.forEach(function(i) {
+            saldoRede += i.saldo_rede || 0;
+            saldoFilial += i.saldo_atual || 0;
+            if ((i.saldo_rede || 0) <= 0) {
+                esgotados++;
+            } else {
+                comSaldo++;
+                if ((i.saldo_rede || 0) <= filtroEstoque.limiar) baixos++;
+            }
+        });
+        setTextConteudo('kpi-saldo-rede', saldoRede);
+        setTextConteudo('kpi-saldo-filial', saldoFilial);
+        setTextConteudo('kpi-com-saldo', comSaldo);
+        setTextConteudo('kpi-esgotados', esgotados);
+
+        var selFilial = document.getElementById('select-filial-global');
+        var nomeFilial = (selFilial && selFilial.options && selFilial.options[selFilial.selectedIndex])
+            ? selFilial.options[selFilial.selectedIndex].text : '';
+        setTextConteudo('kpi-filial-nome', nomeFilial);
+
+        var chipBaixo = document.getElementById('filtro-estoque-baixo');
+        if (chipBaixo) chipBaixo.textContent = 'Baixo estoque (' + baixos + ')';
+
+        // Filtros
+        var filtrados = dados.filter(function(i) {
+            if (busca) {
+                var alvo = ((i.item || '') + ' ' + (i.grupo || '') + ' ' + (i.subgrupo || '') + ' ' + (i.ca || '')).toLowerCase();
+                if (alvo.indexOf(busca) === -1) return false;
+            }
+            var st = statusItemEstoque(i);
+            if (filtroEstoque.status !== 'todos' && st !== filtroEstoque.status) return false;
+            return true;
+        });
+
+        // Ordenação
+        if (filtroEstoque.ordem === 'saldo-asc') {
+            filtrados.sort(function(a, b) { return (a.saldo_rede || 0) - (b.saldo_rede || 0); });
+        } else if (filtroEstoque.ordem === 'saldo-desc') {
+            filtrados.sort(function(a, b) { return (b.saldo_rede || 0) - (a.saldo_rede || 0); });
+        } else {
+            filtrados.sort(function(a, b) { return (a.item || '').localeCompare(b.item || ''); });
+        }
+
+        var maxSaldo = 1;
+        dados.forEach(function(i) { if ((i.saldo_rede || 0) > maxSaldo) maxSaldo = i.saldo_rede; });
+
+        var html = '';
+        filtrados.forEach(function(i) {
+            var st = statusItemEstoque(i);
+            var stCfg = {
+                ok: ['bg-emerald-100 text-emerald-800', 'Em estoque'],
+                baixo: ['bg-amber-100 text-amber-800', 'Estoque baixo'],
+                esgotado: ['bg-rose-100 text-rose-800', 'Esgotado']
+            }[st];
+            var corBarra = st === 'ok' ? 'bg-emerald-500' : (st === 'baixo' ? 'bg-amber-400' : 'bg-rose-400');
+            var pct = Math.max(3, Math.round((i.saldo_rede || 0) / maxSaldo * 100));
+
+            var chipsVars = (i.variacoes && i.variacoes.length)
+                ? i.variacoes.map(function(v) {
+                    var cor = (v.saldo_rede || 0) <= 0 ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-800';
+                    return '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ' + cor + '" title="Saldo: ' + (v.saldo_rede || 0) + '">' + (v.nome || '-') + ' <strong>(' + (v.saldo_rede || 0) + ')</strong></span>';
+                  }).join(' ')
+                : '<span class="text-gray-400 text-xs">-</span>';
+
+            var outras = (i.outras_filiais && i.outras_filiais.length)
+                ? i.outras_filiais.map(function(o) {
+                    return '<div class="flex justify-between text-xs py-0.5"><span class="text-gray-600">' + (o.filial_nome || '') + '</span><strong>' + o.saldo + '</strong></div>';
+                  }).join('')
+                : '<p class="text-xs text-gray-400">Sem saldo em outras filiais.</p>';
+
+            var detId = 'estoque-det-' + i.id;
+            html += '<tr class="hover:bg-gray-50 border-b border-gray-100">'
+                + '<td class="px-4 py-3">'
+                +   '<button type="button" onclick="toggleDetalheEstoque(' + i.id + ')" class="text-gray-400 hover:text-gray-700 mr-1 cursor-pointer" title="Ver distribuição por filial"><i class="fas fa-chevron-down text-[10px]"></i></button>'
+                +   '<span class="font-bold text-emerald-950">' + (i.item || 'EPI #' + i.id) + '</span>'
+                +   '<div class="text-[10px] text-gray-400 uppercase">' + (i.grupo || '') + (i.subgrupo ? ' / ' + i.subgrupo : '') + '</div>'
+                + '</td>'
+                + '<td class="px-4 py-3"><div class="flex flex-wrap gap-1 justify-center">' + chipsVars + '</div></td>'
+                + '<td class="px-4 py-3">'
+                +   '<div class="flex items-center gap-2">'
+                +     '<div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden"><div class="h-full ' + corBarra + '" style="width:' + pct + '%"></div></div>'
+                +     '<strong class="text-sm ' + (st === 'esgotado' ? 'text-rose-600' : 'text-gray-900') + '">' + (i.saldo_rede || 0) + '</strong>'
+                +   '</div>'
+                + '</td>'
+                + '<td class="px-4 py-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ' + stCfg[0] + '">' + stCfg[1] + '</span></td>'
+                + '<td class="px-4 py-3 text-center text-xs font-semibold ' + ((i.saldo_atual || 0) <= 0 ? 'text-gray-400' : 'text-gray-800') + '">' + (i.saldo_atual || 0) + '</td>'
+                + '<td class="px-4 py-3 text-center">'
+                +   '<button type="button" onclick="abrirModalNovaEntradaEstoque(' + i.id + ')" class="px-2 py-1 text-[10px] font-bold bg-gray-800 text-white rounded hover:bg-gray-900 cursor-pointer"><i class="fas fa-plus mr-0.5"></i> Lançamento</button>'
+                + '</td>'
+                + '</tr>'
+                + '<tr id="' + detId + '" class="hidden bg-gray-50/70 border-b border-gray-100">'
+                +   '<td colspan="6" class="px-6 py-3">'
+                +     '<div class="grid md:grid-cols-2 gap-4">'
+                +       '<div><p class="text-[10px] font-bold text-gray-500 uppercase mb-1"><i class="fas fa-building mr-1"></i>Distribuição por filial</p>' + outras + '</div>'
+                +       '<div><p class="text-[10px] font-bold text-gray-500 uppercase mb-1"><i class="fas fa-info-circle mr-1"></i>Resumo do item</p>'
+                +         '<div class="flex justify-between text-xs py-0.5"><span class="text-gray-600">Saldo na filial selecionada</span><strong>' + (i.saldo_atual || 0) + '</strong></div>'
+                +         '<div class="flex justify-between text-xs py-0.5"><span class="text-gray-600">Saldo total (rede)</span><strong>' + (i.saldo_rede || 0) + '</strong></div>'
+                +         '<div class="flex justify-between text-xs py-0.5"><span class="text-gray-600">CA</span><strong>' + (i.ca || '-') + '</strong></div>'
+                +         '<div class="flex justify-between text-xs py-0.5"><span class="text-gray-600">Vida útil</span><strong>' + (i.vida_util_dias || 0) + ' dias</strong></div>'
+                +       '</div>'
+                +     '</div>'
+                +   '</td>'
+                + '</tr>';
+        });
+
+        corpo.innerHTML = html;
+        setTextConteudo('estoque-contagem', 'Exibindo ' + filtrados.length + ' de ' + dados.length + ' itens');
+        var vazio = document.getElementById('estoque-vazio');
+        if (vazio) vazio.classList.toggle('hidden', filtrados.length > 0);
+    }
+
+    function toggleDetalheEstoque(id) {
+        var tr = document.getElementById('estoque-det-' + id);
+        if (tr) tr.classList.toggle('hidden');
+    }
+
+    // ===== FILTROS DAS MOVIMENTAÇÕES =====
+    function setFiltroTipoMovimentacao(tipo) {
+        filtroMovimentacoes.tipo = tipo;
+        [
+            ['filtro-mov-todos', 'todos'],
+            ['filtro-mov-entrada', 'entrada'],
+            ['filtro-mov-saida', 'saida'],
+            ['filtro-mov-devolucao', 'devolucao'],
+            ['filtro-mov-substituicao', 'substituicao']
+        ].forEach(function(par) {
+            var btn = document.getElementById(par[0]);
+            if (!btn) return;
+            var ativo = par[1] === tipo;
+            btn.className = ativo
+                ? 'px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-emerald-900 text-white'
+                : 'px-3 py-1.5 text-xs font-bold rounded-full cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200';
+        });
+        aplicarFiltroMovimentacoes();
+    }
+
+    function aplicarFiltroMovimentacoes() {
+        var tabela = document.getElementById('tabela-movimentacoes');
+        if (!tabela) return;
+        var rows = tabela.querySelectorAll('tbody tr');
+        var busca = filtroMovimentacoes.busca.trim().toLowerCase();
+        var agora = Date.now();
+        var entradas = 0, saidas = 0, visiveis = 0;
+
+        rows.forEach(function(tr) {
+            if (!tr.dataset.tipo) return;
+            var ok = true;
+            if (filtroMovimentacoes.tipo !== 'todos' && tr.dataset.tipo !== filtroMovimentacoes.tipo) ok = false;
+            if (ok && filtroMovimentacoes.periodo > 0 && (agora - (parseInt(tr.dataset.ts) || 0)) > filtroMovimentacoes.periodo * 86400000) ok = false;
+            if (ok && busca && (tr.dataset.busca || '').indexOf(busca) === -1) ok = false;
+            tr.classList.toggle('hidden', !ok);
+            if (ok) {
+                visiveis++;
+                var q = parseInt(tr.dataset.qtd) || 0;
+                if (tr.dataset.tipo === 'entrada' || tr.dataset.tipo === 'devolucao') {
+                    entradas += q;
+                } else {
+                    saidas += q;
+                }
+            }
+        });
+
+        setTextConteudo('mov-total-entradas', entradas);
+        setTextConteudo('mov-total-saidas', saidas);
+        setTextConteudo('mov-contagem', visiveis);
+        var vazio = document.getElementById('mov-vazio');
+        if (vazio) vazio.classList.toggle('hidden', visiveis > 0);
+        var semRegistro = document.getElementById('mov-sem-registro');
+        if (semRegistro) semRegistro.classList.toggle('hidden', rows.length > 1);
+    }
 </script>
 @endsection
