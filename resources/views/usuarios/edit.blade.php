@@ -70,6 +70,19 @@
                     <input type="text" value="{{ ucfirst($usuario->tipo_usuario) }}" disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100">
                     <input type="hidden" name="tipo_usuario" value="{{ $usuario->tipo_usuario }}">
                 </div>
+
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Role (Perfil) *</label>
+                    <select name="role_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                        @foreach($roles as $role)
+                            @if($role->nome !== 'super_admin')
+                                <option value="{{ $role->id }}" {{ $usuario->role_id == $role->id ? 'selected' : '' }}>
+                                    {{ ucfirst(str_replace('_', ' ', $role->nome)) }}
+                                </option>
+                            @endif
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
             <div class="grid md:grid-cols-2 gap-4">

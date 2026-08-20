@@ -122,10 +122,13 @@ Route::middleware('auth')->group(function () {
 
         // Projetos Pedagógicos (NR-01 Anexo II 3.1/4.1.1) — liberação por perfil
         Route::get('/projetos-pedagogicos', [ProjetoPedagogicoController::class, 'index'])->name('projetos-pedagogicos.index');
-        Route::get('/projetos-pedagogicos/{training}/editar', [ProjetoPedagogicoController::class, 'edit'])->name('projetos-pedagogicos.edit');
-        Route::put('/projetos-pedagogicos/{training}', [ProjetoPedagogicoController::class, 'update'])->name('projetos-pedagogicos.update');
-        Route::get('/projetos-pedagogicos/{training}/pdf', [ProjetoPedagogicoController::class, 'download'])->name('projetos-pedagogicos.download');
-        Route::get('/projetos-pedagogicos/{training}/arquivo', [ProjetoPedagogicoController::class, 'downloadArquivo'])->name('projetos-pedagogicos.download-arquivo');
+        Route::get('/projetos-pedagogicos/novo', [ProjetoPedagogicoController::class, 'create'])->name('projetos-pedagogicos.create');
+        Route::post('/projetos-pedagogicos', [ProjetoPedagogicoController::class, 'store'])->name('projetos-pedagogicos.store');
+        Route::get('/projetos-pedagogicos/{pp}/editar', [ProjetoPedagogicoController::class, 'edit'])->name('projetos-pedagogicos.edit');
+        Route::put('/projetos-pedagogicos/{pp}', [ProjetoPedagogicoController::class, 'update'])->name('projetos-pedagogicos.update');
+        Route::delete('/projetos-pedagogicos/{pp}', [ProjetoPedagogicoController::class, 'destroy'])->name('projetos-pedagogicos.destroy');
+        Route::get('/projetos-pedagogicos/{pp}/pdf', [ProjetoPedagogicoController::class, 'download'])->name('projetos-pedagogicos.download');
+        Route::get('/projetos-pedagogicos/{pp}/arquivo', [ProjetoPedagogicoController::class, 'downloadArquivo'])->name('projetos-pedagogicos.download-arquivo');
 
         // Materiais de Apoio
         Route::post('/treinamentos/{trainingId}/materiais/upload', [TrainingMaterialController::class, 'upload'])->name('materiais.upload');

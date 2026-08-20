@@ -50,6 +50,44 @@ class ProjetoPedagogico extends Model
     }
 
     /**
+     * Treinamentos vinculados a este projeto pedagógico (um PP pode atender a vários treinamentos).
+     */
+    public function trainings()
+    {
+        return $this->belongsToMany(Training::class, 'projeto_pedagogico_trainings')
+            ->withTimestamps();
+    }
+
+    /**
+     * IDs de todos os treinamentos vinculados (pivot + vínculo legado por training_id).
+     */
+    public function getTrainingIdsAttribute(): array
+    {
+        $ids = $this->trainings()->pluck('trainings.id')->all();
+
+        if ($this->training_id && !in_array((int) $this->training_id, $ids)) {
+            $ids[] = (int) $this->training_id;
+        }
+
+        return $ids;
+    }
+
+    public function getTrainingsListAttribute()
+    {
+        $ids = $this->training_ids;
+
+        return empty($ids) ? collect() : Training::whereIn('id', $ids)->orderBy('titulo')->get();
+    }
+
+    /**
+     * Nome(s) do(s) treinamento(s) atendido(s) por este PP (para listagem/PDF).
+     */
+    public function getNomesTreinamentosAttribute(): string
+    {
+        return $this->trainings_list->pluck('titulo')->implode('; ');
+    }
+
+    /**
      * Status da revisão do projeto pedagógico (Anexo II 3.3).
      */
     public function getStatusRevisaoAttribute(): string
