@@ -33,12 +33,21 @@ class AuthController extends Controller
         $cpf = preg_replace('/\D/', '', $request->cpf);
 
         try {
-            if (Auth::attempt(['cpf' => $cpf, 'password' => $request->password])) {
-                $request->session()->regenerate();
-                // Flag para exibir o splash da Copa do Mundo desativada
-                // $request->session()->put('show_copa_splash', true);
-                return redirect()->route('dashboard');
+            $user = User::where('cpf', $cpf)->first();
+
+            if (!$user || !Hash::check($request->password, $user->password)) {
+                return back()->withInput()->with('error', 'CPF ou senha inválidos');
             }
+
+            // Bloqueia usuários inativos (status = inativo)
+            if ($user->status !== 'ativo') {
+                return back()->withInput()->with('error', 'Acesso bloqueado: usuário inativo. Contate o administrador.');
+            }
+
+            Auth::login($user);
+            $request->session()->regenerate();
+
+            return redirect()->route('dashboard');
         } catch (\Throwable $e) {
             report($e);
 
@@ -46,8 +55,6 @@ class AuthController extends Controller
                 ->withInput()
                 ->with('error', 'Não foi possível processar o login agora. Verifique o log do servidor.');
         }
-
-        return back()->withInput()->with('error', 'CPF ou senha inválidos');
     }
 
     public function logout(Request $request)

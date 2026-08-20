@@ -21,6 +21,7 @@ class User extends Authenticatable
         'data_nascimento',
         'tipo_usuario',
         'status',
+        'data_inativacao',
         'role_id',
         'participa_treinamentos',
         'cnh',
@@ -51,6 +52,7 @@ class User extends Authenticatable
         'validade_cnh' => 'date',
         'ferias_inicio' => 'date',
         'ferias_fim' => 'date',
+        'data_inativacao' => 'datetime',
         'usuario_teste' => 'boolean',
     ];
 
@@ -215,6 +217,16 @@ class User extends Authenticatable
     public function isTestUser(): bool
     {
         return (bool) $this->usuario_teste;
+    }
+
+    public function isAtivo(): bool
+    {
+        return $this->status === 'ativo';
+    }
+
+    public function isInativo(): bool
+    {
+        return $this->status === 'inativo';
     }
 
     public function isOnVacation(?Carbon $referenceDate = null): bool
