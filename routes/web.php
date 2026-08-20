@@ -10,6 +10,7 @@ use App\Http\Controllers\TrainingMaterialController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProfilePhotoController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\ProjetoPedagogicoController;
 use App\Http\Middleware\CheckRole;
 use App\Http\Controllers\Admin\SplashContentController;
 use Illuminate\Support\Facades\Route;
@@ -92,6 +93,7 @@ Route::middleware('auth')->group(function () {
     // Visualizar e completar treinamentos
     Route::get('/treinamentos/{id}/player', [TrainingPlayerController::class, 'show'])->name('treinamentos.player');
     Route::post('/treinamentos/{id}/atualizar-progresso', [TrainingPlayerController::class, 'updateProgress'])->name('treinamentos.atualizar-progresso');
+    Route::post('/treinamentos/{id}/avaliacao/iniciar', [TrainingPlayerController::class, 'iniciarAvaliacao'])->name('treinamentos.avaliacao.iniciar');
     Route::post('/treinamentos/{id}/avaliacao', [TrainingPlayerController::class, 'submitAssessment'])->name('treinamentos.avaliacao');
     Route::post('/treinamentos/{id}/completar', [TrainingPlayerController::class, 'complete'])->name('treinamentos.completar');
 
@@ -117,6 +119,13 @@ Route::middleware('auth')->group(function () {
 
         // Treinamentos
         Route::resource('treinamentos', TrainingController::class);
+
+        // Projetos Pedagógicos (NR-01 Anexo II 3.1/4.1.1) — liberação por perfil
+        Route::get('/projetos-pedagogicos', [ProjetoPedagogicoController::class, 'index'])->name('projetos-pedagogicos.index');
+        Route::get('/projetos-pedagogicos/{training}/editar', [ProjetoPedagogicoController::class, 'edit'])->name('projetos-pedagogicos.edit');
+        Route::put('/projetos-pedagogicos/{training}', [ProjetoPedagogicoController::class, 'update'])->name('projetos-pedagogicos.update');
+        Route::get('/projetos-pedagogicos/{training}/pdf', [ProjetoPedagogicoController::class, 'download'])->name('projetos-pedagogicos.download');
+        Route::get('/projetos-pedagogicos/{training}/arquivo', [ProjetoPedagogicoController::class, 'downloadArquivo'])->name('projetos-pedagogicos.download-arquivo');
 
         // Materiais de Apoio
         Route::post('/treinamentos/{trainingId}/materiais/upload', [TrainingMaterialController::class, 'upload'])->name('materiais.upload');

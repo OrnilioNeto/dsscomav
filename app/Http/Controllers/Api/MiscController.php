@@ -115,6 +115,8 @@ class MiscController extends Controller
                     'tipo' => $c->training?->tipo,
                     'carga_horaria' => (int) ($c->training?->carga_horaria ?? 0),
                     'data_emissao' => $c->data_emissao?->toISOString(),
+                    'data_validade' => $c->data_validade?->toISOString(),
+                    'status_validade' => $c->status_validade,
                 ])->values(),
                 'treinamentos_externos' => $externalTrainings->map(fn ($t) => [
                     'nome' => $t->nome,

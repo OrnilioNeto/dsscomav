@@ -185,6 +185,55 @@
                 </div>
             </div>
 
+            <!-- Seção 1.1: Treinamentos EAD (Plataforma) -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-video text-blue-900 mr-3"></i>Treinamentos EAD (Plataforma)
+                </h2>
+
+                @if(isset($plataformaTrainings) && $plataformaTrainings->count() > 0)
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-100 border-b">
+                                <tr>
+                                    <th class="p-3 text-gray-700 font-semibold">Treinamento</th>
+                                    <th class="p-3 text-gray-700 font-semibold">Concluído</th>
+                                    <th class="p-3 text-gray-700 font-semibold">Validade</th>
+                                    <th class="p-3 text-gray-700 font-semibold">Status</th>
+                                    <th class="p-3 text-gray-700 font-semibold text-right">Código</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($plataformaTrainings as $cert)
+                                    @php
+                                        $statusVal = $cert->status_validade;
+                                        $badge = $statusVal === 'vencido'
+                                            ? ['bg-red-100 text-red-800', 'Vencido']
+                                            : ($statusVal === 'vencendo' ? ['bg-amber-100 text-amber-800', 'Vence em breve'] : ['bg-green-100 text-green-800', 'Vigente']);
+                                    @endphp
+                                    <tr class="border-b hover:bg-gray-50">
+                                        <td class="p-3 font-semibold text-gray-800">
+                                            {{ $cert->training->titulo }}
+                                            @if($cert->training->tipo_treinamento)
+                                                <span class="block text-xs text-gray-500 font-normal">{{ ucfirst($cert->training->tipo_treinamento) }} · {{ $cert->training->carga_horaria }} min</span>
+                                            @endif
+                                        </td>
+                                        <td class="p-3 text-gray-600">{{ $cert->data_emissao->format('d/m/Y') }}</td>
+                                        <td class="p-3 text-gray-600">{{ $cert->data_validade ? $cert->data_validade->format('d/m/Y') : 'Não expira' }}</td>
+                                        <td class="p-3">
+                                            <span class="px-2 py-0.5 rounded text-xs font-bold {{ $badge[0] }}">{{ $badge[1] }}</span>
+                                        </td>
+                                        <td class="p-3 text-right font-mono text-xs text-gray-500">{{ $cert->codigo_certificado }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-sm text-gray-500 italic">Nenhum treinamento EAD da plataforma concluído por este colaborador.</p>
+                @endif
+            </div>
+
             <!-- Seção 2: Entregas de EPI -->
             <div class="bg-white rounded-lg shadow-lg p-6">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
