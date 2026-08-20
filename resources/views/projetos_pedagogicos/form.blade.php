@@ -1,21 +1,26 @@
 @extends('layout')
 
-@section('title', 'Projeto Pedagógico - ' . $training->titulo)
+@section('title', ($pp ? 'Editar Projeto Pedagógico' : 'Novo Projeto Pedagógico'))
 
 @section('content')
+@php $isEdit = !is_null($pp); @endphp
 <div class="max-w-4xl mx-auto px-4 py-8">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
             <h1 class="text-2xl font-bold text-gray-800">
-                <i class="fas fa-book-open text-blue-900 mr-2"></i>Projeto Pedagógico
+                <i class="fas fa-book-open text-blue-900 mr-2"></i>{{ $isEdit ? 'Editar Projeto Pedagógico' : 'Novo Projeto Pedagógico' }}
             </h1>
             <p class="text-sm text-gray-500 mt-1">
-                {{ $training->titulo }} · {{ $training->tipo_treinamento ? ucfirst($training->tipo_treinamento) : strtoupper($training->tipo) }} · {{ $training->carga_horaria }} min
+                @if($isEdit)
+                    Atende a: <strong>{{ $pp->nomes_treinamentos ?: '—' }}</strong>
+                @else
+                    O projeto pedagógico pode ser vinculado a <strong>um ou mais treinamentos</strong>.
+                @endif
             </p>
         </div>
         <div class="flex gap-2">
-            @if($training->projetoPedagogico)
-                <a href="{{ route('projetos-pedagogicos.download', $training) }}" class="px-4 py-2 bg-emerald-700 text-white text-sm font-bold rounded-lg hover:bg-emerald-800">
+            @if($isEdit && $pp->assinatura_rt)
+                <a href="{{ route('projetos-pedagogicos.download', $pp) }}" class="px-4 py-2 bg-emerald-700 text-white text-sm font-bold rounded-lg hover:bg-emerald-800">
                     <i class="fas fa-file-pdf mr-1"></i> Baixar PDF padrão
                 </a>
             @endif
@@ -35,9 +40,39 @@
         </div>
     @endif
 
-    <form action="{{ route('projetos-pedagogicos.update', $training) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+    <form action="{{ $isEdit ? route('projetos-pedagogicos.update', $pp) : route('projetos-pedagogicos.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
         @csrf
-        @method('PUT')
+        @if($isEdit)
+            @method('PUT')
+        @endif
+
+        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">1. Treinamentos atendidos por este projeto pedagógico</h2>
+            <p class="text-xs text-gray-500 mb-3">
+                Selecione <strong>um ou mais treinamentos</strong> que usarão este mesmo projeto pedagógico.
+                <span class="text-amber-700"><i class="fas fa-shield-alt mr-1"></i>Regra de segurança: treinamentos que já possuem PP próprio não aparecem aqui — para alterá-los, edite o PP específico do treinamento.</span>
+            </p>
+
+            <input type="text" id="trainings-busca" placeholder="Buscar treinamento por nome..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900 mb-3">
+            <div class="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 space-y-2">
+                @forelse($disponiveis as $treinamento)
+                    <label class="flex items-center training-item">
+                        <input type="checkbox" name="trainings[]" value="{{ $treinamento->id }}"
+                            {{ in_array($treinamento->id, old('trainings', $selecionados)) ? 'checked' : '' }}
+                            class="mr-2">
+                        <span class="text-gray-700">{{ $treinamento->titulo }}</span>
+                        <span class="text-xs text-gray-500 ml-2">
+                            {{ $treinamento->tipo_treinamento ? ucfirst($treinamento->tipo_treinamento) : strtoupper($treinamento->tipo) }} · {{ $treinamento->carga_horaria }} min
+                        </span>
+                    </label>
+                @empty
+                    <p class="text-gray-500 text-sm italic">
+                        Nenhum treinamento disponível. Todos os treinamentos já possuem projeto pedagógico.
+                    </p>
+                @endforelse
+            </div>
+            <p class="text-[11px] text-gray-400 mt-2"><span id="trainings-contagem">0</span> treinamento(s) selecionado(s).</p>
+        </div>
 
         <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 shadow-sm">
             <h2 class="text-lg font-bold text-amber-900 mb-1">
@@ -61,7 +96,7 @@
         </div>
 
         <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h2 class="text-lg font-bold text-gray-800 mb-1">Identificação do Projeto</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-1">2. Identificação do Projeto</h2>
             <p class="text-xs text-gray-500 mb-4">Dados gerais e responsável técnico pela capacitação (Anexo II 3.1d/3.1e).</p>
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
@@ -93,7 +128,7 @@
         </div>
 
         <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
-            <h2 class="text-lg font-bold text-gray-800 mb-1">Estruturação Pedagógica (Anexo II 3.1)</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-1">3. Estruturação Pedagógica (Anexo II 3.1)</h2>
             <p class="text-xs text-gray-500 mb-4">Preencha os itens conforme a NR-01. Quanto mais completo, maior o percentual de conformidade exibido na listagem.</p>
 
             <div>
@@ -163,7 +198,7 @@
         </div>
 
         <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h2 class="text-lg font-bold text-gray-800 mb-1">Assinatura do Responsável Técnico</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-1">4. Assinatura do Responsável Técnico</h2>
             <p class="text-xs text-gray-500 mb-4">Assine diretamente no sistema para compor a versão oficial do projeto pedagógico (PDF gerado pela plataforma). A assinatura identifica o responsável técnico pela capacitação.</p>
 
             <div class="grid md:grid-cols-2 gap-6">
@@ -202,7 +237,7 @@
                     @if($pp?->arquivo_pdf)
                         <div class="mt-3 text-sm text-gray-600">
                             <i class="fas fa-file-pdf text-red-600 mr-1"></i> Arquivo atual:
-                            <a href="{{ route('projetos-pedagogicos.download-arquivo', $training) }}" class="text-blue-700 font-bold hover:underline">Baixar PDF</a>
+                            <a href="{{ route('projetos-pedagogicos.download-arquivo', $pp) }}" class="text-blue-700 font-bold hover:underline">Baixar PDF</a>
                         </div>
                     @endif
                 </div>
@@ -211,7 +246,7 @@
 
         <div class="flex gap-3">
             <button type="submit" class="px-6 py-3 bg-emerald-700 text-white font-bold rounded-lg hover:bg-emerald-800 shadow">
-                <i class="fas fa-save mr-2"></i>Salvar Projeto Pedagógico
+                <i class="fas fa-save mr-2"></i>{{ $isEdit ? 'Salvar Alterações' : 'Cadastrar Projeto Pedagógico' }}
             </button>
             <a href="{{ route('projetos-pedagogicos.index') }}" class="px-6 py-3 bg-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-400 text-center">
                 Cancelar
@@ -263,6 +298,29 @@
             timer: 2500,
             showConfirmButton: false
         });
+    }
+
+    // Busca e contagem dos treinamentos selecionados
+    document.addEventListener('DOMContentLoaded', function() {
+        const busca = document.getElementById('trainings-busca');
+        if (busca) {
+            busca.addEventListener('input', function() {
+                const termo = this.value.toLowerCase().trim();
+                document.querySelectorAll('.training-item').forEach(item => {
+                    item.style.display = item.textContent.toLowerCase().includes(termo) ? '' : 'none';
+                });
+            });
+        }
+        atualizarContagemTrainings();
+        document.querySelectorAll('input[name="trainings[]"]').forEach(cb => {
+            cb.addEventListener('change', atualizarContagemTrainings);
+        });
+    });
+
+    function atualizarContagemTrainings() {
+        const total = document.querySelectorAll('input[name="trainings[]"]:checked').length;
+        const el = document.getElementById('trainings-contagem');
+        if (el) el.textContent = total;
     }
 
     let ppSignatureCanvas = null;

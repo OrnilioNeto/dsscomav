@@ -76,7 +76,14 @@ class Training extends Model
 
     public function projetoPedagogico()
     {
-        return $this->hasOne(ProjetoPedagogico::class, 'training_id', 'id');
+        return $this->hasOneThrough(
+            ProjetoPedagogico::class,
+            ProjetoPedagogicoTraining::class,
+            'training_id',
+            'id',
+            'id',
+            'projeto_pedagogico_id'
+        );
     }
 
     // Métodos auxiliares

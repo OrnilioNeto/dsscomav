@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ProjetoPedagogico;
 use App\Models\Training;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use TCPDF;
 
@@ -17,35 +19,44 @@ class ProjetoPedagogicoController extends Controller
     }
 
     /**
-     * Página universal: lista todos os treinamentos com o status do projeto pedagógico.
+     * Página universal: lista os projetos pedagógicos e os treinamentos atendidos por cada um.
      */
     public function index()
     {
-        $treinamentos = Training::with('projetoPedagogico')
-            ->orderBy('titulo')
+        $projetos = ProjetoPedagogico::with('trainings')
+            ->orderBy('updated_at', 'desc')
             ->get();
 
-        return view('projetos_pedagogicos.index', compact('treinamentos'));
+        $totalTreinamentos = Training::count();
+        $treinamentosSemPP = $this->availableTrainings()->count();
+
+        return view('projetos_pedagogicos.index', compact('projetos', 'totalTreinamentos', 'treinamentosSemPP'));
     }
 
     /**
-     * Formulário de edição/cadastro do projeto pedagógico de um treinamento.
+     * Formulário de cadastro de um novo projeto pedagógico (pode atender a vários treinamentos).
      */
-    public function edit(Training $training)
+    public function create()
     {
-        $training->load('projetoPedagogico');
-        $pp = $training->projetoPedagogico;
         $templates = $this->getTemplates();
+        $disponiveis = $this->availableTrainings();
 
-        return view('projetos_pedagogicos.form', compact('training', 'pp', 'templates'));
+        return view('projetos_pedagogicos.form', [
+            'pp' => null,
+            'templates' => $templates,
+            'disponiveis' => $disponiveis,
+            'selecionados' => [],
+        ]);
     }
 
     /**
-     * Salva o projeto pedagógico do treinamento (Anexo II 3.1) e opcionalmente o PDF assinado.
+     * Salva um novo projeto pedagógico e vincula os treinamentos selecionados.
      */
-    public function update(Request $request, Training $training)
+    public function store(Request $request)
     {
         $request->validate([
+            'trainings' => 'required|array|min:1',
+            'trainings.*' => 'exists:trainings,id',
             'versao' => 'nullable|string|max:20',
             'objetivo_geral' => 'nullable|string',
             'principios_sst' => 'nullable|string',
@@ -68,6 +79,321 @@ class ProjetoPedagogicoController extends Controller
             'arquivo_pdf' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
+        $selecionados = $this->validarTreinamentosDisponiveis($request->input('trainings', []), null);
+        if ($selecionados === null) {
+            return redirect()->back()
+                ->withErrors(['trainings' => 'Um ou mais treinamentos selecionados já possuem projeto pedagógico. Para alterá-los, edite o PP específico do treinamento.'])
+                ->withInput();
+        }
+
+        $dados = $this->coletarDados($request);
+
+        $pp = new ProjetoPedagogico();
+        $pp->fill($dados);
+        $pp->training_id = $selecionados[0];
+        $pp->save();
+
+        $this->salvarAssinatura($request, $pp);
+        $this->salvarArquivoPdf($request, $pp);
+        $pp->trainings()->sync($selecionados);
+
+        return redirect()->route('projetos-pedagogicos.index')->with('success', 'Projeto pedagógico cadastrado e vinculado aos treinamentos selecionados!');
+    }
+
+    /**
+     * Formulário de edição de um projeto pedagógico (pode atender a vários treinamentos).
+     */
+    public function edit(ProjetoPedagogico $pp)
+    {
+        $pp->load('trainings');
+        $templates = $this->getTemplates();
+        $disponiveis = $this->availableTrainings($pp);
+        $selecionados = $pp->training_ids;
+
+        return view('projetos_pedagogicos.form', compact('pp', 'templates', 'disponiveis', 'selecionados'));
+    }
+
+    /**
+     * Atualiza um projeto pedagógico e re-vincula os treinamentos selecionados.
+     * Regra de segurança: treinamentos que já possuem outro PP não são alterados.
+     */
+    public function update(Request $request, ProjetoPedagogico $pp)
+    {
+        $request->validate([
+            'trainings' => 'required|array|min:1',
+            'trainings.*' => 'exists:trainings,id',
+            'versao' => 'nullable|string|max:20',
+            'objetivo_geral' => 'nullable|string',
+            'principios_sst' => 'nullable|string',
+            'estrategia_pedagogica' => 'nullable|string',
+            'conteudo_programatico_pp' => 'nullable|string',
+            'objetivo_modulos' => 'nullable|string',
+            'carga_horaria_pp' => 'nullable|string|max:100',
+            'tempo_minimo_diario' => 'nullable|string|max:100',
+            'prazo_maximo_conclusao' => 'nullable|string|max:100',
+            'publico_alvo' => 'nullable|string',
+            'material_didatico' => 'nullable|string',
+            'instrumentos_aprendizado' => 'nullable|string',
+            'avaliacao_aprendizagem' => 'nullable|string',
+            'instrutores' => 'nullable|string|max:255',
+            'infraestrutura_operacional' => 'nullable|string',
+            'responsavel_tecnico_nome' => 'nullable|string|max:255',
+            'responsavel_tecnico_qualificacao' => 'nullable|string|max:255',
+            'data_validacao' => 'nullable|date',
+            'data_proxima_revisao' => 'nullable|date|after_or_equal:data_validacao',
+            'arquivo_pdf' => 'nullable|file|mimes:pdf|max:10240',
+        ]);
+
+        $selecionados = $this->validarTreinamentosDisponiveis($request->input('trainings', []), $pp);
+        if ($selecionados === null) {
+            return redirect()->back()
+                ->withErrors(['trainings' => 'Um ou mais treinamentos selecionados já possuem projeto pedagógico. Para alterá-los, edite o PP específico do treinamento.'])
+                ->withInput();
+        }
+
+        $pp->fill($this->coletarDados($request));
+        $pp->training_id = $selecionados[0];
+        $pp->save();
+
+        $this->salvarAssinatura($request, $pp);
+        $this->salvarArquivoPdf($request, $pp);
+        $pp->trainings()->sync($selecionados);
+
+        return redirect()->route('projetos-pedagogicos.index')->with('success', 'Projeto pedagógico atualizado com sucesso!');
+    }
+
+    /**
+     * Exclui um projeto pedagógico (os treinamentos ficam livres para novo vínculo).
+     */
+    public function destroy(ProjetoPedagogico $pp)
+    {
+        $pp->delete();
+
+        return redirect()->route('projetos-pedagogicos.index')->with('success', 'Projeto pedagógico excluído com sucesso!');
+    }
+
+    /**
+     * Gera o PDF padrão do projeto pedagógico com os itens do Anexo II 3.1.
+     * O bloco de assinaturas é desenhado de forma nativa (TCPDF) para garantir
+     * alinhamento e visual profissional (o HTML do TCPDF não suporta layout de imagem inline).
+     */
+    public function download(ProjetoPedagogico $pp)
+    {
+        $pp->load('trainings');
+
+        $html = view('projetos_pedagogicos.pp_pdf', ['pp' => $pp, 'treinamentos' => $pp->trainings_list])->render();
+
+        $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetCreator('Plataforma DSS');
+        $pdf->SetAuthor('Plataforma DSS');
+        $pdf->SetTitle('Projeto Pedagógico');
+        $pdf->SetSubject('Projeto Pedagógico (NR-01 Anexo II 3.1)');
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 15);
+        $pdf->AddPage();
+        $pdf->writeHTML($html, true, false, true, false, '');
+
+        $this->desenharBlocoAssinaturas($pdf, $pp);
+        $this->desenharRodape($pdf);
+
+        $nome = 'projeto-pedagogico-' . \Illuminate\Support\Str::slug($pp->versao ?? '1.0') . '.pdf';
+
+        return response($pdf->Output($nome, 'S'))
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . $nome . '"');
+    }
+
+    /**
+     * Desenha o bloco de assinaturas (responsável técnico × validação) com métodos nativos do TCPDF.
+     * Utiliza uma página dedicada ao final do documento para garantir alinhamento e visual profissional.
+     */
+    private function desenharBlocoAssinaturas(TCPDF $pdf, ProjetoPedagogico $pp): void
+    {
+        $pdf->addPage();
+
+        $pageWidth = $pdf->getPageWidth();
+        $marginLeft = $pdf->getMargins()['left'];
+        $marginRight = $pdf->getMargins()['right'];
+        $colWidth = ($pageWidth - $marginLeft - $marginRight) / 2;
+
+        $imgAlt = 22;
+        $imgLarg = 60;
+        $y0 = 40;
+
+        // Título da página de aprovação
+        $pdf->SetFont('helvetica', 'B', 11);
+        $pdf->SetTextColor(21, 59, 46);
+        $pdf->SetY($y0 - 18);
+        $pdf->Cell(0, 8, 'APROVAÇÃO E VALIDAÇÃO DO PROJETO PEDAGÓGICO', 0, 1, 'C');
+
+        // Coluna 1: Responsável técnico (com imagem da assinatura)
+        $x1 = $marginLeft + ($colWidth - $imgLarg) / 2;
+        $centro1 = $marginLeft + $colWidth / 2;
+
+        if ($pp->assinatura_rt) {
+            $bin = $this->decodificarDataUri($pp->assinatura_rt);
+            if ($bin !== null) {
+                $pdf->Image('@' . $bin, $x1, $y0, $imgLarg, $imgAlt, 'JPEG', '', '', false, 300);
+            }
+        }
+
+        $yLinha = $y0 + $imgAlt + 6;
+        $this->desenharLinhaAssinatura($pdf, $centro1 - 55, $centro1 + 55, $yLinha);
+
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetTextColor(21, 59, 46);
+        $pdf->SetXY($marginLeft, $yLinha + 3);
+        $pdf->Cell($colWidth, 6, 'Responsável técnico pela capacitação', 0, 1, 'C');
+
+        $pdf->SetFont('helvetica', '', 8.5);
+        $pdf->SetTextColor(55, 65, 81);
+        $nomeRt = $pp->assinatura_rt_nome ?? $pp->responsavel_tecnico_nome ?? '—';
+        $linha1 = $nomeRt . ($pp->responsavel_tecnico_qualificacao ? "\n" . $pp->responsavel_tecnico_qualificacao : '');
+        if ($pp->assinatura_rt_data) {
+            $linha1 .= "\nAssinado em: " . $pp->assinatura_rt_data->format('d/m/Y H:i');
+        }
+        $pdf->SetX($marginLeft);
+        $pdf->MultiCell($colWidth, 4.5, $linha1, 0, 'C');
+
+        // Coluna 2: Validação (reserva o mesmo espaço da imagem para alinhar as linhas)
+        $x2 = $marginLeft + $colWidth;
+        $centro2 = $marginLeft + $colWidth + $colWidth / 2;
+
+        $this->desenharLinhaAssinatura($pdf, $centro2 - 55, $centro2 + 55, $yLinha);
+
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetTextColor(21, 59, 46);
+        $pdf->SetXY($x2, $yLinha + 3);
+        $pdf->Cell($colWidth, 6, 'Validação do projeto pedagógico', 0, 1, 'C');
+
+        $pdf->SetFont('helvetica', '', 8.5);
+        $pdf->SetTextColor(55, 65, 81);
+        $linha2 = ($pp->data_validacao ? 'Validado em: ' . $pp->data_validacao->format('d/m/Y') : '—')
+            . "\nRevisão prevista: " . ($pp->data_proxima_revisao?->format('d/m/Y') ?? '—');
+        $pdf->SetX($x2);
+        $pdf->MultiCell($colWidth, 4.5, $linha2, 0, 'C');
+    }
+
+    /**
+     * Desenha uma linha de assinatura horizontal.
+     */
+    private function desenharLinhaAssinatura(TCPDF $pdf, float $xInicio, float $xFim, float $y): void
+    {
+        $pdf->SetDrawColor(55, 65, 81);
+        $pdf->SetLineWidth(0.5);
+        $pdf->Line($xInicio, $y, $xFim, $y);
+    }
+
+    /**
+     * Desenha o rodapé do documento de forma nativa.
+     */
+    private function desenharRodape(TCPDF $pdf): void
+    {
+        $pageWidth = $pdf->getPageWidth();
+        $pageHeight = $pdf->getPageHeight();
+        $marginLeft = $pdf->getMargins()['left'];
+
+        $y = $pageHeight - 25;
+        $pdf->SetDrawColor(229, 231, 235);
+        $pdf->SetLineWidth(0.3);
+        $pdf->Line($marginLeft, $y, $pageWidth - $marginLeft, $y);
+
+        $pdf->SetY($y + 3);
+        $pdf->SetFont('helvetica', '', 8);
+        $pdf->SetTextColor(107, 114, 128);
+        $pdf->Cell(0, 4, 'Documento gerado eletronicamente pela Plataforma DSS em ' . now()->format('d/m/Y H:i') . ' — válido conforme NR-01 Anexo II, item 4.1.', 0, 0, 'C');
+    }
+
+    /**
+     * Extrai o conteúdo binário de uma data URI (ex.: data:image/jpeg;base64,...).
+     */
+    private function decodificarDataUri(string $dataUri): ?string
+    {
+        $partes = explode(',', $dataUri, 2);
+        $bin = base64_decode($partes[1] ?? '');
+
+        return ($bin !== false && $bin !== '') ? $bin : null;
+    }
+
+    /**
+     * Baixa o PDF assinado enviado pelo responsável técnico (se houver).
+     */
+    public function downloadArquivo(ProjetoPedagogico $pp)
+    {
+        if (!$pp->arquivo_pdf || !Storage::disk('public')->exists($pp->arquivo_pdf)) {
+            abort(404, 'Arquivo do projeto pedagógico não encontrado.');
+        }
+
+        return response()->download(Storage::disk('public')->path($pp->arquivo_pdf));
+    }
+
+    /**
+     * Treinamentos disponíveis para vincular a um PP (que ainda não possuem PP).
+     * Na edição, os treinamentos já vinculados a este PP continuam selecionáveis.
+     */
+    private function availableTrainings(?ProjetoPedagogico $pp = null)
+    {
+        $ocupados = $this->trainingIdsOcupados();
+
+        if ($pp) {
+            $ocupados = $ocupados->diff($pp->training_ids);
+        }
+
+        $query = Training::orderBy('titulo');
+
+        if (!$ocupados->isEmpty()) {
+            $query->whereNotIn('id', $ocupados);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * IDs de todos os treinamentos que já possuem projeto pedagógico (pivot + vínculo legado).
+     */
+    private function trainingIdsOcupados()
+    {
+        $ids = collect();
+
+        if (Schema::hasTable('projeto_pedagogico_trainings')) {
+            $ids = $ids->merge(DB::table('projeto_pedagogico_trainings')->pluck('training_id'));
+        }
+
+        if (Schema::hasTable('training_projetos_pedagogicos') && Schema::hasColumn('training_projetos_pedagogicos', 'training_id')) {
+            $ids = $ids->merge(DB::table('training_projetos_pedagogicos')->whereNotNull('training_id')->pluck('training_id'));
+        }
+
+        return $ids->map(fn ($id) => (int) $id)->unique()->values();
+    }
+
+    /**
+     * Valida que os treinamentos selecionados estão disponíveis (regra de segurança).
+     * Retorna a lista validada ou null quando algum já pertence a outro PP.
+     */
+    private function validarTreinamentosDisponiveis(array $selecionados, ?ProjetoPedagogico $pp)
+    {
+        $selecionados = array_values(array_unique(array_map('intval', $selecionados)));
+
+        if (empty($selecionados)) {
+            return null;
+        }
+
+        $disponiveisIds = $this->availableTrainings($pp)->pluck('id')->all();
+
+        foreach ($selecionados as $id) {
+            if (!in_array($id, $disponiveisIds)) {
+                return null;
+            }
+        }
+
+        return $selecionados;
+    }
+
+    /**
+     * Coleta os campos de estruturação pedagógica e identificação do formulário.
+     */
+    private function coletarDados(Request $request): array
+    {
         $dados = $request->only([
             'versao', 'objetivo_geral', 'principios_sst', 'estrategia_pedagogica', 'conteudo_programatico_pp',
             'objetivo_modulos', 'carga_horaria_pp', 'tempo_minimo_diario', 'prazo_maximo_conclusao',
@@ -81,79 +407,50 @@ class ProjetoPedagogicoController extends Controller
             $dados['data_proxima_revisao'] = \Carbon\Carbon::parse($dados['data_validacao'])->addYears(2)->format('Y-m-d');
         }
 
-        $pp = $training->projetoPedagogico()->firstOrNew([]);
-        $pp->fill($dados);
+        return $dados;
+    }
 
-        if ($request->hasFile('arquivo_pdf')) {
-            $arquivo = $request->file('arquivo_pdf');
-            $caminho = $arquivo->storeAs(
-                'projetos-pedagogicos/training-' . $training->id,
-                'projeto-pedagogico-' . $training->id . '-' . time() . '.pdf',
-                'public'
-            );
-            $pp->arquivo_pdf = $caminho;
-        }
-
-        // Assinatura do responsável técnico diretamente no sistema
+    /**
+     * Processa a assinatura do responsável técnico (canvas) ou a remoção da assinatura salva.
+     */
+    private function salvarAssinatura(Request $request, ProjetoPedagogico $pp): void
+    {
         if ($request->boolean('remover_assinatura')) {
             $pp->assinatura_rt = null;
             $pp->assinatura_rt_nome = null;
             $pp->assinatura_rt_data = null;
-        } elseif ($request->filled('assinatura_rt')) {
+            $pp->save();
+
+            return;
+        }
+
+        if ($request->filled('assinatura_rt')) {
             $assinatura = trim((string) $request->input('assinatura_rt'));
 
             if (str_starts_with($assinatura, 'data:image')) {
-                // Converte para JPEG (sem canal alfa) para compatibilidade com a geração do PDF (TCPDF)
                 $pp->assinatura_rt = $this->normalizarAssinaturaParaPdf($assinatura);
                 $pp->assinatura_rt_nome = auth()->user()->nome ?? $pp->responsavel_tecnico_nome;
                 $pp->assinatura_rt_data = now();
+                $pp->save();
             }
         }
-
-        $pp->training_id = $training->id;
-        $pp->save();
-
-        return redirect()->route('projetos-pedagogicos.index')->with('success', 'Projeto pedagógico salvo com sucesso!');
     }
 
     /**
-     * Gera o PDF padrão do projeto pedagógico com os itens do Anexo II 3.1.
+     * Processa o upload opcional do PDF assinado.
      */
-    public function download(Training $training)
+    private function salvarArquivoPdf(Request $request, ProjetoPedagogico $pp): void
     {
-        $pp = $training->projetoPedagogico()->firstOrFail();
-
-        $html = view('projetos_pedagogicos.pp_pdf', ['pp' => $pp, 'training' => $training])->render();
-
-        $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('Plataforma DSS');
-        $pdf->SetAuthor('Plataforma DSS');
-        $pdf->SetTitle('Projeto Pedagógico - ' . $training->titulo);
-        $pdf->SetSubject('Projeto Pedagógico (NR-01 Anexo II 3.1)');
-        $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(true, 15);
-        $pdf->AddPage();
-        $pdf->writeHTML($html, true, false, true, false, '');
-
-        $nome = 'projeto-pedagogico-' . \Illuminate\Support\Str::slug($training->titulo) . '.pdf';
-
-        return response($pdf->Output($nome, 'S'))
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'attachment; filename="' . $nome . '"');
-    }
-
-    /**
-     * Baixa o PDF assinado enviado pelo responsável técnico (se houver).
-     */
-    public function downloadArquivo(Training $training)
-    {
-        $pp = $training->projetoPedagogico()->firstOrFail();
-
-        if (!$pp->arquivo_pdf || !Storage::disk('public')->exists($pp->arquivo_pdf)) {
-            abort(404, 'Arquivo do projeto pedagógico não encontrado.');
+        if ($request->hasFile('arquivo_pdf')) {
+            $arquivo = $request->file('arquivo_pdf');
+            $caminho = $arquivo->storeAs(
+                'projetos-pedagogicos/pp-' . $pp->id,
+                'projeto-pedagogico-' . $pp->id . '-' . time() . '.pdf',
+                'public'
+            );
+            $pp->arquivo_pdf = $caminho;
+            $pp->save();
         }
-
-        return response()->download(Storage::disk('public')->path($pp->arquivo_pdf));
     }
 
     /**

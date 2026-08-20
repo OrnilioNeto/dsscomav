@@ -2,61 +2,57 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Projeto Pedagógico - {{ $training->titulo }}</title>
+    <title>Projeto Pedagógico</title>
     <style>
-        body { font-family: helvetica, sans-serif; font-size: 10pt; color: #1f2937; }
-        h1 { font-size: 16pt; color: #153B2E; border-bottom: 2px solid #F28C2B; padding-bottom: 6px; }
-        h2 { font-size: 11pt; color: #153B2E; margin-top: 14px; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; }
-        .header { text-align: center; margin-bottom: 12px; }
-        .header .logo { font-size: 14pt; font-weight: bold; color: #153B2E; }
-        .header .sub { font-size: 9pt; color: #6b7280; }
-        .meta { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; }
-        .meta td { border: 1px solid #e5e7eb; padding: 4px 6px; }
-        .meta .label { background: #f3f4f6; font-weight: bold; width: 35%; }
-        .item { margin-bottom: 8px; }
-        .item .titulo { font-weight: bold; color: #153B2E; }
+        body { font-family: helvetica, sans-serif; font-size: 10pt; color: #1f2937; line-height: 1.4; }
+        h1 { font-size: 15pt; color: #153B2E; text-align: center; letter-spacing: 1px; margin: 0 0 2px 0; }
+        .subtitulo { font-size: 9pt; color: #6b7280; text-align: center; margin-bottom: 10px; }
+        .barra { border-bottom: 3px solid #F28C2B; margin: 0 0 12px 0; }
+        h2 { font-size: 10.5pt; color: #153B2E; margin-top: 14px; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; }
+        .cabecalho { border: 1px solid #d1d5db; border-left: 5px solid #153B2E; border-radius: 4px; padding: 8px 10px; margin-bottom: 12px; }
+        table.meta { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        table.meta td { border: 1px solid #e5e7eb; padding: 5px 7px; }
+        table.meta .label { background: #f3f4f6; font-weight: bold; width: 22%; color: #153B2E; }
         .item .conteudo { color: #374151; }
-        .rodape { margin-top: 30px; font-size: 9pt; color: #6b7280; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 8px; }
-        .assinatura { margin-top: 40px; }
-        .assinatura .linha { border-top: 1px solid #374151; width: 260px; padding-top: 4px; text-align: center; }
+        .nota { font-size: 8.5pt; color: #6b7280; font-style: italic; margin: 8px 0 12px 0; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="logo">PLATAFORMA DSS</div>
-        <div class="sub">Treinamentos em Segurança e Saúde no Trabalho</div>
+    <h1>PROJETO PEDAGÓGICO</h1>
+    <div class="subtitulo">Capacitações em Segurança e Saúde no Trabalho — Plataforma DSS</div>
+    <div class="barra"></div>
+
+    <div class="cabecalho">
+        <table class="meta">
+            <tr>
+                <td class="label">Treinamentos atendidos</td>
+                <td colspan="3">
+                    @forelse($treinamentos as $treinamento)
+                        <strong>{{ $treinamento->titulo }}</strong>
+                        @if($treinamento->tipo_treinamento) ({{ ucfirst($treinamento->tipo_treinamento) }}) @endif
+                        — {{ $treinamento->carga_horaria }} minutos
+                        @if(!$loop->last)<br>@endif
+                    @empty
+                        —
+                    @endforelse
+                </td>
+            </tr>
+            <tr>
+                <td class="label">Versão</td>
+                <td>{{ $pp->versao ?? '1.0' }}</td>
+                <td class="label">Data de validação</td>
+                <td>{{ $pp->data_validacao?->format('d/m/Y') ?? '—' }}</td>
+            </tr>
+            <tr>
+                <td class="label">Responsável técnico</td>
+                <td>{{ $pp->responsavel_tecnico_nome ?? '—' }}</td>
+                <td class="label">Próxima revisão</td>
+                <td>{{ $pp->data_proxima_revisao?->format('d/m/Y') ?? '—' }}</td>
+            </tr>
+        </table>
     </div>
 
-    <h1>PROJETO PEDAGÓGICO</h1>
-
-    <table class="meta">
-        <tr>
-            <td class="label">Treinamento</td>
-            <td>{{ $training->titulo }}</td>
-            <td class="label">Versão</td>
-            <td>{{ $pp->versao ?? '1.0' }}</td>
-        </tr>
-        <tr>
-            <td class="label">Tipo</td>
-            <td>{{ $training->tipo === 'treinamento' ? 'Treinamento' : 'DSS' }} {{ $training->tipo_treinamento ? '(' . ucfirst($training->tipo_treinamento) . ')' : '' }}</td>
-            <td class="label">Carga horária</td>
-            <td>{{ $training->carga_horaria }} minutos</td>
-        </tr>
-        <tr>
-            <td class="label">Data de validação</td>
-            <td>{{ $pp->data_validacao?->format('d/m/Y') ?? '—' }}</td>
-            <td class="label">Próxima revisão</td>
-            <td>{{ $pp->data_proxima_revisao?->format('d/m/Y') ?? '—' }}</td>
-        </tr>
-        <tr>
-            <td class="label">Responsável técnico</td>
-            <td>{{ $pp->responsavel_tecnico_nome ?? '—' }}</td>
-            <td class="label">Qualificação</td>
-            <td>{{ $pp->responsavel_tecnico_qualificacao ?? '—' }}</td>
-        </tr>
-    </table>
-
-    <p><em>Projeto pedagógico elaborado em conformidade com o Anexo II da NR-01 (Portaria MTE 6.730/2020), item 3.1.</em></p>
+    <p class="nota">Projeto pedagógico elaborado em conformidade com o Anexo II da NR-01 (Portaria MTE nº 6.730/2020), item 3.1, e revisado conforme o item 3.3.</p>
 
     <h2>1. Objetivo geral da capacitação (3.1a)</h2>
     <div class="item"><div class="conteudo">{{ $pp->objetivo_geral ?? '—' }}</div></div>
@@ -83,7 +79,7 @@
     <div class="item"><div class="conteudo">{{ $pp->objetivo_modulos ?? '—' }}</div></div>
 
     <h2>9. Carga horária (3.1i)</h2>
-    <div class="item"><div class="conteudo">{{ $pp->carga_horaria_pp ?? $training->carga_horaria . ' minutos' }}</div></div>
+    <div class="item"><div class="conteudo">{{ $pp->carga_horaria_pp ?? '—' }}</div></div>
 
     <h2>10. Estimativa de tempo mínimo de dedicação diária (3.1j)</h2>
     <div class="item"><div class="conteudo">{{ $pp->tempo_minimo_diario ?? '—' }}</div></div>
@@ -102,29 +98,5 @@
 
     <h2>15. Avaliação de aprendizagem (3.1o)</h2>
     <div class="item"><div class="conteudo">{{ $pp->avaliacao_aprendizagem ?? '—' }}</div></div>
-
-    <div class="assinatura">
-        <div style="width: 50%; float: left;">
-            @if($pp->assinatura_rt)
-                <img src="{{ $pp->assinatura_rt }}" style="height: 55px; max-width: 240px; margin-bottom: 2px;" alt="Assinatura do responsável técnico">
-            @endif
-            <div class="linha" style="width: 240px;">Responsável técnico pela capacitação</div>
-            <div style="text-align:center; font-size: 9pt;">
-                {{ $pp->assinatura_rt_nome ?? $pp->responsavel_tecnico_nome ?? '' }}<br>{{ $pp->responsavel_tecnico_qualificacao ?? '' }}
-                @if($pp->assinatura_rt_data)
-                    <br>Assinado em: {{ $pp->assinatura_rt_data->format('d/m/Y H:i') }}
-                @endif
-            </div>
-        </div>
-        <div style="width: 50%; float: right;">
-            <div class="linha">Validação do projeto pedagógico</div>
-            <div style="text-align:center; font-size: 9pt;">{{ $pp->data_validacao?->format('d/m/Y') ?? '' }}<br>Revisão: {{ $pp->data_proxima_revisao?->format('d/m/Y') ?? '' }}</div>
-        </div>
-        <div style="clear: both;"></div>
-    </div>
-
-    <div class="rodape">
-        Documento gerado eletronicamente pela Plataforma DSS em {{ now()->format('d/m/Y H:i') }} — válido conforme NR-01 Anexo II, item 4.1.
-    </div>
 </body>
 </html>

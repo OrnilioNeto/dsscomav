@@ -8,6 +8,16 @@ O Projeto Pedagógico é um documento **administrativo** (não é exibido ao alu
 
 ---
 
+## Vinculação do PP aos treinamentos
+
+Um **mesmo projeto pedagógico pode atender a um ou mais treinamentos**. No formulário:
+
+1. **Passo 1 — Treinamentos atendidos**: marque os treinamentos que usarão este PP. O sistema lista apenas os treinamentos **disponíveis** (que ainda não possuem PP).
+2. **Regra de segurança**: treinamentos que já possuem PP próprio **não aparecem** na seleção. Para alterar o PP de um treinamento específico, edite o PP ao qual ele está vinculado — não é possível (nem desejável) vincular um treinamento a dois PPs ao mesmo tempo.
+3. Os treinamentos vinculados aparecem como etiquetas na listagem de projetos pedagógicos e são listados no cabeçalho do PDF gerado.
+
+---
+
 ## Preenchimento automático por tipo de treinamento
 
 No topo do formulário há o campo **"Selecione o treinamento a ser cadastrado"** com modelos prontos:
