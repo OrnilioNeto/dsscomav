@@ -81,6 +81,13 @@
                         </span>
                     </p>
                 </div>
+                @if($usuario->data_inativacao)
+                    <div>
+                        <p class="text-gray-600 text-sm font-semibold">Inativado em</p>
+                        <p class="text-lg font-bold text-red-700">{{ $usuario->data_inativacao->format('d/m/Y H:i') }}</p>
+                        <p class="text-xs text-gray-500">Usuário bloqueado do acesso e desconsiderado dos treinamentos a partir desta data.</p>
+                    </div>
+                @endif
                 <div>
                     <p class="text-gray-600 text-sm font-semibold">Cadastro em</p>
                     <p class="text-lg">{{ $usuario->created_at->format('d/m/Y H:i') }}</p>

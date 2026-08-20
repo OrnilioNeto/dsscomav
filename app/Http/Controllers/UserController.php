@@ -165,6 +165,17 @@ class UserController extends Controller
         $data['ferias_fim'] = $request->filled('ferias_fim') ? $request->input('ferias_fim') : null;
         $data['usuario_teste'] = $request->boolean('usuario_teste');
 
+        // Registra a data de inativação quando o status muda para 'inativo'
+        // e limpa quando o usuário é reativado (para permitir rastrear inativações).
+        $novoStatus = $request->input('status');
+        if ($usuario->status !== $novoStatus) {
+            if ($novoStatus === 'inativo') {
+                $data['data_inativacao'] = now();
+            } else {
+                $data['data_inativacao'] = null;
+            }
+        }
+
         if ($usuario->isSuperAdmin()) {
             unset($data['role_id']);
         }
@@ -237,12 +248,18 @@ class UserController extends Controller
             ->whereDate('ferias_fim', '>=', $today)
             ->get();
 
-        // Excluídos únicos: super_admin OU usuário_teste OU admin sem participação OU em férias
+        // Usuários inativos (bloqueados do sistema e desconsiderados dos treinamentos a partir da inativação)
+        $usuariosInativos = User::where('status', 'inativo')
+            ->orderByDesc('data_inativacao')
+            ->get();
+
+        // Excluídos únicos: super_admin OU usuário_teste OU admin sem participação OU em férias OU inativo
         $totalExcluidosKPI = User::where(function ($query) use ($today) {
             $query->whereHas('role', function ($roleQuery) {
                 $roleQuery->where('nome', 'super_admin');
             })
                 ->orWhere('usuario_teste', true)
+                ->orWhere('status', 'inativo')
                 ->orWhere(function ($adminWithoutParticipationQuery) {
                     $adminWithoutParticipationQuery->where('usuario_teste', false)
                         ->whereHas('role', function ($roleQuery) {
@@ -273,6 +290,7 @@ class UserController extends Controller
             'usuariosTeste',
             'adminsSemParticipacaoTreinamentos',
             'usuariosEmFerias',
+            'usuariosInativos',
             'usuariosEligiveisKPI',
             'totalUsuarios',
             'totalExcluidosKPI'

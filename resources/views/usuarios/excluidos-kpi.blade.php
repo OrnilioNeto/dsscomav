@@ -61,6 +61,9 @@
             <button onclick="showTab('ferias')" class="tab-btn px-6 py-3 font-semibold text-gray-700 border-b-2 border-transparent hover:border-gray-300">
                 <i class="fas fa-umbrella-beach mr-2"></i>Em Férias <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded ml-2 text-sm">{{ count($usuariosEmFerias) }}</span>
             </button>
+            <button onclick="showTab('inativos')" class="tab-btn px-6 py-3 font-semibold text-gray-700 border-b-2 border-transparent hover:border-gray-300">
+                <i class="fas fa-user-slash mr-2"></i>Inativos <span class="bg-red-100 text-red-700 px-2 py-1 rounded ml-2 text-sm">{{ count($usuariosInativos) }}</span>
+            </button>
         </div>
     </div>
 
@@ -294,6 +297,80 @@
                                 <td colspan="6" class="px-6 py-8 text-center text-gray-600">
                                     <i class="fas fa-check-circle text-3xl text-green-400 mb-2 block"></i>
                                     Nenhum usuário em férias no momento
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <!-- Usuários Inativos Tab -->
+    <div id="inativos" class="tab-content hidden">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="bg-red-50 px-6 py-4 border-b border-red-200">
+                <h2 class="text-xl font-bold text-red-900">
+                    <i class="fas fa-user-slash mr-2"></i>Usuários Inativos
+                </h2>
+                <p class="text-red-700 text-sm mt-1">{{ count($usuariosInativos) }} usuário(s) com status inativo - BLOQUEADO(S) do acesso ao sistema e desconsiderado(s) dos treinamentos a partir da data de inativação.</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-100 border-b">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Nome</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">CPF</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Tipo</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Data de Inativação</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($usuariosInativos as $usuario)
+                            <tr class="border-b hover:bg-red-50 transition">
+                                <td class="px-6 py-4 text-gray-800 font-semibold">{{ $usuario->nome }}</td>
+                                <td class="px-6 py-4 text-gray-600 font-mono">{{ $usuario->getCpfFormatted() }}</td>
+                                <td class="px-6 py-4 text-gray-600">{{ $usuario->email }}</td>
+                                <td class="px-6 py-4">
+                                    <span class="px-3 py-1 rounded-full text-sm font-semibold
+                                        @if($usuario->tipo_usuario === 'motorista')
+                                            bg-blue-100 text-blue-900
+                                        @elseif($usuario->tipo_usuario === 'funcionario')
+                                            bg-green-100 text-green-900
+                                        @else
+                                            bg-orange-100 text-orange-900
+                                        @endif
+                                    ">
+                                        {{ ucfirst($usuario->tipo_usuario) }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    @if($usuario->data_inativacao)
+                                        <span class="px-2 py-1 bg-red-100 text-red-900 rounded text-sm font-semibold">
+                                            {{ $usuario->data_inativacao->format('d/m/Y H:i') }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400 text-sm">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-900">Inativo</span>
+                                </td>
+                                <td class="px-6 py-4 space-x-2">
+                                    <a href="{{ route('usuarios.edit', $usuario) }}" class="text-orange-600 hover:text-orange-900 text-sm">
+                                        <i class="fas fa-edit mr-1"></i>Editar
+                                    </a>
+                                    <a href="{{ route('usuarios.show', $usuario) }}" class="text-blue-600 hover:text-blue-900 text-sm">
+                                        <i class="fas fa-eye mr-1"></i>Ver
+                                    </a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-600">
+                                    <i class="fas fa-check-circle text-3xl text-green-400 mb-2 block"></i>
+                                    Nenhum usuário inativo
                                 </td>
                             </tr>
                         @endforelse

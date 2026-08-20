@@ -63,6 +63,11 @@
                         <option value="ativo" {{ $usuario->status === 'ativo' ? 'selected' : '' }}>Ativo</option>
                         <option value="inativo" {{ $usuario->status === 'inativo' ? 'selected' : '' }}>Inativo</option>
                     </select>
+                    @if($usuario->data_inativacao)
+                        <p class="text-xs text-red-600 mt-1 font-semibold">
+                            <i class="fas fa-user-slash mr-1"></i>Inativado em {{ $usuario->data_inativacao->format('d/m/Y H:i') }} — ao reativar, esta data é limpa.
+                        </p>
+                    @endif
                 </div>
 
                 <div>
