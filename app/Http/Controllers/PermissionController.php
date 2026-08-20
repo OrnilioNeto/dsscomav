@@ -17,6 +17,7 @@ class PermissionController extends Controller
         'splash' => 'Mensagens Splash',
         'social' => 'Rede Social (Feed, Postagens, Seguidores)',
         'epi' => 'Saúde e Segurança (EPIs, Estoque, Entregas)',
+        'projeto_pedagogico' => 'Projetos Pedagógicos (NR-01 Anexo II)',
         'permissions' => 'Gerenciar Permissões'
     ];
 

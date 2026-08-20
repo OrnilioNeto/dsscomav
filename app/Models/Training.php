@@ -16,11 +16,14 @@ class Training extends Model
     protected $fillable = [
         'titulo',
         'descricao',
+        'conteudo_programatico',
         'tipo', // 'dss' ou 'treinamento'
+        'tipo_treinamento', // 'inicial', 'periodico', 'eventual' (somente para treinamento)
         'tipo_usuario_permitido', // JSON: ["motorista", "funcionario", "terceirizado"]
         'url_video', // YouTube, Vimeo ou link local
         'tipo_video', // 'youtube', 'vimeo', 'upload'
         'carga_horaria',
+        'dias_validade',
         'thumbnail',
         'data_publicacao',
         'data_liberacao',
@@ -29,6 +32,8 @@ class Training extends Model
         'avaliacao_pergunta',
         'avaliacao_opcoes',
         'avaliacao_resposta_correta',
+        'quantidade_questoes_prova',
+        'nota_minima_aprovacao',
     ];
 
     protected $casts = [
@@ -37,6 +42,9 @@ class Training extends Model
         'tipo_usuario_permitido' => 'json',
         'avaliacao_opcoes' => 'json',
         'avaliacao_resposta_correta' => 'integer',
+        'quantidade_questoes_prova' => 'integer',
+        'nota_minima_aprovacao' => 'integer',
+        'dias_validade' => 'integer',
         'obrigatorio' => 'boolean',
     ];
 
@@ -59,6 +67,16 @@ class Training extends Model
     public function assignedUsers()
     {
         return $this->belongsToMany(User::class, 'training_assignments')->withTimestamps();
+    }
+
+    public function questions()
+    {
+        return $this->hasMany(TrainingQuestion::class, 'training_id', 'id')->orderBy('ordem');
+    }
+
+    public function projetoPedagogico()
+    {
+        return $this->hasOne(ProjetoPedagogico::class, 'training_id', 'id');
     }
 
     // Métodos auxiliares
@@ -131,10 +149,40 @@ class Training extends Model
 
     public function hasAssessment(): bool
     {
+        if ($this->hasQuestionBank()) {
+            return true;
+        }
+
         return !empty($this->avaliacao_pergunta)
             && is_array($this->avaliacao_opcoes)
             && count(array_filter($this->avaliacao_opcoes)) >= 2
             && $this->avaliacao_resposta_correta !== null;
+    }
+
+    /**
+     * Indica se o treinamento possui banco de questões cadastrado.
+     */
+    public function hasQuestionBank(): bool
+    {
+        if ($this->relationLoaded('questions')) {
+            return $this->questions->count() > 0;
+        }
+
+        return $this->questions()->count() > 0;
+    }
+
+    /**
+     * Retorna o rótulo em pt-BR do tipo do treinamento (inicial/periódico/eventual).
+     */
+    public function getTipoTreinamentoLabelAttribute(): ?string
+    {
+        $mapa = [
+            'inicial' => 'Inicial',
+            'periodico' => 'Periódico',
+            'eventual' => 'Eventual',
+        ];
+
+        return $this->tipo_treinamento ? ($mapa[$this->tipo_treinamento] ?? ucfirst($this->tipo_treinamento)) : null;
     }
 
     public function isReleased(): bool

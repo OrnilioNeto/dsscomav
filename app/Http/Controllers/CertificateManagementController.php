@@ -62,6 +62,32 @@ class CertificateManagementController extends Controller
             $query->where('valido', request('valido') === '1');
         }
 
+        // Filtro por status de validade do treinamento (data de emissão + dias de validade)
+        if ($request->filled('status_validade')) {
+            $statusValidade = $request->input('status_validade');
+            $hoje = now()->format('Y-m-d');
+            $limite = now()->addDays(30)->format('Y-m-d');
+            $driver = DB::connection()->getDriverName();
+
+            $query->whereHas('training', function ($q) use ($statusValidade, $hoje, $limite, $driver) {
+                $q->whereNotNull('dias_validade')->where('dias_validade', '>', 0);
+
+                if ($driver === 'sqlite') {
+                    $expr = "date(certificates.data_emissao, '+' || trainings.dias_validade || ' days')";
+                } else {
+                    $expr = "DATE_ADD(certificates.data_emissao, INTERVAL trainings.dias_validade DAY)";
+                }
+
+                if ($statusValidade === 'vencido') {
+                    $q->whereRaw("{$expr} < ?", [$hoje]);
+                } elseif ($statusValidade === 'vencendo') {
+                    $q->whereRaw("{$expr} >= ? AND {$expr} <= ?", [$hoje, $limite]);
+                } elseif ($statusValidade === 'valido') {
+                    $q->whereRaw("{$expr} > ?", [$limite]);
+                }
+            });
+        }
+
         if ($request->filled('data_emissao_inicio')) {
             $query->whereDate('data_emissao', '>=', request('data_emissao_inicio'));
         }
@@ -1106,6 +1132,7 @@ class CertificateManagementController extends Controller
                $request->filled('training_id') ||
                $request->filled('training_tipo') ||
                $request->filled('valido') ||
+               $request->filled('status_validade') ||
                $request->filled('data_emissao_inicio') ||
                $request->filled('data_emissao_fim') ||
                $request->filled('data_conclusao_inicio') ||

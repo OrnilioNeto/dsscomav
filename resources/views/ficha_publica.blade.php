@@ -143,7 +143,11 @@
 
                             <!-- Da plataforma -->
                             @foreach($plataformaTrainings as $cert)
-                                <div class="flex items-center justify-between p-4 rounded-xl border bg-emerald-50/30 border-emerald-100">
+                                @php
+                                    $statusVal = $cert->status_validade;
+                                    $valCls = $statusVal === 'vencido' ? 'bg-red-50/50 border-red-200' : ($statusVal === 'vencendo' ? 'bg-amber-50/60 border-amber-200' : 'bg-emerald-50/30 border-emerald-100');
+                                @endphp
+                                <div class="flex items-center justify-between p-4 rounded-xl border {{ $valCls }}">
                                     <div class="min-w-0 flex-1">
                                         <div class="flex items-center space-x-1.5">
                                             <span class="text-xs bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded uppercase">Plataforma</span>
@@ -155,9 +159,18 @@
                                     </div>
                                     <div class="ml-4 text-right">
                                         <span class="text-xs block text-gray-500">Concluído</span>
-                                        <strong class="text-xs sm:text-sm text-emerald-700">{{ $cert->data_emissao->format('d/m/Y') }}</strong>
+                                        <strong class="text-xs sm:text-sm {{ $statusVal === 'vencido' ? 'text-red-700' : 'text-emerald-700' }}">{{ $cert->data_emissao->format('d/m/Y') }}</strong>
+                                        @if($cert->data_validade)
+                                            <div class="text-[10px] text-gray-500 mt-0.5">Validade: {{ $cert->data_validade->format('d/m/Y') }}</div>
+                                        @endif
                                         <div class="mt-1">
-                                            <span class="inline-block px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold uppercase">Concluído</span>
+                                            @if($statusVal === 'vencido')
+                                                <span class="inline-block px-2 py-0.5 rounded-full text-[10px] bg-red-100 text-red-800 font-bold uppercase">Vencido</span>
+                                            @elseif($statusVal === 'vencendo')
+                                                <span class="inline-block px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold uppercase">Vence em breve</span>
+                                            @else
+                                                <span class="inline-block px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold uppercase">Concluído</span>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>

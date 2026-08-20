@@ -166,9 +166,24 @@
         @if($usuario->certificates->count() > 0)
             <div class="grid md:grid-cols-2 gap-4">
                 @foreach($usuario->certificates as $cert)
-                    <div class="border border-green-300 p-4 rounded bg-green-50">
-                        <p class="font-semibold text-green-900">{{ $cert->training->titulo }}</p>
+                    @php
+                        $statusVal = $cert->status_validade;
+                        $borderCls = $statusVal === 'vencido' ? 'border-red-300 bg-red-50' : ($statusVal === 'vencendo' ? 'border-amber-300 bg-amber-50' : 'border-green-300 bg-green-50');
+                        $badge = $statusVal === 'vencido'
+                            ? ['bg-red-100 text-red-800', 'Vencido']
+                            : ($statusVal === 'vencendo' ? ['bg-amber-100 text-amber-800', 'Vence em breve'] : ['bg-green-100 text-green-800', 'Vigente']);
+                    @endphp
+                    <div class="border p-4 rounded {{ $borderCls }}">
+                        <div class="flex items-start justify-between gap-2">
+                            <p class="font-semibold {{ $statusVal === 'vencido' ? 'text-red-900' : 'text-green-900' }}">{{ $cert->training->titulo }}</p>
+                            @if($statusVal !== 'sem_validade')
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $badge[0] }}">{{ $badge[1] }}</span>
+                            @endif
+                        </div>
                         <p class="text-sm text-gray-600">Emitido: {{ $cert->data_emissao->format('d/m/Y') }}</p>
+                        @if($cert->data_validade)
+                            <p class="text-sm text-gray-600">Validade: {{ $cert->data_validade->format('d/m/Y') }}</p>
+                        @endif
                         <p class="text-xs text-gray-600 mt-2 font-mono">{{ $cert->codigo_certificado }}</p>
                         <a href="{{ route('certificados.download', $cert->id) }}" class="inline-block mt-3 text-sm font-semibold text-green-800 hover:text-green-900 hover:underline">
                             <i class="fas fa-download mr-1"></i>Baixar certificado

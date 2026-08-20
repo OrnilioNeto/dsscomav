@@ -47,7 +47,7 @@ class AuthController extends Controller
 
     private function getPermissions(User $user): array
     {
-        $modules = ['users', 'trainings', 'certificates', 'rankings', 'splash', 'social', 'epi', 'permissions'];
+        $modules = ['users', 'trainings', 'certificates', 'rankings', 'splash', 'social', 'epi', 'projeto_pedagogico', 'permissions'];
         $permissions = [];
 
         if ($user->isSuperAdmin()) {

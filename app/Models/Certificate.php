@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class Certificate extends Model
 {
@@ -59,5 +60,82 @@ class Certificate extends Model
         return strtoupper(
             substr(md5($this->user_id . $this->training_id . time()), 0, 12)
         );
+    }
+
+    /**
+     * Data em que a validade do treinamento expira (data de emissão + dias de validade configurados).
+     * Retorna null quando o treinamento não possui validade definida.
+     */
+    public function getDataValidadeAttribute()
+    {
+        if (!$this->training || !$this->training->dias_validade || !$this->data_emissao) {
+            return null;
+        }
+
+        return $this->data_emissao->copy()->addDays((int) $this->training->dias_validade);
+    }
+
+    public function getStatusValidadeAttribute(): string
+    {
+        $dataValidade = $this->data_validade;
+        if (!$dataValidade) {
+            return 'sem_validade';
+        }
+
+        if ($dataValidade->isPast()) {
+            return 'vencido';
+        }
+
+        if ($dataValidade->lte(now()->addDays(30))) {
+            return 'vencendo';
+        }
+
+        return 'valido';
+    }
+
+    /**
+     * Contagem de certificados de treinamentos com validade crítica
+     * (vencidos ou vencendo em até 30 dias) para alerta no menu.
+     */
+    public static function contarValidadesCriticas(int $dias = 30): int
+    {
+        try {
+            if (!Schema::hasTable('certificates')) {
+                return 0;
+            }
+
+            $treinamentosComValidade = Training::whereNotNull('dias_validade')
+                ->where('dias_validade', '>', 0)
+                ->get();
+
+            if ($treinamentosComValidade->isEmpty()) {
+                return 0;
+            }
+
+            $treinamentosPorId = $treinamentosComValidade->keyBy('id');
+
+            $certificados = self::where('valido', true)
+                ->whereIn('training_id', $treinamentosPorId->keys())
+                ->get(['id', 'training_id', 'data_emissao']);
+
+            $limite = now()->addDays($dias);
+            $total = 0;
+
+            foreach ($certificados as $certificado) {
+                $training = $treinamentosPorId->get($certificado->training_id);
+                if (!$training || !$certificado->data_emissao) {
+                    continue;
+                }
+
+                $dataValidade = $certificado->data_emissao->copy()->addDays((int) $training->dias_validade);
+                if ($dataValidade->lte($limite)) {
+                    $total++;
+                }
+            }
+
+            return $total;
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 }

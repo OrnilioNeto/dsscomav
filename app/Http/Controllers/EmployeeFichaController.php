@@ -58,10 +58,20 @@ class EmployeeFichaController extends Controller
         $usuario = User::with([
             'employeeTrainings' => function ($query) {
                 $query->orderBy('data_treinamento', 'desc');
-            }
+            },
+            'certificates.training',
+            'progress.training',
         ])->findOrFail($id);
 
-        return view('usuarios.ficha_manage', compact('usuario'));
+        $dssCertificates = $usuario->certificates->filter(function ($cert) {
+            return $cert->training && $cert->training->tipo === 'dss';
+        })->sortByDesc('data_emissao');
+
+        $plataformaTrainings = $usuario->certificates->filter(function ($cert) {
+            return $cert->training && $cert->training->tipo === 'treinamento';
+        })->sortByDesc('data_emissao');
+
+        return view('usuarios.ficha_manage', compact('usuario', 'dssCertificates', 'plataformaTrainings'));
     }
 
     public function storeTraining(Request $request, $userId)

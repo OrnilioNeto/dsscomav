@@ -23,6 +23,11 @@
                 <textarea name="descricao" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">{{ $training->descricao }}</textarea>
             </div>
 
+            <div id="bloco-ementa">
+                <label class="block text-gray-700 font-semibold mb-2">Conteúdo Programático (Ementa)</label>
+                <textarea name="conteudo_programatico" rows="5" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" placeholder="Liste os tópicos que serão abordados no treinamento (ex: conceitos, legislação aplicável, procedimentos práticos, avaliação...). Este conteúdo constará como requisito da NR-01 (1.7.1.1).">{{ old('conteudo_programatico', $training->conteudo_programatico) }}</textarea>
+            </div>
+
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">Tipo *</label>
@@ -35,6 +40,24 @@
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">Carga Horária (minutos) *</label>
                     <input type="number" name="carga_horaria" value="{{ $training->carga_horaria }}" required min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                </div>
+            </div>
+
+            <div id="bloco-tipo-treinamento" class="grid md:grid-cols-2 gap-4" style="{{ $training->tipo === 'treinamento' ? '' : 'display:none;' }}">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Tipo do Treinamento (NR-01 1.7.1.2) *</label>
+                    <select name="tipo_treinamento" id="tipo-treinamento-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                        <option value="">-- Selecione --</option>
+                        <option value="inicial" {{ old('tipo_treinamento', $training->tipo_treinamento) === 'inicial' ? 'selected' : '' }}>Inicial</option>
+                        <option value="periodico" {{ old('tipo_treinamento', $training->tipo_treinamento) === 'periodico' ? 'selected' : '' }}>Periódico</option>
+                        <option value="eventual" {{ old('tipo_treinamento', $training->tipo_treinamento) === 'eventual' ? 'selected' : '' }}>Eventual</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">Validade (dias)</label>
+                    <input type="number" name="dias_validade" value="{{ old('dias_validade', $training->dias_validade) }}" min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" placeholder="Ex: 365 = renovação anual">
+                    <p class="text-xs text-gray-500 mt-1">Após a conclusão, o treinamento expira nesta quantidade de dias (ex: NR-06 renovada anualmente).</p>
                 </div>
             </div>
 
@@ -77,12 +100,13 @@
                 </div>
             </div>
 
-            <div class="border-t pt-6 space-y-4">
-                <h2 class="text-xl font-bold text-gray-800">Avaliação do Treinamento</h2>
+            <!-- Avaliação para DSS (pergunta única) -->
+            <div id="bloco-avaliacao-legada" style="{{ $training->tipo === 'dss' ? '' : 'display:none;' }}" class="border-t pt-6 space-y-4">
+                <h2 class="text-xl font-bold text-gray-800">Avaliação do DSS</h2>
 
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">Pergunta da avaliação *</label>
-                    <textarea name="avaliacao_pergunta" rows="3" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">{{ $training->avaliacao_pergunta }}</textarea>
+                    <textarea name="avaliacao_pergunta" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">{{ old('avaliacao_pergunta', $training->avaliacao_pergunta) }}</textarea>
                 </div>
 
                 @php
@@ -92,11 +116,11 @@
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-gray-700 font-semibold mb-2">Opção 1 *</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[0] ?? '' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[0] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                     </div>
                     <div>
                         <label class="block text-gray-700 font-semibold mb-2">Opção 2 *</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[1] ?? '' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[1] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                     </div>
                     <div>
                         <label class="block text-gray-700 font-semibold mb-2">Opção 3</label>
@@ -110,12 +134,40 @@
 
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">Resposta correta *</label>
-                    <select name="avaliacao_resposta_correta" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    <select name="avaliacao_resposta_correta" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                         <option value="0" {{ (int) $training->avaliacao_resposta_correta === 0 ? 'selected' : '' }}>Opção 1</option>
                         <option value="1" {{ (int) $training->avaliacao_resposta_correta === 1 ? 'selected' : '' }}>Opção 2</option>
                         <option value="2" {{ (int) $training->avaliacao_resposta_correta === 2 ? 'selected' : '' }}>Opção 3</option>
                         <option value="3" {{ (int) $training->avaliacao_resposta_correta === 3 ? 'selected' : '' }}>Opção 4</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Avaliação para Treinamento (banco de questões NR-01 4.6) -->
+            <div id="bloco-banco-questoes" style="{{ $training->tipo === 'treinamento' ? '' : 'display:none;' }}" class="border-t pt-6">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-xl font-bold text-gray-800">Avaliação do Treinamento (Banco de Questões)</h2>
+                    <button type="button" onclick="adicionarQuestao()" class="bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-800">
+                        <i class="fas fa-plus mr-1"></i>Adicionar Questão
+                    </button>
+                </div>
+                <p class="text-sm text-gray-500 mb-4">Cadastre até 10 questões. Cada questão pode ter de <strong>2 a 4 opções</strong> e deve indicar a resposta correta. Na prova, as questões e opções são embaralhadas (NR-01 Anexo II 4.6.2).</p>
+
+                <div id="container-questoes" class="space-y-4">
+                    <p class="text-gray-500 text-sm italic" id="sem-questoes-aviso" style="{{ $training->questions->count() > 0 ? 'display:none;' : '' }}">Nenhuma questão cadastrada. Clique em "Adicionar Questão".</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Questões sorteadas na prova</label>
+                        <input type="number" name="quantidade_questoes_prova" id="quantidade-questoes-prova" value="{{ old('quantidade_questoes_prova', $training->quantidade_questoes_prova) }}" min="1" max="10" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" placeholder="Vazio = todas as cadastradas">
+                        <p class="text-xs text-gray-500 mt-1">Deixe vazio para sortear entre todas as questões cadastradas.</p>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">Nota mínima p/ aprovação (%)</label>
+                        <input type="number" name="nota_minima_aprovacao" value="{{ old('nota_minima_aprovacao', $training->nota_minima_aprovacao ?? 70) }}" min="1" max="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                        <p class="text-xs text-gray-500 mt-1">Abaixo da nota = conceito <strong>insatisfatório</strong> (refaz a prova). Igual ou acima = <strong>satisfatório</strong>.</p>
+                    </div>
                 </div>
             </div>
 
@@ -209,11 +261,19 @@
                     const tipoSelect = document.getElementById('tipo-select');
                     const blocoTipoUsuario = document.getElementById('bloco-tipo-usuario');
                     const blocoFuncionarios = document.getElementById('bloco-funcionarios');
+                    const blocoTipoTreinamento = document.getElementById('bloco-tipo-treinamento');
+                    const blocoAvaliacaoLegada = document.getElementById('bloco-avaliacao-legada');
+                    const blocoBancoQuestoes = document.getElementById('bloco-banco-questoes');
 
                     function atualizarTipoConteudo() {
                         const isTreinamento = tipoSelect.value === 'treinamento';
                         blocoTipoUsuario.style.display = isTreinamento ? 'none' : 'block';
                         blocoFuncionarios.style.display = isTreinamento ? 'block' : 'none';
+                        blocoTipoTreinamento.style.display = isTreinamento ? 'grid' : 'none';
+                        blocoAvaliacaoLegada.style.display = isTreinamento ? 'none' : 'block';
+                        blocoBancoQuestoes.style.display = isTreinamento ? 'block' : 'none';
+                        const selTipo = document.getElementById('tipo-treinamento-select');
+                        if (selTipo) selTipo.required = isTreinamento;
                     }
 
                     if (tipoSelect) {
@@ -362,6 +422,130 @@
                         };
                     });
                 }
+            </script>
+
+            <script>
+                let contadorQuestoes = 0;
+                const questoesExistentes = @json($training->questions->map(function ($q) {
+                    return ['pergunta' => $q->pergunta, 'opcoes' => $q->opcoes, 'resposta_correta' => $q->resposta_correta];
+                }));
+
+                function atualizarAvisoQuestoes() {
+                    const aviso = document.getElementById('sem-questoes-aviso');
+                    const total = document.querySelectorAll('.questao-item').length;
+                    if (aviso) aviso.style.display = total === 0 ? 'block' : 'none';
+                    const inputQtd = document.getElementById('quantidade-questoes-prova');
+                    if (inputQtd && inputQtd.value && parseInt(inputQtd.value) > total) {
+                        inputQtd.value = total || '';
+                    }
+                }
+
+                function adicionarQuestao(dados) {
+                    const container = document.getElementById('container-questoes');
+                    const total = document.querySelectorAll('.questao-item').length;
+                    if (total >= 10) {
+                        alert('Máximo de 10 questões por treinamento.');
+                        return;
+                    }
+
+                    dados = dados || { pergunta: '', opcoes: ['', ''], resposta_correta: 0 };
+                    const idx = contadorQuestoes++;
+                    const div = document.createElement('div');
+                    div.className = 'questao-item bg-gray-50 border border-gray-200 rounded-lg p-4';
+                    let opcoesHtml = '';
+                    dados.opcoes.forEach((opcao, i) => {
+                        opcoesHtml += `
+                            <div class="flex items-center gap-2 opcao-row">
+                                <input type="text" name="questoes[${idx}][opcoes][]" value="${(opcao || '').replace(/"/g, '&quot;')}" placeholder="Opção ${i + 1}" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                                <button type="button" onclick="removerOpcao(this)" class="text-red-600 p-1" title="Remover opção"><i class="fas fa-times"></i></button>
+                            </div>`;
+                    });
+                    const selectOpcoes = dados.opcoes.map((o, i) =>
+                        `<option value="${i}" ${parseInt(dados.resposta_correta) === i ? 'selected' : ''}>Opção ${i + 1}</option>`).join('');
+
+                    div.innerHTML = `
+                        <div class="flex items-start justify-between mb-3">
+                            <h4 class="font-bold text-gray-800">Questão ${total + 1}</h4>
+                            <button type="button" onclick="removerQuestao(this)" class="text-red-600 hover:text-red-800 text-sm font-semibold"><i class="fas fa-trash mr-1"></i>Remover</button>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-gray-700 text-sm font-semibold mb-1">Pergunta *</label>
+                            <textarea name="questoes[${idx}][pergunta]" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">${(dados.pergunta || '').replace(/</g, '&lt;')}</textarea>
+                        </div>
+                        <div class="opcoes-questao space-y-2">${opcoesHtml}</div>
+                        <div class="flex items-center gap-3 mt-2">
+                            <button type="button" onclick="adicionarOpcao(this)" class="text-blue-700 hover:text-blue-900 text-sm font-semibold"><i class="fas fa-plus mr-1"></i>Adicionar opção</button>
+                            <div class="ml-auto flex items-center gap-2">
+                                <label class="text-gray-700 text-sm font-semibold">Resposta correta:</label>
+                                <select name="questoes[${idx}][resposta_correta]" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">${selectOpcoes}</select>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                    atualizarAvisoQuestoes();
+                }
+
+                function removerQuestao(btn) {
+                    btn.closest('.questao-item').remove();
+                    atualizarAvisoQuestoes();
+                    document.querySelectorAll('.questao-item h4').forEach((h, i) => {
+                        h.textContent = 'Questão ' + (i + 1);
+                    });
+                }
+
+                function adicionarOpcao(btn) {
+                    const bloco = btn.closest('.questao-item');
+                    const rows = bloco.querySelectorAll('.opcao-row');
+                    if (rows.length >= 4) {
+                        alert('Máximo de 4 opções por questão.');
+                        return;
+                    }
+                    const baseName = rows[0].querySelector('input').name.replace(/\[\]$/, '');
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center gap-2 opcao-row';
+                    row.innerHTML = `
+                        <input type="text" name="${baseName}[]" required placeholder="Opção ${rows.length + 1}" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                        <button type="button" onclick="removerOpcao(this)" class="text-red-600 p-1" title="Remover opção"><i class="fas fa-times"></i></button>
+                    `;
+                    rows[rows.length - 1].after(row);
+                    const select = bloco.querySelector('select[name$="[resposta_correta]"]');
+                    const opt = document.createElement('option');
+                    opt.value = String(rows.length);
+                    opt.textContent = 'Opção ' + (rows.length + 1);
+                    select.appendChild(opt);
+                }
+
+                function removerOpcao(btn) {
+                    const bloco = btn.closest('.questao-item');
+                    const rows = bloco.querySelectorAll('.opcao-row');
+                    if (rows.length <= 2) {
+                        alert('Mínimo de 2 opções por questão.');
+                        return;
+                    }
+                    btn.closest('.opcao-row').remove();
+                    const select = bloco.querySelector('select[name$="[resposta_correta]"]');
+                    const novosRows = bloco.querySelectorAll('.opcao-row');
+                    const atual = select.value;
+                    select.innerHTML = '';
+                    novosRows.forEach((row, i) => {
+                        row.querySelector('input').placeholder = 'Opção ' + (i + 1);
+                        const opt = document.createElement('option');
+                        opt.value = String(i);
+                        opt.textContent = 'Opção ' + (i + 1);
+                        select.appendChild(opt);
+                    });
+                    if (parseInt(atual) < novosRows.length) select.value = atual;
+                    else select.value = String(novosRows.length - 1);
+                }
+
+                window.adicionarQuestao = adicionarQuestao;
+                window.removerQuestao = removerQuestao;
+                window.adicionarOpcao = adicionarOpcao;
+                window.removerOpcao = removerOpcao;
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    (questoesExistentes || []).forEach(q => adicionarQuestao(q));
+                });
             </script>
 
             <div class="pt-4">

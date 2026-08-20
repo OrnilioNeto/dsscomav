@@ -174,7 +174,7 @@
 </div>
 
 <div id="assessment-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 px-4">
-    <div class="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+    <div class="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div class="mb-4 flex items-start justify-between gap-4">
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">Avaliação do treinamento</h2>
@@ -185,35 +185,50 @@
             </button>
         </div>
 
-        <form id="assessment-form" class="space-y-4">
-            @csrf
-            <p class="font-semibold text-gray-800">{{ $training->avaliacao_pergunta }}</p>
-
-            <div class="space-y-3">
-                @foreach(($training->avaliacao_opcoes ?? []) as $index => $option)
-                    @if(!empty($option))
-                        <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:border-blue-500">
-                            <input type="radio" name="answer" value="{{ $index }}" class="text-blue-900" required>
-                            <span class="text-gray-700">{{ $option }}</span>
-                        </label>
-                    @endif
-                @endforeach
+        <!-- Etapa 1: re-identificação por senha (NR-01 Anexo II 4.6.1) -->
+        <div id="assessment-step-senha">
+            <div class="rounded-lg bg-blue-50 border border-blue-200 p-4 mb-4">
+                <p class="text-sm text-blue-900 font-semibold"><i class="fas fa-user-lock mr-2"></i>Identificação individual</p>
+                <p class="text-xs text-blue-700 mt-1">Para garantir a confiabilidade da avaliação, confirme sua senha de acesso individual antes de iniciar a prova (NR-01 Anexo II 4.6.1/4.6.2).</p>
             </div>
-
-            <div id="assessment-message" class="text-sm font-medium"></div>
-
-            <div class="flex gap-3 pt-2">
-                <button type="submit" class="flex-1 rounded-lg bg-blue-900 px-4 py-3 font-semibold text-white hover:bg-blue-800">
-                    Enviar resposta
+            <div class="space-y-3">
+                <label class="block text-gray-700 font-semibold">Sua senha de acesso *</label>
+                <input type="password" id="assessment-senha" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" placeholder="Digite sua senha" autocomplete="current-password">
+                <div id="assessment-senha-message" class="text-sm font-medium"></div>
+                <button type="button" onclick="iniciarProva()" class="w-full rounded-lg bg-blue-900 px-4 py-3 font-semibold text-white hover:bg-blue-800">
+                    <i class="fas fa-play mr-2"></i>Confirmar e iniciar avaliação
                 </button>
             </div>
-        </form>
+        </div>
+
+        <!-- Etapa 2: questões -->
+        <div id="assessment-step-questoes" style="display:none;">
+            <form id="assessment-form" class="space-y-4">
+                @csrf
+                <div id="assessment-questoes-container" class="space-y-5"></div>
+                <div id="assessment-message" class="text-sm font-medium"></div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="flex-1 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700">
+                        <i class="fas fa-check mr-2"></i>Enviar respostas
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<!-- WhatsApp de apoio (NR-01 Anexo II 4.5) -->
+<a href="https://wa.me/5584994017097" target="_blank" rel="noopener noreferrer"
+   class="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 font-bold text-white shadow-xl transition hover:bg-emerald-700"
+   title="Dúvidas sobre o curso? Fale com a equipe de apoio.">
+    <i class="fab fa-whatsapp text-xl"></i>
+    <span class="hidden sm:inline text-sm">Dúvidas? Fale conosco</span>
+</a>
 
 <script>
     const progressUrl = '{{ route('treinamentos.atualizar-progresso', $training->id) }}';
     const assessmentUrl = '{{ route('treinamentos.avaliacao', $training->id) }}';
+    const assessmentInitUrl = '{{ route('treinamentos.avaliacao.iniciar', $training->id) }}';
     const csrfToken = '{{ csrf_token() }}';
     const hasAssessment = {{ $training->hasAssessment() ? 'true' : 'false' }};
     const isTestUser = {{ auth()->user()->isTestUser() ? 'true' : 'false' }};
@@ -281,11 +296,94 @@
         assessmentOpened = true;
         document.getElementById('assessment-modal').classList.remove('hidden');
         document.getElementById('assessment-modal').classList.add('flex');
+        // Reinicia o fluxo: primeira etapa exige a re-identificação por senha
+        document.getElementById('assessment-step-senha').style.display = 'block';
+        document.getElementById('assessment-step-questoes').style.display = 'none';
+        const msgSenha = document.getElementById('assessment-senha-message');
+        if (msgSenha) { msgSenha.textContent = ''; }
+        const msg = document.getElementById('assessment-message');
+        if (msg) { msg.textContent = ''; }
     }
 
     function closeAssessment() {
         document.getElementById('assessment-modal').classList.add('hidden');
         document.getElementById('assessment-modal').classList.remove('flex');
+    }
+
+    function renderAssessmentQuestions(data) {
+        const container = document.getElementById('assessment-questoes-container');
+        if (!container) return;
+
+        if (data.modo === 'banco') {
+            container.innerHTML = (data.questoes || []).map((q, qi) => {
+                const opts = (q.opcoes || []).map((o, oi) => `
+                    <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:border-blue-500">
+                        <input type="radio" name="respostas[${q.id}]" value="${oi}" class="text-blue-900" required>
+                        <span class="text-gray-700">${o}</span>
+                    </label>`).join('');
+                return `<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p class="font-semibold text-gray-800 mb-2">${qi + 1}. ${q.pergunta}</p>
+                    <div class="space-y-2">${opts}</div>
+                </div>`;
+            }).join('');
+        } else {
+            const opts = (data.opcoes || []).map((o, oi) => `
+                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:border-blue-500">
+                    <input type="radio" name="answer" value="${oi}" class="text-blue-900" required>
+                    <span class="text-gray-700">${o}</span>
+                </label>`).join('');
+            container.innerHTML = `<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p class="font-semibold text-gray-800 mb-2">${data.pergunta}</p>
+                <div class="space-y-2">${opts}</div>
+            </div>`;
+        }
+    }
+
+    async function iniciarProva() {
+        const senhaInput = document.getElementById('assessment-senha');
+        const msgEl = document.getElementById('assessment-senha-message');
+        const senha = senhaInput ? senhaInput.value : '';
+
+        if (!senha) {
+            msgEl.textContent = 'Informe sua senha para iniciar a avaliação.';
+            msgEl.className = 'text-sm font-medium text-red-600';
+            return;
+        }
+
+        msgEl.textContent = 'Verificando sua identificação...';
+        msgEl.className = 'text-sm font-medium text-gray-600';
+
+        try {
+            const r = await fetch(assessmentInitUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({ password: senha })
+            });
+
+            const data = await r.json();
+
+            if (!r.ok) {
+                msgEl.textContent = data.error || data.message || 'Erro ao iniciar a avaliação.';
+                msgEl.className = 'text-sm font-medium text-red-600';
+                return;
+            }
+
+            if (senhaInput) senhaInput.value = '';
+            msgEl.textContent = '';
+            renderAssessmentQuestions(data);
+            document.getElementById('assessment-step-senha').style.display = 'none';
+            document.getElementById('assessment-step-questoes').style.display = 'block';
+        } catch (e) {
+            console.error(e);
+            msgEl.textContent = 'Erro de conexão. Tente novamente.';
+            msgEl.className = 'text-sm font-medium text-red-600';
+        }
     }
 
     function updateProgress(percent) {
@@ -316,11 +414,30 @@
 
     function handleAssessmentSubmit(e) {
         e.preventDefault();
-        const answer = document.querySelector('input[name="answer"]:checked')?.value;
-        console.log('[ASSESSMENT] submitindo resposta:', answer);
-        if (answer === undefined) {
-            console.log('[ASSESSMENT] nenhuma resposta selecionada');
-            return;
+
+        const container = document.getElementById('assessment-questoes-container');
+        const answers = {};
+        const checkedBank = container.querySelectorAll('input[type="radio"]:checked');
+        let payload = {};
+
+        if (checkedBank.length > 0) {
+            const m = checkedBank[0].name.match(/^respostas\[(\d+)\]$/);
+            if (m) {
+                checkedBank.forEach(r => {
+                    const mm = r.name.match(/^respostas\[(\d+)\]$/);
+                    if (mm) answers[mm[1]] = r.value;
+                });
+                payload = { respostas: answers };
+            }
+        }
+
+        if (Object.keys(payload).length === 0) {
+            const answer = container.querySelector('input[name="answer"]:checked')?.value;
+            if (answer === undefined) {
+                console.log('[ASSESSMENT] nenhuma resposta selecionada');
+                return;
+            }
+            payload = { answer };
         }
 
         fetch(assessmentUrl, {
@@ -332,10 +449,8 @@
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': csrfToken
             },
-            body: JSON.stringify({ answer })
+            body: JSON.stringify(payload)
         }).then(async (r) => {
-            console.log('[ASSESSMENT] response status:', r.status, 'redirected:', r.redirected);
-
             const contentType = r.headers.get('content-type') || '';
             let data = null;
 
@@ -356,11 +471,9 @@
 
             return data;
         }).then(data => {
-            console.log('[ASSESSMENT] response data:', data);
             document.getElementById('assessment-message').textContent = data.message || 'Resposta processada.';
             document.getElementById('assessment-message').className = 'text-sm font-medium ' + (data.success ? 'text-green-600' : 'text-red-600');
             if (data.success) {
-                console.log('[ASSESSMENT] resposta correta!');
                 setCertificateSuccessMessage();
                 setTimeout(() => closeAssessment(), 900);
                 setTimeout(() => location.reload(), 2000);
@@ -368,7 +481,6 @@
             }
 
             if (data.reset_required) {
-                console.log('[ASSESSMENT] reset necessário');
                 closeAssessment();
                 setTimeout(() => location.reload(), 1200);
             }
@@ -381,6 +493,9 @@
 
     document.getElementById('assessment-form').addEventListener('submit', handleAssessmentSubmit);
     document.getElementById('assessment-btn')?.addEventListener('click', openAssessment);
+    document.getElementById('assessment-senha')?.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') iniciarProva();
+    });
 
     if (isTestUser || currentProgress >= 99) {
         unlockAssessmentButton();

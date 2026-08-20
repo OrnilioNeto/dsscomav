@@ -98,6 +98,18 @@
                         <option value="0" @if(request('valido') === '0') selected @endif>Inválido</option>
                     </select>
                 </div>
+
+                <!-- Status de validade do treinamento (reciclagem) -->
+                <div>
+                    <label for="status_validade" class="block text-sm font-semibold text-gray-700 mb-1">Validade do Treinamento</label>
+                    <select name="status_validade" id="status_validade"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        <option value="">Todos</option>
+                        <option value="vencido" @if(request('status_validade') === 'vencido') selected @endif>Vencido</option>
+                        <option value="vencendo" @if(request('status_validade') === 'vencendo') selected @endif>Vence em 30 dias</option>
+                        <option value="valido" @if(request('status_validade') === 'valido') selected @endif>Vigente</option>
+                    </select>
+                </div>
             </div>
 
             <div class="grid md:grid-cols-4 gap-4">
@@ -178,6 +190,7 @@
                     <th class="px-4 py-3 text-left font-semibold text-gray-800">Usuário</th>
                     <th class="px-4 py-3 text-left font-semibold text-gray-800">Treinamento</th>
                     <th class="px-4 py-3 text-left font-semibold text-gray-800">Data Emissão</th>
+                    <th class="px-4 py-3 text-left font-semibold text-gray-800">Validade do Treinamento</th>
                     <th class="px-4 py-3 text-left font-semibold text-gray-800">Tempo</th>
                     <th class="px-4 py-3 text-center font-semibold text-gray-800">Status</th>
                     <th class="px-4 py-3 text-center font-semibold text-gray-800">Ações</th>
@@ -193,6 +206,22 @@
                         </td>
                         <td class="px-4 py-3 text-gray-700">{{ $cert->training->titulo }}</td>
                         <td class="px-4 py-3 text-gray-700">{{ $cert->data_emissao->format('d/m/Y H:i') }}</td>
+                        <td class="px-4 py-3">
+                            @php
+                                $stVal = $cert->status_validade;
+                                $valBadge = $stVal === 'vencido'
+                                    ? ['bg-red-100 text-red-900', 'Vencido']
+                                    : ($stVal === 'vencendo' ? ['bg-amber-100 text-amber-900', 'Vence em 30 dias'] : ($stVal === 'valido' ? ['bg-green-100 text-green-900', 'Vigente'] : null));
+                            @endphp
+                            @if($valBadge)
+                                <span class="px-2 py-1 rounded-full text-xs font-bold {{ $valBadge[0] }}">{{ $valBadge[1] }}</span>
+                            @else
+                                <span class="text-gray-400 text-xs">Sem validade</span>
+                            @endif
+                            @if($cert->data_validade)
+                                <div class="text-xs text-gray-500">{{ $cert->data_validade->format('d/m/Y') }}</div>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-gray-700">{{ gmdate('H:i:s', $cert->tempo_assistido ?? 0) }}</td>
                         <td class="px-4 py-3 text-center">
                             @if($cert->valido)

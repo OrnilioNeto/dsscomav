@@ -68,6 +68,10 @@
                     }
                 } catch (\Throwable $e) {}
             }
+            $treinamentosAlertaCount = 0;
+            if (Auth::check() && (Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))) {
+                $treinamentosAlertaCount = \App\Models\Certificate::contarValidadesCriticas(30);
+            }
         @endphp
         <nav class="site-nav shadow-lg">
             <div class="max-w-7xl mx-auto px-4">
@@ -104,6 +108,9 @@
                         @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
                             <a href="{{ route('treinamentos.index') }}" class="site-link-hover nav-link flex items-center">
                                 <i class="fas fa-video mr-1.5"></i><span>Treinamentos</span>
+                                @if($treinamentosAlertaCount > 0)
+                                    <span class="ml-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1.5 bg-rose-500 text-white text-[10px] font-bold rounded-full" title="{{ $treinamentosAlertaCount }} certificado(s) de treinamento vencidos ou vencendo em 30 dias">● {{ $treinamentosAlertaCount }}</span>
+                                @endif
                             </a>
                         @endif
 
@@ -143,6 +150,11 @@
                                     @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('rankings', 'view'))
                                         <a href="{{ route('admin.ranking.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
                                             <i class="fas fa-trophy w-5 mr-2 text-amber-500"></i> Ranking
+                                        </a>
+                                    @endif
+                                    @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('projeto_pedagogico', 'view'))
+                                        <a href="{{ route('projetos-pedagogicos.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-book-open w-5 mr-2 text-blue-700"></i> Projetos Pedagógicos
                                         </a>
                                     @endif
                                     @if(Auth::user()->isSuperAdmin())
@@ -248,6 +260,9 @@
                         @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))
                             <a href="{{ route('treinamentos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
                                 <i class="fas fa-video mr-2"></i> Treinamentos
+                                @if($treinamentosAlertaCount > 0)
+                                    <span class="ml-1 px-1.5 py-0.5 bg-rose-500 text-white text-xs rounded-full">{{ $treinamentosAlertaCount }}</span>
+                                @endif
                             </a>
                         @endif
                         @if(Auth::user()->hasPermission('social', 'view'))
@@ -280,6 +295,11 @@
                                 @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('rankings', 'view'))
                                     <a href="{{ route('admin.ranking.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
                                         <i class="fas fa-trophy mr-2 text-amber-400"></i> Ranking
+                                    </a>
+                                @endif
+                                @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('projeto_pedagogico', 'view'))
+                                    <a href="{{ route('projetos-pedagogicos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-book-open mr-2"></i> Projetos Pedagógicos
                                     </a>
                                 @endif
                                 @if(Auth::user()->isSuperAdmin())
