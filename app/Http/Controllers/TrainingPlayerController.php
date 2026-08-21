@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Training;
-use App\Models\TrainingQuestion;
 use App\Models\TrainingLog;
+use App\Models\TrainingQuestion;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -20,12 +19,12 @@ class TrainingPlayerController extends Controller
         $user = auth()->user();
 
         // Verificar acesso
-        if (!$user->canAccessTraining($training)) {
+        if (! $user->canAccessTraining($training)) {
             abort(403, 'Acesso negado a este treinamento.');
         }
 
         // Verificar se o treinamento já está liberado pela data/hora configurada
-        if (!$training->isReleased()) {
+        if (! $training->isReleased()) {
             abort(403, 'Treinamento ainda não liberado.');
         }
 
@@ -44,7 +43,7 @@ class TrainingPlayerController extends Controller
             ]
         );
 
-        if (!$progress->data_inicio) {
+        if (! $progress->data_inicio) {
             $progress->update(['data_inicio' => now(config('app.timezone'))]);
         }
 
@@ -59,7 +58,7 @@ class TrainingPlayerController extends Controller
         $user = auth()->user();
         $isTestUser = $user->isTestUser();
 
-        if (!$user->canAccessTraining($training)) {
+        if (! $user->canAccessTraining($training)) {
             return response()->json(['error' => 'Acesso negado'], 403);
         }
 
@@ -103,16 +102,16 @@ class TrainingPlayerController extends Controller
             'porcentagem_assistida' => $porcentagemAssistida,
         ];
 
-        if (!$progress->data_inicio) {
+        if (! $progress->data_inicio) {
             $updateData['data_inicio'] = now(config('app.timezone'));
         }
 
         $progress->update($updateData);
 
         $fresh = $progress->fresh();
-        $showAssessment = $training->hasAssessment() && ($isTestUser || $fresh->porcentagem_assistida >= 99) && !$fresh->avaliacao_aprovada;
+        $showAssessment = $training->hasAssessment() && ($isTestUser || $fresh->porcentagem_assistida >= 99) && ! $fresh->avaliacao_aprovada;
 
-        if (($isTestUser || $fresh->porcentagem_assistida >= 99) && $fresh->avaliacao_aprovada && !$fresh->concluido) {
+        if (($isTestUser || $fresh->porcentagem_assistida >= 99) && $fresh->avaliacao_aprovada && ! $fresh->concluido) {
             $conclusionData = ['concluido' => true];
             $conclusionData['data_conclusao'] = now(config('app.timezone'));
 
@@ -139,11 +138,11 @@ class TrainingPlayerController extends Controller
         $training = Training::with('questions')->findOrFail($id);
         $user = auth()->user();
 
-        if (!$user->canAccessTraining($training)) {
+        if (! $user->canAccessTraining($training)) {
             return response()->json(['error' => 'Acesso negado'], 403);
         }
 
-        if (!$training->hasAssessment()) {
+        if (! $training->hasAssessment()) {
             return response()->json(['error' => 'Treinamento sem avaliação cadastrada'], 422);
         }
 
@@ -156,8 +155,9 @@ class TrainingPlayerController extends Controller
         }
 
         // Re-identificação individual: confere a senha do usuário autenticado (4.6.1)
-        if (!Hash::check($request->input('password'), $user->password)) {
+        if (! Hash::check($request->input('password'), $user->password)) {
             TrainingLog::registrar($training->id, $user->id, 'avaliacao_senha_invalida', 'Tentativa de iniciar avaliação com senha incorreta.');
+
             return response()->json(['error' => 'Senha incorreta. Verifique e tente novamente.'], 422);
         }
 
@@ -215,11 +215,11 @@ class TrainingPlayerController extends Controller
         $user = auth()->user();
         $isTestUser = $user->isTestUser();
 
-        if (!$user->canAccessTraining($training)) {
+        if (! $user->canAccessTraining($training)) {
             return response()->json(['error' => 'Acesso negado'], 403);
         }
 
-        if (!$training->hasAssessment()) {
+        if (! $training->hasAssessment()) {
             return response()->json(['error' => 'Treinamento sem avaliação cadastrada'], 422);
         }
 
@@ -236,7 +236,7 @@ class TrainingPlayerController extends Controller
             }
 
             $respostas = $request->input('respostas', []);
-            if (!is_array($respostas)) {
+            if (! is_array($respostas)) {
                 return response()->json(['error' => 'Respostas inválidas'], 422);
             }
 
@@ -246,7 +246,7 @@ class TrainingPlayerController extends Controller
 
             foreach ($mapa as $questaoId => $indicesOriginais) {
                 $questao = $training->questions->firstWhere('id', $questaoId);
-                if (!$questao) {
+                if (! $questao) {
                     continue;
                 }
 
@@ -265,10 +265,10 @@ class TrainingPlayerController extends Controller
 
             TrainingLog::registrar($training->id, $user->id, 'avaliacao_submetida', "Nota {$nota}% (mínimo {$notaMinima}%) em {$total} questão(ões).");
 
-            if (!$aprovado) {
+            if (! $aprovado) {
                 $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
 
-                if (!$isTestUser && $tentativas >= 2) {
+                if (! $isTestUser && $tentativas >= 2) {
                     $progress->update($this->filterUserProgressColumns([
                         'avaliacao_tentativas' => 0,
                         'avaliacao_aprovada' => false,
@@ -282,6 +282,8 @@ class TrainingPlayerController extends Controller
                         'avaliacao_resposta_usuario' => null,
                     ]));
                     session()->forget("avaliacao_{$training->id}_map");
+
+                    TrainingLog::registrar($training->id, $user->id, 'avaliacao_reset', 'Duas tentativas reprovadas; conteúdo reassistido para liberar nova avaliação.');
 
                     return response()->json([
                         'success' => false,
@@ -314,7 +316,7 @@ class TrainingPlayerController extends Controller
             ]));
             session()->forget("avaliacao_{$training->id}_map");
 
-            if (($isTestUser || $progress->porcentagem_assistida >= 99) && !$progress->concluido) {
+            if (($isTestUser || $progress->porcentagem_assistida >= 99) && ! $progress->concluido) {
                 $progress->update([
                     'concluido' => true,
                     'data_conclusao' => now(config('app.timezone')),
@@ -344,10 +346,10 @@ class TrainingPlayerController extends Controller
 
         TrainingLog::registrar($training->id, $user->id, 'avaliacao_submetida', $isCorrect ? 'Resposta correta.' : 'Resposta incorreta.');
 
-        if (!$isCorrect) {
+        if (! $isCorrect) {
             $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
 
-            if (!$isTestUser && $tentativas >= 2) {
+            if (! $isTestUser && $tentativas >= 2) {
                 $progress->update($this->filterUserProgressColumns([
                     'avaliacao_tentativas' => 0,
                     'avaliacao_aprovada' => false,
@@ -359,6 +361,8 @@ class TrainingPlayerController extends Controller
                     'data_conclusao' => null,
                     'avaliacao_resposta_usuario' => null,
                 ]));
+
+                TrainingLog::registrar($training->id, $user->id, 'avaliacao_reset', 'Duas tentativas reprovadas; conteúdo reassistido para liberar nova avaliação.');
 
                 return response()->json([
                     'success' => false,
@@ -388,7 +392,7 @@ class TrainingPlayerController extends Controller
             'avaliacao_resposta_usuario' => (int) $request->answer,
         ]));
 
-        if (($isTestUser || $progress->porcentagem_assistida >= 99) && !$progress->concluido) {
+        if (($isTestUser || $progress->porcentagem_assistida >= 99) && ! $progress->concluido) {
             $progress->update([
                 'concluido' => true,
                 'data_conclusao' => now(config('app.timezone')),
@@ -413,7 +417,7 @@ class TrainingPlayerController extends Controller
             ->where('training_id', $training->id)
             ->firstOrFail();
 
-        if (!$progress->concluido) {
+        if (! $progress->concluido) {
             $progress->update([
                 'concluido' => true,
                 'porcentagem_assistida' => 100,
@@ -428,7 +432,7 @@ class TrainingPlayerController extends Controller
 
     private function issueCertificateIfReady(Training $training, UserProgress $progress): void
     {
-        if (!$progress->concluido || !$progress->avaliacao_aprovada) {
+        if (! $progress->concluido || ! $progress->avaliacao_aprovada) {
             return;
         }
 
