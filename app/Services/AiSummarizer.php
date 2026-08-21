@@ -5,11 +5,12 @@ namespace App\Services;
 class AiSummarizer
 {
     /**
-     * Solicita um resumo ao provedor (Gemini) se chave estiver configurada.
-     * Caso contrário retorna null e uma mensagem de fallback.
-     * @param array $metrics
-     * @param string|null $trainingTitle
-     * @return array ['ai_summary' => string|null, 'error' => string|null]
+     * Solicita um parecer executivo estruturado ao provedor (Gemini) se a chave
+     * estiver configurada. Caso contrário retorna o fallback local com a mesma
+     * estrutura profissional.
+     *
+     * @param  array  $metrics  Payload detalhado de analyzeDetailed()
+     * @return array ['source' => 'ai'|'fallback', 'ai_summary' => string, 'error' => string|null]
      */
     public function summarize(array $metrics, ?string $trainingTitle = null): array
     {
@@ -36,7 +37,7 @@ class AiSummarizer
                 ]],
                 'generationConfig' => [
                     'temperature' => 0.35,
-                    'maxOutputTokens' => 2048,
+                    'maxOutputTokens' => 4096,
                 ],
             ];
 
@@ -46,7 +47,7 @@ class AiSummarizer
                 return [
                     'source' => 'fallback',
                     'ai_summary' => $this->buildFallbackSummary($metrics, $trainingTitle),
-                    'error' => 'Falha ao chamar Gemini: ' . ($response['status'] ?? 'sem_status') . ' - ' . ($response['body'] ?? 'sem_resposta'),
+                    'error' => 'Falha ao chamar Gemini: '.($response['status'] ?? 'sem_status').' - '.($response['body'] ?? 'sem_resposta'),
                 ];
             }
 
@@ -77,7 +78,7 @@ class AiSummarizer
             return [
                 'source' => 'fallback',
                 'ai_summary' => $this->buildFallbackSummary($metrics, $trainingTitle),
-                'error' => 'Erro comunicação AI: ' . $e->getMessage(),
+                'error' => 'Erro comunicação AI: '.$e->getMessage(),
             ];
         }
     }
@@ -96,7 +97,7 @@ class AiSummarizer
             ],
             CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_TIMEOUT => 12,
+            CURLOPT_TIMEOUT => 30,
         ]);
 
         $body = curl_exec($ch);
@@ -117,75 +118,121 @@ class AiSummarizer
         ];
     }
 
+    /**
+     * Parecer executivo local com a mesma estrutura profissional do prompt da IA.
+     */
     protected function buildFallbackSummary(array $metrics, ?string $trainingTitle = null): string
     {
-        $title = $trainingTitle ?: 'treinamento selecionado';
-        $percentAtivos = $metrics['percentual_usuarios_ativos'] ?? 0;
-        $usuariosComCert = (int) ($metrics['usuarios_com_certificado'] ?? 0);
-        $usuariosAtivos = (int) ($metrics['usuarios_ativos_total'] ?? 0);
-        $totalProgressos = (int) ($metrics['total_progressos'] ?? 0);
-        $concluidos = (int) ($metrics['concluidos'] ?? 0);
-        $avgTime = $metrics['avg_time_human'] ?? '00:00:00';
-        $avgDays = $metrics['avg_days_to_complete'] ?? null;
+        $training = $metrics['training'] ?? [];
+        $kpis = $metrics['kpis'] ?? [];
+        $avaliacao = $metrics['avaliacao'] ?? [];
+        $title = $trainingTitle ?: ($training['titulo'] ?? 'treinamento selecionado');
+
+        $percentAtivos = $kpis['percentual_usuarios_ativos'] ?? 0;
+        $usuariosComCert = (int) ($kpis['usuarios_com_certificado'] ?? 0);
+        $usuariosAtivos = (int) ($kpis['usuarios_ativos_total'] ?? 0);
+        $concluidos = (int) ($kpis['concluidos'] ?? 0);
+        $avgTime = $kpis['avg_time_human'] ?? '00:00:00';
+        $avgDays = $kpis['avg_days_to_complete'] ?? null;
+
+        $aprovados1a = $avaliacao['aprovados_1a_tentativa']['total'] ?? 0;
+        $aprovados2a = $avaliacao['aprovados_2a_tentativa']['total'] ?? 0;
+        $reassistiram = $avaliacao['reassistiram_conteudo']['total'] ?? 0;
+        $aguardando = $avaliacao['aguardando_2a_tentativa']['total'] ?? 0;
+        $semRegistro = $avaliacao['aprovados_sem_registro_tentativa'] ?? 0;
+        $capturaInicio = $avaliacao['captura_inicio'] ?? null;
+        $notaMediaSub = $avaliacao['nota_media_submissoes'] ?? null;
+        $notaMediaApr = $avaliacao['nota_media_aprovacoes'] ?? null;
 
         $summary = [];
-        $summary[] = "Panorama geral de {$title}: entre {$usuariosAtivos} usuários ativos, {$usuariosComCert} participantes completaram o treinamento ({$percentAtivos}% de conclusão).";
-        $summary[] = "O tempo médio assistido foi de {$avgTime}, indicando consumo regular do conteúdo e sinal de engajamento com a trilha.";
+        $summary[] = '## Panorama Geral';
+        $summary[] = "O treinamento \"{$title}\" alcançou {$usuariosComCert} participantes com certificado entre {$usuariosAtivos} usuários ativos elegíveis, o que representa {$percentAtivos}% de cobertura do público efetivo. Ao todo, {$concluidos} progressos foram concluídos, com tempo médio assistido de {$avgTime}.".($avgDays !== null ? " O prazo médio para conclusão foi de {$avgDays} dias." : '');
 
-        if ($avgDays !== null) {
-            $summary[] = "O prazo médio para conclusão foi de {$avgDays} dias, refletindo a velocidade de assimilação e conformidade com os prazos estabelecidos.";
+        $summary[] = '## Desempenho na Avaliação';
+        $totalSubmissoes = $avaliacao['total_submissoes'] ?? 0;
+        $avalPartes = [];
+        $avalPartes[] = "Foram registradas {$totalSubmissoes} submissões de avaliação.";
+        $desdeCaptura = $capturaInicio ? " ({$capturaInicio})" : '';
+        if ($aprovados1a > 0) {
+            $avalPartes[] = "{$aprovados1a} usuário(s) foram aprovados na 1ª tentativa.".($semRegistro > 0 ? " Deste total, {$semRegistro} concluíram antes do início do registro de tentativas na plataforma{$desdeCaptura} e constam nessa categoria sem registro individual de tentativa." : '');
         }
+        if ($aprovados2a > 0) {
+            $avalPartes[] = "{$aprovados2a} usuário(s) foram aprovados na 2ª tentativa, demonstrando aproveitamento após uma nova oportunidade.";
+        }
+        if ($reassistiram > 0) {
+            $avalPartes[] = "{$reassistiram} usuário(s) reprovaram nas duas tentativas e precisaram reassistir o conteúdo para liberar nova avaliação.";
+        }
+        if ($aguardando > 0) {
+            $avalPartes[] = "{$aguardando} usuário(s) ainda aguardam a 2ª tentativa.";
+        }
+        if ($semRegistro > 0) {
+            $avalPartes[] = "O grupo de 1ª tentativa contempla os {$semRegistro} aprovados sem registro individual (período anterior ao início do registro na plataforma{$desdeCaptura}).";
+        }
+        if ($notaMediaSub !== null) {
+            $avalPartes[] = "A nota média das submissões foi de {$notaMediaSub}%".($notaMediaApr !== null ? " e a média das aprovações de {$notaMediaApr}%" : '').'.';
+        }
+        $summary[] = implode(' ', $avalPartes);
 
-        if ($percentAtivos >= 95) {
-            $summary[] = "Os dados comprovam que o sistema atende às expectativas, com forte aderência e execução consistente, validando a efetividade da plataforma e da estratégia de comunicação adotada.";
-        } elseif ($percentAtivos >= 75) {
-            $summary[] = "Os dados indicam que o sistema está operando conforme esperado. O treinamento demonstra boa aceitação e viabilidade, com espaço para refinamento na comunicação para acelerar a finalização entre participantes remanescentes.";
+        $summary[] = '## Pontos de Atenção e Recomendações';
+        if ($aguardando > 0 || $reassistiram > 0) {
+            $summary[] = "Há usuários com dificuldade de aprovação ({$reassistiram} com reprise de conteúdo e {$aguardando} aguardando nova tentativa). Recomenda-se reforço da comunicação, revisão orientada do conteúdo e acompanhamento individual desses colaboradores para garantir a conformidade do treinamento.";
         } else {
-            $summary[] = "Embora o desempenho esteja abaixo do esperado, os dados coletados pelo sistema fornecem insights valiosos para ajustes na comunicação, conteúdo ou prazos nas próximas ofertas.";
+            $summary[] = 'Não há registros atuais de reprovação que exijam reprise de conteúdo, indicando boa assimilação do público participante.';
+        }
+        if ($percentAtivos < 75) {
+            $summary[] = "A cobertura de {$percentAtivos}% está abaixo da meta desejada; recomenda-se intensificar as ações de engajamento e comunicação para elevar a adesão dos usuários pendentes.";
         }
 
-        return implode(' ', $summary);
+        $summary[] = '## Conclusão Executiva';
+        if ($percentAtivos >= 90 && $reassistiram === 0 && $aguardando === 0) {
+            $summary[] = 'O treinamento demonstra execução exemplar, alta aderência e excelente desempenho na avaliação, validando a efetividade da plataforma e da estratégia de comunicação adotada.';
+        } elseif ($percentAtivos >= 75) {
+            $summary[] = 'O treinamento opera dentro das expectativas, com boa aceitação do público e desempenho satisfatório na avaliação, restando apenas refinamentos pontuais para acelerar a finalização dos participantes remanescentes.';
+        } else {
+            $summary[] = 'Embora o desempenho esteja abaixo do esperado, os dados coletados fornecem insights valiosos para ajustes na comunicação, no conteúdo e nos prazos das próximas ofertas.';
+        }
+
+        return implode("\n", $summary);
     }
 
     protected function normalizeAiText(string $text): string
     {
         $text = preg_replace('/\*\*(.*?)\*\*/', '$1', $text);
         $text = preg_replace('/\*(.*?)\*/', '$1', $text);
-        $text = preg_replace('/^#+\s*/m', '', $text);
-        $text = preg_replace('/\s+/', ' ', $text);
+        $text = preg_replace('/[ \t]+/', ' ', $text);
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+
         return trim($text);
     }
 
     protected function buildExecutivePrompt(array $metrics, ?string $trainingTitle = null): string
     {
-        $title = $trainingTitle ?: 'treinamento selecionado';
+        $title = $trainingTitle ?: ($metrics['training']['titulo'] ?? 'treinamento selecionado');
         $jsonMetrics = json_encode($metrics, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         return <<<PROMPT
-    Você é um analista executivo e deve escrever um parecer claro e objetivo, em português do Brasil, para a diretoria.
+Você é um analista executivo sênior de uma plataforma de treinamentos corporativos e deve escrever um parecer profissional, em português do Brasil, para a diretoria da empresa.
 
-    Contexto:
-    - Treinamento: {$title}
-    - Métricas coletadas pela plataforma: {$jsonMetrics}
+Contexto:
+- Treinamento: {$title}
+- Dados completos coletados pela plataforma: {$jsonMetrics}
 
-    IMPORTANTE (instruções obrigatórias ao usar os números):
-    - Use exclusivamente `usuarios_com_certificado` como a contagem de participantes validados que concluíram o treinamento.
-    - Use `percentual_usuarios_ativos` (ou `usuarios_ativos_total_effective`) como a métrica principal de cobertura relativa.
-    - Não reporte `total_progressos`, `unique_users` ou outras contagens brutas como "número de participantes".
-    - Se `usuarios_com_certificado` for maior que `usuarios_ativos_total_effective`, inclua uma frase curta explicativa: "observou-se que alguns certificados foram emitidos para usuários fora da base ativa no período; por isso a contagem de certificados pode exceder o total ativo." — sem atribuir culpa.
+Estrutura obrigatória do parecer (use exatamente estes cabeçalhos, iniciados por "## "):
+## Panorama Geral
+## Desempenho na Avaliação
+## Pontos de Atenção e Recomendações
+## Conclusão Executiva
 
-    Instruções de escrita:
-    - Produza entre 3 e 5 frases com tom profissional e conciso.
-    - Comece com panorama geral usando `usuarios_com_certificado` e `percentual_usuarios_ativos`.
-    - Em seguida, destaque tempo médio assistido (`avg_time_human`) e dias médios para conclusão (`avg_days_to_complete`) quando disponíveis.
-    - Se houver discrepância, adicione a frase explicativa curta conforme instruído.
-    - Finalize com uma conclusão executiva curta baseada nos dados.
-    - Não use markdown, bullets, tabelas ou JSON no texto final.
+Regras obrigatórias:
+- Use exclusivamente os dados fornecidos. NÃO invente, extrapole ou arredonde números de forma diferente do apresentado.
+- Panorama Geral: use `usuarios_com_certificado` como participantes validados e `percentual_usuarios_ativos` como cobertura relativa do público efetivo. Mencione tempo médio assistido (`avg_time_human`) e dias médios para conclusão (`avg_days_to_complete`) quando disponíveis.
+- Desempenho na Avaliação: detalhe as quantidades de `aprovados_1a_tentativa`, `aprovados_2a_tentativa`, `reassistiram_conteudo` e `aguardando_2a_tentativa` (campos `total`). Cite os NOMES dos usuários de um grupo APENAS quando o total do grupo for menor ou igual a 10 (máximo de 10 nomes, separados por vírgula); grupos maiores devem ser descritos apenas pela quantidade, sem listar nomes, para não repetir o detalhamento da tabela. Se `total` for 0, diga explicitamente que não há casos. O grupo `aprovados_1a_tentativa` inclui usuários aprovados sem registro individual de tentativa (concluíram antes do início da captura em `captura_inicio`); quando `aprovados_sem_registro_tentativa` for maior que 0, mencione essa ressalva com o número exato. Mencione as notas médias quando disponíveis.
+- Pontos de Atenção e Recomendações: destaque usuários com dificuldade (reprovações/reprise), cobertura abaixo de 75% e sugira ações concretas e objetivas.
+- Conclusão Executiva: resumo final curto e firme baseado nos dados.
+- Escreva em tom corporativo, conciso e direto. Use apenas os cabeçalhos "## " para seções; nos parágrafos, evite markdown, bullets e tabelas.
 
-    Campos de referência (use como fonte de verdade): `usuarios_com_certificado`, `usuarios_ativos_total_effective`, `percentual_usuarios_ativos`, `avg_time_human`, `avg_days_to_complete`.
-
-    Use estes dados para embasar o texto:
-    {$jsonMetrics}
-    PROMPT;
+Dados para a análise:
+{$jsonMetrics}
+PROMPT;
     }
 }

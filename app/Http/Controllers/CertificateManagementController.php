@@ -6,13 +6,12 @@ use App\Models\Certificate;
 use App\Models\Training;
 use App\Models\User;
 use App\Models\UserProgress;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\AiSummarizer;
+use App\Services\TrainingAnalyzer;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use TCPDF;
-use Illuminate\Support\Facades\Storage;
-use App\Services\TrainingAnalyzer;
-use App\Services\AiSummarizer;
 
 class CertificateManagementController extends Controller
 {
@@ -23,21 +22,21 @@ class CertificateManagementController extends Controller
     {
         $query = Certificate::query();
         $this->aplicarEscopoUsuariosComuns($query, $request->user(), 'user');
-        
+
         // Filtros avançados
         // Filtrar por usuário (por ID) ou por nome livre (compatibilidade)
         if ($request->filled('usuario_id')) {
             $query->where('user_id', request('usuario_id'));
         } elseif ($request->filled('usuario_nome')) {
-            $query->whereHas('user', function($q) {
-                $q->kpiEligible()->where('nome', 'like', '%' . request('usuario_nome') . '%');
+            $query->whereHas('user', function ($q) {
+                $q->kpiEligible()->where('nome', 'like', '%'.request('usuario_nome').'%');
             });
         }
 
         if ($request->filled('cpf')) {
             $cpf = preg_replace('/\D/', '', request('cpf'));
-            $query->whereHas('user', function($q) use ($cpf) {
-                $q->kpiEligible()->where('cpf', 'like', '%' . $cpf . '%');
+            $query->whereHas('user', function ($q) use ($cpf) {
+                $q->kpiEligible()->where('cpf', 'like', '%'.$cpf.'%');
             });
         }
 
@@ -75,7 +74,7 @@ class CertificateManagementController extends Controller
                 if ($driver === 'sqlite') {
                     $expr = "date(certificates.data_emissao, '+' || trainings.dias_validade || ' days')";
                 } else {
-                    $expr = "DATE_ADD(certificates.data_emissao, INTERVAL trainings.dias_validade DAY)";
+                    $expr = 'DATE_ADD(certificates.data_emissao, INTERVAL trainings.dias_validade DAY)';
                 }
 
                 if ($statusValidade === 'vencido') {
@@ -105,7 +104,7 @@ class CertificateManagementController extends Controller
         }
 
         if ($request->filled('ordenar')) {
-            switch(request('ordenar')) {
+            switch (request('ordenar')) {
                 case 'recente':
                     $query->orderBy('data_emissao', 'desc');
                     break;
@@ -113,7 +112,7 @@ class CertificateManagementController extends Controller
                     $query->orderBy('data_emissao', 'asc');
                     break;
                 case 'nome_asc':
-                    $query->whereHas('user', function($q) {
+                    $query->whereHas('user', function ($q) {
                         $q->orderBy('nome', 'asc');
                     });
                     break;
@@ -181,7 +180,7 @@ class CertificateManagementController extends Controller
             }
 
             if ($request->filled('usuario_nome')) {
-                $usersQuery->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+                $usersQuery->where('nome', 'like', '%'.$request->input('usuario_nome').'%');
             }
 
             if ($somenteFerias) {
@@ -200,7 +199,7 @@ class CertificateManagementController extends Controller
 
             $usersNaoIniciados = $usersQuery->orderBy('nome')->get();
             $rows = $usersNaoIniciados->map(function ($user) use ($treinamentoNaoIniciado) {
-                $row = new \stdClass();
+                $row = new \stdClass;
                 $row->user = $user;
                 $row->training = $treinamentoNaoIniciado;
                 $row->tempo_assistido = 0;
@@ -253,7 +252,7 @@ class CertificateManagementController extends Controller
 
             if ($request->filled('usuario_nome')) {
                 $query->whereHas('user', function ($q) use ($request) {
-                    $q->kpiEligible()->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+                    $q->kpiEligible()->where('nome', 'like', '%'.$request->input('usuario_nome').'%');
                 });
             }
 
@@ -295,7 +294,7 @@ class CertificateManagementController extends Controller
             $usuariosEmFeriasBase->where('id', $request->integer('usuario_id'));
         }
         if ($request->filled('usuario_nome')) {
-            $usuariosEmFeriasBase->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+            $usuariosEmFeriasBase->where('nome', 'like', '%'.$request->input('usuario_nome').'%');
         }
         if ($trainingId) {
             $usuariosEmFeriasBase->whereHas('progress', function ($q) use ($trainingId, $request) {
@@ -359,7 +358,7 @@ class CertificateManagementController extends Controller
 
             if ($request->filled('usuario_nome')) {
                 $query->whereHas('user', function ($q) use ($request) {
-                    $q->kpiEligible()->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+                    $q->kpiEligible()->where('nome', 'like', '%'.$request->input('usuario_nome').'%');
                 });
             }
 
@@ -460,7 +459,7 @@ class CertificateManagementController extends Controller
             }
 
             if ($request->filled('usuario_nome')) {
-                $usersQuery->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+                $usersQuery->where('nome', 'like', '%'.$request->input('usuario_nome').'%');
             }
 
             if ($somenteFerias) {
@@ -479,7 +478,7 @@ class CertificateManagementController extends Controller
 
             $usersNaoIniciados = $usersQuery->orderBy('nome')->get();
             $progressos = $usersNaoIniciados->map(function ($user) use ($treinamentoNaoIniciado) {
-                $row = new \stdClass();
+                $row = new \stdClass;
                 $row->user = $user;
                 $row->training = $treinamentoNaoIniciado;
                 $row->tempo_assistido = 0;
@@ -519,7 +518,7 @@ class CertificateManagementController extends Controller
 
             if ($request->filled('usuario_nome')) {
                 $query->whereHas('user', function ($q) use ($request) {
-                    $q->kpiEligible()->where('nome', 'like', '%' . $request->input('usuario_nome') . '%');
+                    $q->kpiEligible()->where('nome', 'like', '%'.$request->input('usuario_nome').'%');
                 });
             }
 
@@ -610,12 +609,12 @@ class CertificateManagementController extends Controller
         if ($request->filled('usuario_id')) {
             $query->where('id', request('usuario_id'));
         } elseif ($request->filled('nome')) {
-            $query->where('nome', 'like', '%' . request('nome') . '%');
+            $query->where('nome', 'like', '%'.request('nome').'%');
         }
 
         if ($request->filled('cpf')) {
             $cpf = preg_replace('/\D/', '', request('cpf'));
-            $query->where('cpf', 'like', '%' . $cpf . '%');
+            $query->where('cpf', 'like', '%'.$cpf.'%');
         }
 
         if ($request->filled('status')) {
@@ -650,12 +649,12 @@ class CertificateManagementController extends Controller
         }
 
         if ($request->filled('nome')) {
-            $usuariosEmFeriasBase->where('nome', 'like', '%' . $request->input('nome') . '%');
+            $usuariosEmFeriasBase->where('nome', 'like', '%'.$request->input('nome').'%');
         }
 
         if ($request->filled('cpf')) {
             $cpf = preg_replace('/\D/', '', request('cpf'));
-            $usuariosEmFeriasBase->where('cpf', 'like', '%' . $cpf . '%');
+            $usuariosEmFeriasBase->where('cpf', 'like', '%'.$cpf.'%');
         }
 
         if ($request->filled('status')) {
@@ -686,11 +685,12 @@ class CertificateManagementController extends Controller
 
                 if ($request->user()->isSuperAdmin() && $request->filled('incluir_adm')) {
 
-            if ($somenteFerias) {
-                $query->whereHas('user', function ($q) use ($request) {
-                    $q->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
-                });
-            }
+                    if ($somenteFerias) {
+                        $query->whereHas('user', function ($q) use ($request) {
+                            $q->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
+                        });
+                    }
+
                     return;
                 }
 
@@ -724,18 +724,19 @@ class CertificateManagementController extends Controller
     public function relatoriosIa(Request $request)
     {
         $treinamentos = Training::orderBy('titulo')->get();
+
         return view('admin.relatorios_ia', [
             'treinamentos' => $treinamentos,
         ]);
     }
 
     /**
-     * Análise local (heurística)
+     * Análise local (heurística) - retorna o relatório analítico detalhado
      */
     public function analyzeLocal(Request $request, TrainingAnalyzer $analyzer)
     {
         $trainingId = $request->input('training_id');
-        
+
         // Validar se um treinamento foi selecionado
         if (empty($trainingId)) {
             return response()->json([
@@ -746,32 +747,32 @@ class CertificateManagementController extends Controller
 
         // Verificar se o treinamento existe
         $training = Training::find($trainingId);
-        if (!$training) {
+        if (! $training) {
             return response()->json([
                 'error' => 'Treinamento não encontrado no sistema.',
                 'concluidos' => 0,
             ], 404);
         }
 
-        $metrics = $analyzer->analyze((int)$trainingId);
-        
+        $report = $analyzer->analyzeDetailed($training);
+
         // Validar se há dados
-        if (($metrics['concluidos'] ?? 0) === 0) {
-            return response()->json(array_merge($metrics, [
+        if (empty($report['usuarios']) && ($report['kpis']['concluidos'] ?? 0) === 0) {
+            return response()->json(array_merge($report, [
                 'error' => "Sem dados de conclusão para '{$training->titulo}'.\n\nNenhum usuário finalizou este treinamento ainda.",
             ]));
         }
 
-        return response()->json($metrics);
+        return response()->json($report);
     }
 
     /**
-     * Análise via IA (Gemini) - retorna texto gerado pela IA ou erro
+     * Análise via IA (Gemini) - retorna o relatório detalhado + parecer executivo
      */
     public function analyzeAi(Request $request, TrainingAnalyzer $analyzer, AiSummarizer $ai)
     {
         $trainingId = $request->input('training_id');
-        
+
         // Validar se um treinamento foi selecionado
         if (empty($trainingId)) {
             return response()->json([
@@ -783,7 +784,7 @@ class CertificateManagementController extends Controller
 
         // Verificar se o treinamento existe
         $training = Training::find($trainingId);
-        if (!$training) {
+        if (! $training) {
             return response()->json([
                 'source' => 'error',
                 'ai_summary' => null,
@@ -791,20 +792,66 @@ class CertificateManagementController extends Controller
             ], 404);
         }
 
-        $metrics = $analyzer->analyze((int)$trainingId);
-        
+        $report = $analyzer->analyzeDetailed($training);
+
         // Validar se há dados
-        if (($metrics['concluidos'] ?? 0) === 0) {
+        if (empty($report['usuarios']) && ($report['kpis']['concluidos'] ?? 0) === 0) {
             return response()->json([
                 'source' => 'error',
                 'ai_summary' => null,
+                'report' => $report,
                 'error' => "Sem dados de conclusão para '{$training->titulo}'.\n\nNenhum usuário finalizou este treinamento ainda. Não há dados para análise.",
             ]);
         }
 
-        $trainingTitle = $training->titulo;
-        $res = $ai->summarize($metrics, $trainingTitle);
-        return response()->json($res);
+        $res = $ai->summarize($report, $training->titulo);
+
+        return response()->json(array_merge($res, ['report' => $report]));
+    }
+
+    /**
+     * Exporta o relatório analítico de IA em PDF (TCPDF)
+     */
+    public function relatorioIaPdf(Request $request, TrainingAnalyzer $analyzer, AiSummarizer $ai)
+    {
+        $trainingId = $request->filled('training_id') ? $request->integer('training_id') : null;
+
+        if (! $trainingId) {
+            return redirect()->route('relatorios.ia')->with('error', 'Selecione um treinamento para gerar o PDF.');
+        }
+
+        $training = Training::findOrFail($trainingId);
+        $report = $analyzer->analyzeDetailed($training);
+        $parecer = $ai->summarize($report, $training->titulo);
+
+        $html = view('relatorios.relatorio_ia_pdf', [
+            'report' => $report,
+            'training' => $training,
+            'ai_summary' => $parecer['ai_summary'],
+            'ai_source' => $parecer['source'],
+        ])->render();
+
+        // Generate PDF with TCPDF (Landscape orientation)
+        $pdf = new TCPDF('L');
+        $pdf->SetCreator('Plataforma DSS');
+        $pdf->SetAuthor('Plataforma DSS');
+        $pdf->SetTitle('Relatorio Analitico - '.$training->titulo);
+        $pdf->SetMargins(8, 18, 8);
+        $pdf->SetAutoPageBreak(true, 18);
+        $pdf->SetDrawColor(150, 150, 150);
+        $pdf->SetLineWidth(0.2);
+        $pdf->AddPage();
+
+        // Add logo if exists
+        $logoPath = public_path('images/logo-comav-transportes.png');
+        if (file_exists($logoPath)) {
+            $pdf->Image($logoPath, 10, 20, 22, '', '', '', '', false, 300, '', false, false, 0);
+            $pdf->SetY(18);
+        }
+
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->writeHTML($html, true, false, true, false, '');
+        $pdf->Output('Relatorio_Analitico_'.str_replace(' ', '_', $training->titulo).'.pdf', 'D');
     }
 
     /**
@@ -941,11 +988,15 @@ class CertificateManagementController extends Controller
 
         $taxaConclusao = [];
         $treinamentosComProgressos = Training::withCount(['progress' => function ($q) {
-                $q->whereHas('user', function ($u) { $u->kpiEligible(); });
-            }])
+            $q->whereHas('user', function ($u) {
+                $u->kpiEligible();
+            });
+        }])
             ->withCount(['progress as concluidos_count' => function ($q) {
                 $q->where('concluido', true)
-                  ->whereHas('user', function ($u) { $u->kpiEligible(); });
+                    ->whereHas('user', function ($u) {
+                        $u->kpiEligible();
+                    });
             }])
             ->get();
 
@@ -1064,8 +1115,8 @@ class CertificateManagementController extends Controller
         if ($request->filled('usuario_id')) {
             $query->where('user_id', request('usuario_id'));
         } elseif ($request->filled('usuario_nome')) {
-            $query->whereHas('user', function($q) {
-                $q->kpiEligible()->where('nome', 'like', '%' . request('usuario_nome') . '%');
+            $query->whereHas('user', function ($q) {
+                $q->kpiEligible()->where('nome', 'like', '%'.request('usuario_nome').'%');
             });
         }
 
@@ -1087,11 +1138,11 @@ class CertificateManagementController extends Controller
             $q->kpiEligible();
         })->with(['user', 'training'])->get();
 
-        $filename = 'certificados_' . now()->format('Y-m-d_H-i-s') . '.csv';
+        $filename = 'certificados_'.now()->format('Y-m-d_H-i-s').'.csv';
 
         return response()->streamDownload(function () use ($certificados) {
             $file = fopen('php://output', 'w');
-            
+
             // Cabeçalho
             fputcsv($file, [
                 'Código',
@@ -1156,7 +1207,7 @@ class CertificateManagementController extends Controller
     /**
      * Aplica escopo de visibilidade: admin vê usuários comuns; super admin vê tudo.
      */
-    private function aplicarEscopoUsuariosComuns($query, User $user, string $relation = null): void
+    private function aplicarEscopoUsuariosComuns($query, User $user, ?string $relation = null): void
     {
         if ($user->isSuperAdmin()) {
             return;
@@ -1173,6 +1224,7 @@ class CertificateManagementController extends Controller
 
         if ($relation) {
             $query->whereHas($relation, $scope);
+
             return;
         }
 
