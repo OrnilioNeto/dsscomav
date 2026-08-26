@@ -408,6 +408,8 @@ class CertificateManagementController extends Controller
                     ->get()
                     ->groupBy('training_id');
 
+                $trainingModels = Training::whereIn('id', $trainingIds)->get()->keyBy('id');
+
                 $mostrarNaoIniciados = in_array($statusProgresso, ['nao_iniciado', 'nao_finalizados'], true);
                 $mostrarPendentes = in_array($statusProgresso, ['pendente', 'nao_finalizados', ''], true);
                 $mostrarConcluidos = in_array($statusProgresso, ['concluido', ''], true);
@@ -430,17 +432,18 @@ class CertificateManagementController extends Controller
                     }
 
                     if ($mostrarNaoIniciados) {
-                        $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
-                        $naoIniciadosQuery = User::kpiEligible()
-                            ->whereDoesntHave('progress', function ($pq) use ($tId) {
-                                $pq->where('training_id', $tId);
-                            });
-                        if (!empty($userIdsWithProgress)) {
-                            $naoIniciadosQuery->whereNotIn('id', $userIdsWithProgress);
+                        $trainingModel = $trainingModels->get($tId);
+                        if ($trainingModel) {
+                            $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
+                            $todosUsuariosKpi = User::kpiEligible()->orderBy('nome')->get();
+                            $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress) {
+                                if (in_array($user->id, $userIdsWithProgress)) {
+                                    return false;
+                                }
+                                return $user->canAccessTraining($trainingModel);
+                            })->values();
+                            $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciados;
                         }
-                        $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciadosQuery
-                            ->orderBy('nome')
-                            ->get();
                     }
                 }
             }
@@ -924,6 +927,8 @@ class CertificateManagementController extends Controller
                 ->get()
                 ->groupBy('training_id');
 
+            $trainingModels = Training::whereIn('id', $trainingIds)->get()->keyBy('id');
+
             $mostrarNaoIniciados = in_array($statusProgresso, ['nao_iniciado', 'nao_finalizados'], true);
             $mostrarPendentes = in_array($statusProgresso, ['pendente', 'nao_finalizados', ''], true);
             $mostrarConcluidos = in_array($statusProgresso, ['concluido', ''], true);
@@ -946,17 +951,18 @@ class CertificateManagementController extends Controller
                 }
 
                 if ($mostrarNaoIniciados) {
-                    $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
-                    $naoIniciadosQuery = User::kpiEligible()
-                        ->whereDoesntHave('progress', function ($pq) use ($tId) {
-                            $pq->where('training_id', $tId);
-                        });
-                    if (!empty($userIdsWithProgress)) {
-                        $naoIniciadosQuery->whereNotIn('id', $userIdsWithProgress);
+                    $trainingModel = $trainingModels->get($tId);
+                    if ($trainingModel) {
+                        $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
+                        $todosUsuariosKpi = User::kpiEligible()->orderBy('nome')->get();
+                        $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress) {
+                            if (in_array($user->id, $userIdsWithProgress)) {
+                                return false;
+                            }
+                            return $user->canAccessTraining($trainingModel);
+                        })->values();
+                        $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciados;
                     }
-                    $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciadosQuery
-                        ->orderBy('nome')
-                        ->get();
                 }
             }
         }
