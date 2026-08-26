@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Certificate;
 use App\Models\Training;
+use App\Models\TrainingVacationExemption;
 use App\Models\User;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
@@ -142,11 +143,17 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
+        // IDs de treinamentos com isenção de férias para este usuário
+        $exemptTrainingIds = TrainingVacationExemption::where('user_id', $user->id)
+            ->pluck('training_id')
+            ->toArray();
+
         // DSS: comportamento atual (público-alvo por tipo de usuário)
         $dssElegiveis = Training::where('status', 'ativo')
             ->where('tipo', 'dss')
             ->get()
-            ->filter(fn($t) => $user->canAccessTraining($t));
+            ->filter(fn($t) => $user->canAccessTraining($t))
+            ->filter(fn($t) => !in_array($t->id, $exemptTrainingIds));
 
         $treinamentosDisponíveis = $dssElegiveis
             ->filter(fn($t) => $t->isReleased())
@@ -164,6 +171,7 @@ class DashboardController extends Controller
             })
             ->get()
             ->filter(fn($t) => $t->isReleased())
+            ->filter(fn($t) => !in_array($t->id, $exemptTrainingIds))
             ->values();
 
         $progresso = UserProgress::where('user_id', $user->id)->get();
