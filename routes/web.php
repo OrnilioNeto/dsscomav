@@ -144,6 +144,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/certificados-gerencial', [CertificateManagementController::class, 'index'])->name('certificados.gerencial');
         Route::get('/relatorios/treinamentos', [CertificateManagementController::class, 'relatorioTreinamentos'])->name('relatorios.treinamentos');
         Route::get('/relatorios/treinamentos/pdf', [CertificateManagementController::class, 'relatorioTreinamentosPdf'])->name('relatorios.treinamentos.pdf');
+        Route::get('/relatorios/treinamentos/resumo-pdf', [CertificateManagementController::class, 'relatorioTreinamentosResumoPdf'])->name('relatorios.treinamentos.resumo_pdf');
         // IA / Análises gerenciais (Super Admin)
         Route::get('/relatorios/ia', [CertificateManagementController::class, 'relatoriosIa'])->name('relatorios.ia');
         Route::post('/relatorios/ia/analyze-local', [CertificateManagementController::class, 'analyzeLocal'])->name('relatorios.ia.analyze_local');
