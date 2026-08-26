@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Training;
 use App\Models\TrainingLog;
 use App\Models\TrainingQuestion;
+use App\Models\TrainingVacationExemption;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +22,14 @@ class TrainingPlayerController extends Controller
         // Verificar acesso
         if (! $user->canAccessTraining($training)) {
             abort(403, 'Acesso negado a este treinamento.');
+        }
+
+        // Verificar se o treinamento está isento por férias
+        $isExempt = TrainingVacationExemption::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->exists();
+        if ($isExempt) {
+            abort(403, 'Este treinamento está isento no período de férias.');
         }
 
         // Verificar se o treinamento já está liberado pela data/hora configurada

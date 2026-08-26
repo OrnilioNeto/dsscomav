@@ -425,11 +425,17 @@ class CertificateManagementController extends Controller
 
                     $progressList = $progressByTraining->get($tId, collect());
 
+                    $userIdsIsentosPendentes = TrainingVacationExemption::where('training_id', $tId)
+                        ->pluck('user_id')
+                        ->toArray();
+
                     foreach ($progressList as $p) {
                         if ($p->concluido && $mostrarConcluidos) {
                             $usuariosPorTreinamento[$tId]['concluidos']->push($p->user);
                         } elseif (!$p->concluido && $mostrarPendentes) {
-                            $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
+                            if (!in_array($p->user_id, $userIdsIsentosPendentes)) {
+                                $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
+                            }
                         }
                     }
 
@@ -968,11 +974,17 @@ class CertificateManagementController extends Controller
 
                 $progressList = $progressByTraining->get($tId, collect());
 
+                $userIdsIsentosPendentes = TrainingVacationExemption::where('training_id', $tId)
+                    ->pluck('user_id')
+                    ->toArray();
+
                 foreach ($progressList as $p) {
                     if ($p->concluido && $mostrarConcluidos) {
                         $usuariosPorTreinamento[$tId]['concluidos']->push($p->user);
                     } elseif (!$p->concluido && $mostrarPendentes) {
-                        $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
+                        if (!in_array($p->user_id, $userIdsIsentosPendentes)) {
+                            $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
+                        }
                     }
                 }
 
