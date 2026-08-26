@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Role;
+use App\Models\UserVacation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -104,6 +105,14 @@ class UserController extends Controller
 
         User::create($data);
 
+        if ($request->filled('ferias_inicio') && $request->filled('ferias_fim')) {
+            UserVacation::create([
+                'user_id' => User::latest()->first()->id,
+                'data_inicio' => $request->input('ferias_inicio'),
+                'data_fim' => $request->input('ferias_fim'),
+            ]);
+        }
+
         return redirect()->route('usuarios.index')->with('success', 'Usuário criado com sucesso!');
     }
 
@@ -197,6 +206,19 @@ class UserController extends Controller
         }
 
         $usuario->update($data);
+
+        if ($request->filled('ferias_inicio') && $request->filled('ferias_fim')) {
+            $novaInicio = $request->input('ferias_inicio');
+            $novaFim = $request->input('ferias_fim');
+            $ultimoHistorico = $usuario->vacations()->latest()->first();
+            if (!$ultimoHistorico || $ultimoHistorico->data_inicio->format('Y-m-d') !== $novaInicio || $ultimoHistorico->data_fim->format('Y-m-d') !== $novaFim) {
+                UserVacation::create([
+                    'user_id' => $usuario->id,
+                    'data_inicio' => $novaInicio,
+                    'data_fim' => $novaFim,
+                ]);
+            }
+        }
 
         return redirect()->route('usuarios.show', $usuario)->with('success', 'Usuário atualizado!');
     }

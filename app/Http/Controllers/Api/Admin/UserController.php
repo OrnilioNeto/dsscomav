@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\UserVacation;
 use App\Models\EmployeeTraining;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -120,6 +121,14 @@ class UserController extends Controller
 
         $user = User::create($data);
 
+        if ($request->filled('ferias_inicio') && $request->filled('ferias_fim')) {
+            UserVacation::create([
+                'user_id' => $user->id,
+                'data_inicio' => $request->input('ferias_inicio'),
+                'data_fim' => $request->input('ferias_fim'),
+            ]);
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Usuário criado com sucesso!',
@@ -199,6 +208,19 @@ class UserController extends Controller
         }
 
         $usuario->update($data);
+
+        if ($request->filled('ferias_inicio') && $request->filled('ferias_fim')) {
+            $novaInicio = $request->input('ferias_inicio');
+            $novaFim = $request->input('ferias_fim');
+            $ultimoHistorico = $usuario->vacations()->latest()->first();
+            if (!$ultimoHistorico || $ultimoHistorico->data_inicio->format('Y-m-d') !== $novaInicio || $ultimoHistorico->data_fim->format('Y-m-d') !== $novaFim) {
+                UserVacation::create([
+                    'user_id' => $usuario->id,
+                    'data_inicio' => $novaInicio,
+                    'data_fim' => $novaFim,
+                ]);
+            }
+        }
 
         return response()->json([
             'status' => 'success',

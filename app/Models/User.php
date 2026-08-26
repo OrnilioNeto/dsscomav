@@ -91,6 +91,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Training::class, 'training_assignments')->withTimestamps();
     }
 
+    public function vacations()
+    {
+        return $this->hasMany(UserVacation::class);
+    }
+
     public function employeeEpis()
     {
         return $this->hasMany(EmployeeEpi::class);

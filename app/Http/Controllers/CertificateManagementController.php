@@ -6,6 +6,7 @@ use App\Models\Certificate;
 use App\Models\Training;
 use App\Models\User;
 use App\Models\UserProgress;
+use App\Models\UserVacation;
 use App\Services\AiSummarizer;
 use App\Services\TrainingAnalyzer;
 use Illuminate\Http\Request;
@@ -437,20 +438,25 @@ class CertificateManagementController extends Controller
                             $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
                             $dataLiberacao = $trainingModel->data_liberacao ?? $trainingModel->data_publicacao ?? null;
                             $todosUsuariosKpi = User::kpiEligible()->orderBy('nome')->get();
-                            $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $dataLiberacao) {
+
+                            $userIdsEmFeriasNaLiberacao = [];
+                            if ($dataLiberacao) {
+                                $liberacao = \Carbon\Carbon::parse($dataLiberacao);
+                                $userIdsEmFeriasNaLiberacao = UserVacation::where('data_inicio', '<=', $liberacao->format('Y-m-d'))
+                                    ->where('data_fim', '>=', $liberacao->format('Y-m-d'))
+                                    ->pluck('user_id')
+                                    ->toArray();
+                            }
+
+                            $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $userIdsEmFeriasNaLiberacao) {
                                 if (in_array($user->id, $userIdsWithProgress)) {
                                     return false;
                                 }
                                 if (!$user->canAccessTraining($trainingModel)) {
                                     return false;
                                 }
-                                if ($dataLiberacao && $user->ferias_inicio && $user->ferias_fim) {
-                                    $liberacao = \Carbon\Carbon::parse($dataLiberacao);
-                                    $feriasInicio = \Carbon\Carbon::parse($user->ferias_inicio);
-                                    $feriasFim = \Carbon\Carbon::parse($user->ferias_fim);
-                                    if ($liberacao->betweenIncluded($feriasInicio, $feriasFim)) {
-                                        return false;
-                                    }
+                                if (in_array($user->id, $userIdsEmFeriasNaLiberacao)) {
+                                    return false;
                                 }
                                 return true;
                             })->values();
@@ -968,20 +974,25 @@ class CertificateManagementController extends Controller
                         $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
                         $dataLiberacao = $trainingModel->data_liberacao ?? $trainingModel->data_publicacao ?? null;
                         $todosUsuariosKpi = User::kpiEligible()->orderBy('nome')->get();
-                        $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $dataLiberacao) {
+
+                        $userIdsEmFeriasNaLiberacao = [];
+                        if ($dataLiberacao) {
+                            $liberacao = \Carbon\Carbon::parse($dataLiberacao);
+                            $userIdsEmFeriasNaLiberacao = UserVacation::where('data_inicio', '<=', $liberacao->format('Y-m-d'))
+                                ->where('data_fim', '>=', $liberacao->format('Y-m-d'))
+                                ->pluck('user_id')
+                                ->toArray();
+                        }
+
+                        $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $userIdsEmFeriasNaLiberacao) {
                             if (in_array($user->id, $userIdsWithProgress)) {
                                 return false;
                             }
                             if (!$user->canAccessTraining($trainingModel)) {
                                 return false;
                             }
-                            if ($dataLiberacao && $user->ferias_inicio && $user->ferias_fim) {
-                                $liberacao = \Carbon\Carbon::parse($dataLiberacao);
-                                $feriasInicio = \Carbon\Carbon::parse($user->ferias_inicio);
-                                $feriasFim = \Carbon\Carbon::parse($user->ferias_fim);
-                                if ($liberacao->betweenIncluded($feriasInicio, $feriasFim)) {
-                                    return false;
-                                }
+                            if (in_array($user->id, $userIdsEmFeriasNaLiberacao)) {
+                                return false;
                             }
                             return true;
                         })->values();
