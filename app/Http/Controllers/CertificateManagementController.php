@@ -435,12 +435,24 @@ class CertificateManagementController extends Controller
                         $trainingModel = $trainingModels->get($tId);
                         if ($trainingModel) {
                             $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
+                            $dataLiberacao = $trainingModel->data_liberacao ?? $trainingModel->data_publicacao ?? null;
                             $todosUsuariosKpi = User::kpiEligible()->orderBy('nome')->get();
-                            $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress) {
+                            $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $dataLiberacao) {
                                 if (in_array($user->id, $userIdsWithProgress)) {
                                     return false;
                                 }
-                                return $user->canAccessTraining($trainingModel);
+                                if (!$user->canAccessTraining($trainingModel)) {
+                                    return false;
+                                }
+                                if ($dataLiberacao && $user->ferias_inicio && $user->ferias_fim) {
+                                    $liberacao = \Carbon\Carbon::parse($dataLiberacao);
+                                    $feriasInicio = \Carbon\Carbon::parse($user->ferias_inicio);
+                                    $feriasFim = \Carbon\Carbon::parse($user->ferias_fim);
+                                    if ($liberacao->betweenIncluded($feriasInicio, $feriasFim)) {
+                                        return false;
+                                    }
+                                }
+                                return true;
                             })->values();
                             $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciados;
                         }
@@ -954,12 +966,24 @@ class CertificateManagementController extends Controller
                     $trainingModel = $trainingModels->get($tId);
                     if ($trainingModel) {
                         $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
+                        $dataLiberacao = $trainingModel->data_liberacao ?? $trainingModel->data_publicacao ?? null;
                         $todosUsuariosKpi = User::kpiEligible()->orderBy('nome')->get();
-                        $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress) {
+                        $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $dataLiberacao) {
                             if (in_array($user->id, $userIdsWithProgress)) {
                                 return false;
                             }
-                            return $user->canAccessTraining($trainingModel);
+                            if (!$user->canAccessTraining($trainingModel)) {
+                                return false;
+                            }
+                            if ($dataLiberacao && $user->ferias_inicio && $user->ferias_fim) {
+                                $liberacao = \Carbon\Carbon::parse($dataLiberacao);
+                                $feriasInicio = \Carbon\Carbon::parse($user->ferias_inicio);
+                                $feriasFim = \Carbon\Carbon::parse($user->ferias_fim);
+                                if ($liberacao->betweenIncluded($feriasInicio, $feriasFim)) {
+                                    return false;
+                                }
+                            }
+                            return true;
                         })->values();
                         $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciados;
                     }
