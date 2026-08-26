@@ -10,6 +10,9 @@
             <a href="{{ route('usuarios.ficha.manage', $usuario->id) }}" class="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition">
                 <i class="fas fa-id-card mr-2"></i>Ficha (EPI/Treinamentos)
             </a>
+            <a href="{{ route('usuarios.treinamentos_ferias', $usuario) }}" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
+                <i class="fas fa-calendar-minus mr-2"></i>Isenções por Férias
+            </a>
             <a href="{{ route('usuarios.edit', $usuario) }}" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition">
                 <i class="fas fa-edit mr-2"></i>Editar
             </a>

@@ -8,6 +8,7 @@ use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CertificateManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeFichaController;
+use App\Http\Controllers\TrainingVacationExemptionController;
 use App\Http\Controllers\EpiController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfilePhotoController;
@@ -164,6 +165,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/admin/ranking/criterios/{criterion}/regras', [RankingSettingsController::class, 'storeRule'])->name('admin.ranking.rules.store');
         Route::put('/admin/ranking/regras/{rule}', [RankingSettingsController::class, 'updateRule'])->name('admin.ranking.rules.update');
         Route::delete('/admin/ranking/regras/{rule}', [RankingSettingsController::class, 'destroyRule'])->name('admin.ranking.rules.destroy');
+
+        // Isenções de treinamento por férias (Super Admin)
+        Route::get('/usuarios/{user}/treinamentos-ferias', [TrainingVacationExemptionController::class, 'index'])->name('usuarios.treinamentos_ferias');
+        Route::post('/usuarios/{user}/treinamentos-ferias', [TrainingVacationExemptionController::class, 'store'])->name('usuarios.treinamentos_ferias.store');
+        Route::delete('/usuarios/{user}/treinamentos-ferias/{exemption}', [TrainingVacationExemptionController::class, 'destroy'])->name('usuarios.treinamentos_ferias.destroy');
 
         // Gerenciador de Conteúdos Splash (acesso controlado por permissão:splash)
         Route::get('/admin/splash', [SplashContentController::class, 'index'])->name('admin.splash.index');

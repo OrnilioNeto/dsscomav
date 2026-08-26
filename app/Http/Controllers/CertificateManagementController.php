@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Certificate;
 use App\Models\Training;
+use App\Models\TrainingVacationExemption;
 use App\Models\User;
 use App\Models\UserProgress;
 use App\Models\UserVacation;
@@ -448,7 +449,11 @@ class CertificateManagementController extends Controller
                                     ->toArray();
                             }
 
-                            $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $userIdsEmFeriasNaLiberacao) {
+                            $userIdsIsentos = TrainingVacationExemption::where('training_id', $tId)
+                                ->pluck('user_id')
+                                ->toArray();
+
+                            $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $userIdsEmFeriasNaLiberacao, $userIdsIsentos) {
                                 if (in_array($user->id, $userIdsWithProgress)) {
                                     return false;
                                 }
@@ -456,6 +461,9 @@ class CertificateManagementController extends Controller
                                     return false;
                                 }
                                 if (in_array($user->id, $userIdsEmFeriasNaLiberacao)) {
+                                    return false;
+                                }
+                                if (in_array($user->id, $userIdsIsentos)) {
                                     return false;
                                 }
                                 return true;
@@ -984,7 +992,11 @@ class CertificateManagementController extends Controller
                                 ->toArray();
                         }
 
-                        $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $userIdsEmFeriasNaLiberacao) {
+                        $userIdsIsentos = TrainingVacationExemption::where('training_id', $tId)
+                            ->pluck('user_id')
+                            ->toArray();
+
+                        $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $userIdsEmFeriasNaLiberacao, $userIdsIsentos) {
                             if (in_array($user->id, $userIdsWithProgress)) {
                                 return false;
                             }
@@ -992,6 +1004,9 @@ class CertificateManagementController extends Controller
                                 return false;
                             }
                             if (in_array($user->id, $userIdsEmFeriasNaLiberacao)) {
+                                return false;
+                            }
+                            if (in_array($user->id, $userIdsIsentos)) {
                                 return false;
                             }
                             return true;
