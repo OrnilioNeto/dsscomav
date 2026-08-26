@@ -119,7 +119,7 @@
 
                 <div>
                     <label for="usuario_id" class="block text-sm font-semibold text-gray-700 mb-1">Usuário</label>
-                    <select name="usuario_id" id="usuario_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select name="usuario_id" id="usuario_id" onchange="this.form.submit()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todos</option>
                         @foreach($users as $usuario)
                             <option value="{{ $usuario->id }}" @if(request('usuario_id') == $usuario->id) selected @endif>{{ $usuario->nome }}</option>
@@ -134,7 +134,7 @@
 
                 <div>
                     <label for="training_id" class="block text-sm font-semibold text-gray-700 mb-1">Treinamento</label>
-                    <select name="training_id" id="training_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select name="training_id" id="training_id" onchange="this.form.submit()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todos</option>
                         @foreach($treinamentos as $training)
                             <option value="{{ $training->id }}" @if(request('training_id') == $training->id) selected @endif>{{ $training->titulo }}</option>
@@ -158,8 +158,9 @@
                         <option value="concluido" @if(request('status_progresso') === 'concluido' || request('concluido') === '1') selected @endif>Concluído</option>
                         <option value="pendente" @if(request('status_progresso') === 'pendente' || request('concluido') === '0') selected @endif>Pendente</option>
                         <option value="nao_iniciado" @if(request('status_progresso') === 'nao_iniciado') selected @endif>Não iniciado</option>
+                        <option value="nao_finalizados" @if(request('status_progresso') === 'nao_finalizados') selected @endif>Não finalizados (pendente + não iniciado)</option>
                     </select>
-                    <p class="mt-1 text-xs text-gray-500">Concluído = finalizou; Pendente = começou, mas ainda não concluiu; Não iniciado = nunca abriu esse conteúdo.</p>
+                    <p class="mt-1 text-xs text-gray-500">Concluído = finalizou; Pendente = começou, mas não concluiu; Não iniciado = nunca abriu; Não finalizados = pendente + não iniciado.</p>
                 </div>
 
                 <div>
@@ -196,12 +197,328 @@
         </form>
     </div>
 
+    {{-- ============================================================ --}}
+    {{-- FOCO NO USUÁRIO: lista completa de treinamentos do usuário --}}
+    {{-- ============================================================ --}}
+    @if($focoUsuario)
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden border border-blue-200 mb-8">
+            <div class="p-6 border-b border-blue-200 bg-blue-50">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-blue-900 flex items-center gap-2">
+                            <i class="fas fa-user-check"></i> Foco no Usuário
+                        </h2>
+                        <p class="text-sm text-blue-800/70 mt-1">
+                            Visão completa de todos os treinamentos de <strong>{{ $focoUsuario->nome }}</strong>
+                            ({{ $focoUsuario->getCpfFormatted() }})
+                            @if($statusProgresso)
+                                <span class="ml-2 inline-flex items-center gap-1 bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                    <i class="fas fa-filter"></i>
+                                    Filtrado por:
+                                    @if($statusProgresso === 'concluido') Concluídos
+                                    @elseif($statusProgresso === 'pendente') Pendentes
+                                    @elseif($statusProgresso === 'nao_iniciado') Não iniciados
+                                    @elseif($statusProgresso === 'nao_finalizados') Não finalizados
+                                    @endif
+                                </span>
+                            @endif
+                        </p>
+                    </div>
+                    <a href="{{ route('relatorios.treinamentos') }}" class="bg-white border border-blue-300 text-blue-800 px-4 py-2 rounded-lg hover:bg-blue-100 transition text-sm font-semibold">
+                        <i class="fas fa-times mr-1"></i>Fechar foco
+                    </a>
+                </div>
+            </div>
+
+            {{-- Cards de resumo --}}
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-gray-50 border-b border-gray-200">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 text-center">
+                    <p class="text-sm text-gray-600">Total de Treinamentos</p>
+                    <p class="text-2xl font-bold text-gray-800">{{ $focoUsuarioResumo['total'] }}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-green-200 text-center">
+                    <p class="text-sm text-green-700">Concluídos</p>
+                    <p class="text-2xl font-bold text-green-600">{{ $focoUsuarioResumo['concluidos'] }}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-yellow-200 text-center">
+                    <p class="text-sm text-yellow-700">Pendentes</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ $focoUsuarioResumo['pendentes'] }}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 text-center">
+                    <p class="text-sm text-slate-600">Não Iniciados</p>
+                    <p class="text-2xl font-bold text-slate-500">{{ $focoUsuarioResumo['nao_iniciados'] }}</p>
+                </div>
+            </div>
+
+            {{-- Barra de progresso geral --}}
+            @if($focoUsuarioResumo['total'] > 0)
+                <div class="px-6 pt-4">
+                    <div class="flex items-center justify-between text-sm mb-1">
+                        <span class="font-semibold text-gray-700">Progresso Geral</span>
+                        <span class="font-bold text-blue-900">{{ number_format(($focoUsuarioResumo['concluidos'] / $focoUsuarioResumo['total']) * 100, 1, ',', '.') }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div class="bg-green-500 h-3 rounded-full" style="width: {{ ($focoUsuarioResumo['concluidos'] / $focoUsuarioResumo['total']) * 100 }}%"></div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Tabela detalhada --}}
+            <div class="overflow-x-auto p-6">
+                <table class="w-full">
+                    <thead class="bg-gray-100 border-b-2 border-gray-300">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold">Treinamento</th>
+                            <th class="px-4 py-3 text-left font-semibold">Tipo</th>
+                            <th class="px-4 py-3 text-center font-semibold">Carga Horária</th>
+                            <th class="px-4 py-3 text-center font-semibold">Progresso</th>
+                            <th class="px-4 py-3 text-center font-semibold">Tempo Assistido</th>
+                            <th class="px-4 py-3 text-center font-semibold">Status</th>
+                            <th class="px-4 py-3 text-center font-semibold">Avaliação</th>
+                            <th class="px-4 py-3 text-center font-semibold">Início</th>
+                            <th class="px-4 py-3 text-center font-semibold">Conclusão</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($focoUsuarioTreinamentos as $item)
+                            <tr class="border-b hover:bg-blue-50/50 transition">
+                                <td class="px-4 py-3">
+                                    <div class="font-semibold text-gray-800">{{ $item->training->titulo }}</div>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-600">
+                                    {{ $item->training->tipo ? ucfirst($item->training->tipo) : '—' }}
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-gray-600">
+                                    {{ $item->training->carga_horaria ? $item->training->carga_horaria . 'h' : '—' }}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    @if($item->tem_progresso)
+                                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                                            <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $item->porcentagem_assistida }}%"></div>
+                                        </div>
+                                        <span class="text-xs text-gray-600">{{ $item->porcentagem_assistida }}%</span>
+                                    @else
+                                        <span class="text-xs text-gray-400">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-gray-600">
+                                    {{ $item->tem_progresso ? gmdate('H:i:s', (int) $item->tempo_assistido) : '—' }}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    @if($item->status === 'concluido')
+                                        <span class="bg-green-100 text-green-900 px-3 py-1 rounded-full text-sm font-semibold">✓ Concluído</span>
+                                    @elseif($item->status === 'pendente')
+                                        <span class="bg-yellow-100 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">⧖ Pendente</span>
+                                    @else
+                                        <span class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm font-semibold">○ Não iniciado</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm">
+                                    @if($item->concluido && $item->avaliacao_aprovada)
+                                        <span class="text-green-600 font-semibold">Aprovado</span>
+                                    @elseif($item->tem_progresso && !$item->concluido)
+                                        <span class="text-yellow-600">Pendente</span>
+                                    @else
+                                        <span class="text-gray-400">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-gray-600">
+                                    {{ $item->data_inicio ? \Carbon\Carbon::parse($item->data_inicio)->format('d/m/Y') : '—' }}
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-gray-600">
+                                    {{ $item->data_conclusao ? \Carbon\Carbon::parse($item->data_conclusao)->format('d/m/Y') : '—' }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                                    <i class="fas fa-inbox text-3xl text-gray-400 mb-2"></i>
+                                    <p>Nenhum treinamento encontrado para este usuário</p>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
+    {{-- ============================================================ --}}
+    {{-- FOCO NO TREINAMENTO: lista completa de usuários --}}
+    {{-- ============================================================ --}}
+    @if($focoTreinamento)
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden border border-purple-200 mb-8">
+            <div class="p-6 border-b border-purple-200 bg-purple-50">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-purple-900 flex items-center gap-2">
+                            <i class="fas fa-graduation-cap"></i> Foco no Treinamento
+                        </h2>
+                        <p class="text-sm text-purple-800/70 mt-1">
+                            Todos os usuários elegíveis para <strong>{{ $focoTreinamento->titulo }}</strong>
+                            @if($focoTreinamento->tipo)
+                                <span class="ml-1 text-xs bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full">{{ ucfirst($focoTreinamento->tipo) }}</span>
+                            @endif
+                            @if($statusProgresso)
+                                <span class="ml-2 inline-flex items-center gap-1 bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                    <i class="fas fa-filter"></i>
+                                    Filtrado por:
+                                    @if($statusProgresso === 'concluido') Concluídos
+                                    @elseif($statusProgresso === 'pendente') Pendentes
+                                    @elseif($statusProgresso === 'nao_iniciado') Não iniciados
+                                    @elseif($statusProgresso === 'nao_finalizados') Não finalizados
+                                    @endif
+                                </span>
+                            @endif
+                        </p>
+                    </div>
+                    <a href="{{ route('relatorios.treinamentos') }}" class="bg-white border border-purple-300 text-purple-800 px-4 py-2 rounded-lg hover:bg-purple-100 transition text-sm font-semibold">
+                        <i class="fas fa-times mr-1"></i>Fechar foco
+                    </a>
+                </div>
+            </div>
+
+            {{-- Cards de resumo --}}
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-gray-50 border-b border-gray-200">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 text-center">
+                    <p class="text-sm text-gray-600">Total de Usuários</p>
+                    <p class="text-2xl font-bold text-gray-800">{{ $focoTreinamentoResumo['total'] }}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-green-200 text-center">
+                    <p class="text-sm text-green-700">Concluíram</p>
+                    <p class="text-2xl font-bold text-green-600">{{ $focoTreinamentoResumo['concluidos'] }}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-yellow-200 text-center">
+                    <p class="text-sm text-yellow-700">Pendentes</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ $focoTreinamentoResumo['pendentes'] }}</p>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 text-center">
+                    <p class="text-sm text-slate-600">Não Iniciaram</p>
+                    <p class="text-2xl font-bold text-slate-500">{{ $focoTreinamentoResumo['nao_iniciados'] }}</p>
+                </div>
+            </div>
+
+            {{-- Barra de progresso geral --}}
+            @if($focoTreinamentoResumo['total'] > 0)
+                <div class="px-6 pt-4">
+                    <div class="flex items-center justify-between text-sm mb-1">
+                        <span class="font-semibold text-gray-700">Taxa de Conclusão</span>
+                        <span class="font-bold text-purple-900">{{ number_format(($focoTreinamentoResumo['concluidos'] / $focoTreinamentoResumo['total']) * 100, 1, ',', '.') }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div class="bg-green-500 h-3 rounded-full" style="width: {{ ($focoTreinamentoResumo['concluidos'] / $focoTreinamentoResumo['total']) * 100 }}%"></div>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Tabela detalhada --}}
+            <div class="overflow-x-auto p-6">
+                <table class="w-full">
+                    <thead class="bg-gray-100 border-b-2 border-gray-300">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold">Usuário</th>
+                            <th class="px-4 py-3 text-left font-semibold">CPF</th>
+                            <th class="px-4 py-3 text-left font-semibold">Tipo</th>
+                            <th class="px-4 py-3 text-center font-semibold">Progresso</th>
+                            <th class="px-4 py-3 text-center font-semibold">Tempo Assistido</th>
+                            <th class="px-4 py-3 text-center font-semibold">Status</th>
+                            <th class="px-4 py-3 text-center font-semibold">Avaliação</th>
+                            <th class="px-4 py-3 text-center font-semibold">Início</th>
+                            <th class="px-4 py-3 text-center font-semibold">Conclusão</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($focoTreinamentoUsuarios as $item)
+                            <tr class="border-b hover:bg-purple-50/50 transition">
+                                <td class="px-4 py-3">
+                                    <div class="font-semibold text-gray-800">{{ $item->user->nome }}</div>
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-600">
+                                    {{ $item->user->getCpfFormatted() }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-600">
+                                    {{ $item->user->tipo_usuario ? ucfirst(str_replace('_', ' ', $item->user->tipo_usuario)) : '—' }}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    @if($item->tem_progresso)
+                                        <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                                            <div class="bg-purple-600 h-2 rounded-full" style="width: {{ $item->porcentagem_assistida }}%"></div>
+                                        </div>
+                                        <span class="text-xs text-gray-600">{{ $item->porcentagem_assistida }}%</span>
+                                    @else
+                                        <span class="text-xs text-gray-400">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-gray-600">
+                                    {{ $item->tem_progresso ? gmdate('H:i:s', (int) $item->tempo_assistido) : '—' }}
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    @if($item->status === 'concluido')
+                                        <span class="bg-green-100 text-green-900 px-3 py-1 rounded-full text-sm font-semibold">✓ Concluído</span>
+                                    @elseif($item->status === 'pendente')
+                                        <span class="bg-yellow-100 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">⧖ Pendente</span>
+                                    @else
+                                        <span class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm font-semibold">○ Não iniciado</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm">
+                                    @if($item->concluido && $item->avaliacao_aprovada)
+                                        <span class="text-green-600 font-semibold">Aprovado</span>
+                                    @elseif($item->tem_progresso && !$item->concluido)
+                                        <span class="text-yellow-600">Pendente</span>
+                                    @else
+                                        <span class="text-gray-400">—</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-gray-600">
+                                    {{ $item->data_inicio ? \Carbon\Carbon::parse($item->data_inicio)->format('d/m/Y') : '—' }}
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm text-gray-600">
+                                    {{ $item->data_conclusao ? \Carbon\Carbon::parse($item->data_conclusao)->format('d/m/Y') : '—' }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                                    <i class="fas fa-inbox text-3xl text-gray-400 mb-2"></i>
+                                    <p>Nenhum usuário encontrado para este treinamento</p>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     <!-- Resumo por conteúdo -->
     <div class="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-100 mb-8">
         <div class="p-6 border-b border-gray-200 flex items-center justify-between">
             <div>
                 <h2 class="text-xl font-bold text-gray-800">Desempenho por Conteúdo</h2>
-                <p class="text-sm text-gray-500">Ordenado pelos conteúdos com maior volume de assistência.</p>
+                <p class="text-sm text-gray-500">
+                    @if($statusProgresso === 'nao_finalizados')
+                        Usuários que <strong>não finalizaram</strong> cada treinamento (pendentes + não iniciados).
+                    @elseif($statusProgresso === 'nao_iniciado')
+                        Usuários que <strong>não iniciaram</strong> cada treinamento.
+                    @elseif($statusProgresso === 'pendente')
+                        Usuários com progresso <strong>pendente</strong> em cada treinamento.
+                    @elseif($statusProgresso === 'concluido')
+                        Usuários que <strong>concluíram</strong> cada treinamento.
+                    @else
+                        Ordenado pelos conteúdos com maior volume de assistência.
+                    @endif
+                </p>
+            </div>
+            <div class="flex gap-2">
+                <a href="{{ route('relatorios.treinamentos.resumo_pdf', request()->query()) }}"
+                   class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-500 transition text-sm font-semibold inline-flex items-center gap-2">
+                    <i class="fas fa-file-pdf"></i> Exportar PDF
+                </a>
+                <a href="{{ route('relatorios.treinamentos') }}?{{ http_build_query(array_merge(request()->query(), ['exportar_resumo' => 1])) }}"
+                   class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-500 transition text-sm font-semibold inline-flex items-center gap-2">
+                    <i class="fas fa-file-csv"></i> Exportar CSV
+                </a>
             </div>
         </div>
         <div class="overflow-x-auto">
@@ -219,6 +536,13 @@
                     @forelse($treinamentosResumo as $resumo)
                         @php
                             $taxa = $resumo->assistencias > 0 ? ($resumo->concluidas / $resumo->assistencias) * 100 : 0;
+                            $usuariosTreino = $usuariosPorTreinamento[$resumo->training_id] ?? null;
+                            $todosUsuarios = collect();
+                            if ($usuariosTreino) {
+                                $todosUsuarios = $todosUsuarios->merge($usuariosTreino['concluidos']->map(fn($u) => ['user' => $u, 'status' => 'concluido']));
+                                $todosUsuarios = $todosUsuarios->merge($usuariosTreino['pendentes']->map(fn($u) => ['user' => $u, 'status' => 'pendente']));
+                                $todosUsuarios = $todosUsuarios->merge($usuariosTreino['nao_iniciados']->map(fn($u) => ['user' => $u, 'status' => 'nao_iniciado']));
+                            }
                         @endphp
                         <tr class="border-b hover:bg-gray-50 transition">
                             <td class="px-4 py-3">
@@ -232,6 +556,29 @@
                             </td>
                             <td class="px-4 py-3 text-center text-gray-700">{{ gmdate('H:i:s', (int) ($resumo->tempo_total_assistido ?? 0)) }}</td>
                         </tr>
+                        @if($todosUsuarios->isNotEmpty())
+                            <tr class="bg-blue-50/50">
+                                <td colspan="5" class="px-4 py-3">
+                                    <div class="flex flex-wrap gap-1.5">
+                                        @foreach($todosUsuarios as $item)
+                                            @if($item['status'] === 'concluido')
+                                                <span class="inline-flex items-center gap-1 bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                                    <i class="fas fa-check-circle text-[10px]"></i> {{ $item['user']->nome }}
+                                                </span>
+                                            @elseif($item['status'] === 'pendente')
+                                                <span class="inline-flex items-center gap-1 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                                    <i class="fas fa-clock text-[10px]"></i> {{ $item['user']->nome }}
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                                    <i class="fas fa-minus-circle text-[10px]"></i> {{ $item['user']->nome }}
+                                                </span>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
                     @empty
                         <tr>
                             <td colspan="5" class="px-4 py-8 text-center text-gray-600">Nenhum treinamento encontrado</td>

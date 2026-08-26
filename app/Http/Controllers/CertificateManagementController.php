@@ -265,7 +265,7 @@ class CertificateManagementController extends Controller
             if ($statusProgresso !== null && $statusProgresso !== '') {
                 if (in_array($statusProgresso, ['1', 'true', 'concluido'], true)) {
                     $query->where('concluido', true);
-                } elseif (in_array($statusProgresso, ['0', 'false', 'pendente'], true)) {
+                } elseif (in_array($statusProgresso, ['0', 'false', 'pendente', 'nao_finalizados'], true)) {
                     $query->where('concluido', false);
                 }
             }
@@ -329,6 +329,7 @@ class CertificateManagementController extends Controller
             $tempoMedioAssistido = 0;
             $treinamentosResumo = collect();
             $usuariosEmDestaque = collect();
+            $usuariosPorTreinamento = [];
         } else {
             $query = UserProgress::query();
             $this->aplicarEscopoUsuariosComuns($query, $request->user(), 'user');
@@ -365,7 +366,7 @@ class CertificateManagementController extends Controller
             if ($statusProgresso !== null && $statusProgresso !== '') {
                 if (in_array($statusProgresso, ['1', 'true', 'concluido'], true)) {
                     $query->where('concluido', true);
-                } elseif (in_array($statusProgresso, ['0', 'false', 'pendente'], true)) {
+                } elseif (in_array($statusProgresso, ['0', 'false', 'pendente', 'nao_finalizados'], true)) {
                     $query->where('concluido', false);
                 }
             }
@@ -395,6 +396,55 @@ class CertificateManagementController extends Controller
                 ->take(10)
                 ->get();
 
+            $trainingIds = $treinamentosResumo->pluck('training_id')->toArray();
+            $usuariosPorTreinamento = [];
+
+            if (!empty($trainingIds)) {
+                $progressByTraining = UserProgress::whereIn('training_id', $trainingIds)
+                    ->with('user:id,nome,cpf,tipo_usuario')
+                    ->whereHas('user', function ($uq) {
+                        $uq->kpiEligible();
+                    })
+                    ->get()
+                    ->groupBy('training_id');
+
+                $mostrarNaoIniciados = in_array($statusProgresso, ['nao_iniciado', 'nao_finalizados'], true);
+                $mostrarPendentes = in_array($statusProgresso, ['pendente', 'nao_finalizados', ''], true);
+                $mostrarConcluidos = in_array($statusProgresso, ['concluido', ''], true);
+
+                foreach ($trainingIds as $tId) {
+                    $usuariosPorTreinamento[$tId] = [
+                        'concluidos' => collect(),
+                        'pendentes' => collect(),
+                        'nao_iniciados' => collect(),
+                    ];
+
+                    $progressList = $progressByTraining->get($tId, collect());
+
+                    foreach ($progressList as $p) {
+                        if ($p->concluido && $mostrarConcluidos) {
+                            $usuariosPorTreinamento[$tId]['concluidos']->push($p->user);
+                        } elseif (!$p->concluido && $mostrarPendentes) {
+                            $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
+                        }
+                    }
+
+                    if ($mostrarNaoIniciados) {
+                        $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
+                        $naoIniciadosQuery = User::kpiEligible()
+                            ->whereDoesntHave('progress', function ($pq) use ($tId) {
+                                $pq->where('training_id', $tId);
+                            });
+                        if (!empty($userIdsWithProgress)) {
+                            $naoIniciadosQuery->whereNotIn('id', $userIdsWithProgress);
+                        }
+                        $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciadosQuery
+                            ->orderBy('nome')
+                            ->get();
+                    }
+                }
+            }
+
             $usuariosEmDestaque = (clone $query)
                 ->select('user_id')
                 ->selectRaw('COUNT(*) as assistencias')
@@ -415,6 +465,187 @@ class CertificateManagementController extends Controller
             ->orderByDesc('total')
             ->get();
 
+        // =====================================================================
+        // LISTA COMPLETA POR USUÁRIO (Foco no Usuário)
+        // Quando usuario_id é selecionado, lista TODOS os treinamentos do
+        // usuário com seu status (concluído, pendente, não iniciado).
+        // =====================================================================
+        $focoUsuario = null;
+        $focoUsuarioTreinamentos = collect();
+        $focoUsuarioResumo = ['concluidos' => 0, 'pendentes' => 0, 'nao_iniciados' => 0, 'total' => 0];
+
+        if ($request->filled('usuario_id')) {
+            $focoUsuario = User::with('role')->find($request->integer('usuario_id'));
+
+            if ($focoUsuario) {
+                $todosTreinamentos = Training::where('status', 'ativo')->orderBy('titulo')->get();
+
+                $progressMap = UserProgress::where('user_id', $focoUsuario->id)
+                    ->with('training:id,titulo,tipo,carga_horaria,dias_validade')
+                    ->get()
+                    ->keyBy('training_id');
+
+                $focoUsuarioTreinamentosFull = $todosTreinamentos->map(function ($training) use ($focoUsuario, $progressMap) {
+                    $podeAcessar = $focoUsuario->canAccessTraining($training);
+
+                    if (!$podeAcessar) {
+                        return null;
+                    }
+
+                    $progress = $progressMap->get($training->id);
+
+                    $row = new \stdClass;
+                    $row->training = $training;
+                    $row->progress = $progress;
+                    $row->tem_progresso = $progress !== null;
+                    $row->concluido = $progress ? $progress->concluido : false;
+                    $row->porcentagem_assistida = $progress ? $progress->porcentagem_assistida : 0;
+                    $row->tempo_assistido = $progress ? $progress->tempo_assistido : 0;
+                    $row->avaliacao_aprovada = $progress ? $progress->avaliacao_aprovada : false;
+                    $row->data_inicio = $progress ? $progress->data_inicio : null;
+                    $row->data_conclusao = $progress ? $progress->data_conclusao : null;
+
+                    if (!$progress) {
+                        $row->status = 'nao_iniciado';
+                    } elseif ($progress->concluido) {
+                        $row->status = 'concluido';
+                    } else {
+                        $row->status = 'pendente';
+                    }
+
+                    return $row;
+                })->filter()->values();
+
+                $focoUsuarioResumo['total'] = $focoUsuarioTreinamentosFull->count();
+                $focoUsuarioResumo['concluidos'] = $focoUsuarioTreinamentosFull->where('status', 'concluido')->count();
+                $focoUsuarioResumo['pendentes'] = $focoUsuarioTreinamentosFull->where('status', 'pendente')->count();
+                $focoUsuarioResumo['nao_iniciados'] = $focoUsuarioTreinamentosFull->where('status', 'nao_iniciado')->count();
+
+                if ($statusProgresso && $statusProgresso !== 'nao_iniciado') {
+                    if ($statusProgresso === 'nao_finalizados') {
+                        $focoUsuarioTreinamentos = $focoUsuarioTreinamentosFull->filter(function ($item) {
+                            return in_array($item->status, ['pendente', 'nao_iniciado']);
+                        })->values();
+                    } else {
+                        $focoUsuarioTreinamentos = $focoUsuarioTreinamentosFull->where('status', $statusProgresso)->values();
+                    }
+                } else {
+                    $focoUsuarioTreinamentos = $focoUsuarioTreinamentosFull;
+                }
+            }
+        }
+
+        // =====================================================================
+        // LISTA COMPLETA POR TREINAMENTO (Foco no Treinamento)
+        // Quando training_id é selecionado, lista TODOS os usuários elegíveis
+        // com seu status (concluído, pendente, não iniciado).
+        // =====================================================================
+        $focoTreinamento = $trainingFilter;
+        $focoTreinamentoUsuarios = collect();
+        $focoTreinamentoResumo = ['concluidos' => 0, 'pendentes' => 0, 'nao_iniciados' => 0, 'total' => 0];
+
+        if ($trainingFilter) {
+            $todosUsuarios = User::kpiEligible()->orderBy('nome');
+            $this->aplicarEscopoUsuariosComuns($todosUsuarios, $request->user());
+
+            if ($request->filled('tipo_usuario')) {
+                $todosUsuarios->where('tipo_usuario', $request->input('tipo_usuario'));
+            }
+
+            $todosUsuarios = $todosUsuarios->get()->filter(function ($user) use ($trainingFilter) {
+                return $user->canAccessTraining($trainingFilter);
+            })->values();
+
+            $progressMap = UserProgress::where('training_id', $trainingFilter->id)
+                ->whereIn('user_id', $todosUsuarios->pluck('id'))
+                ->with('user:id,nome,cpf,tipo_usuario,status')
+                ->get()
+                ->keyBy('user_id');
+
+            $focoTreinamentoUsuariosFull = $todosUsuarios->map(function ($user) use ($trainingFilter, $progressMap) {
+                $progress = $progressMap->get($user->id);
+
+                $row = new \stdClass;
+                $row->user = $user;
+                $row->progress = $progress;
+                $row->tem_progresso = $progress !== null;
+                $row->concluido = $progress ? $progress->concluido : false;
+                $row->porcentagem_assistida = $progress ? $progress->porcentagem_assistida : 0;
+                $row->tempo_assistido = $progress ? $progress->tempo_assistido : 0;
+                $row->avaliacao_aprovada = $progress ? $progress->avaliacao_aprovada : false;
+                $row->data_inicio = $progress ? $progress->data_inicio : null;
+                $row->data_conclusao = $progress ? $progress->data_conclusao : null;
+
+                if (!$progress) {
+                    $row->status = 'nao_iniciado';
+                } elseif ($progress->concluido) {
+                    $row->status = 'concluido';
+                } else {
+                    $row->status = 'pendente';
+                }
+
+                return $row;
+            })->values();
+
+            $focoTreinamentoResumo['total'] = $focoTreinamentoUsuariosFull->count();
+            $focoTreinamentoResumo['concluidos'] = $focoTreinamentoUsuariosFull->where('status', 'concluido')->count();
+            $focoTreinamentoResumo['pendentes'] = $focoTreinamentoUsuariosFull->where('status', 'pendente')->count();
+            $focoTreinamentoResumo['nao_iniciados'] = $focoTreinamentoUsuariosFull->where('status', 'nao_iniciado')->count();
+
+            if ($statusProgresso && $statusProgresso !== 'nao_iniciado') {
+                if ($statusProgresso === 'nao_finalizados') {
+                    $focoTreinamentoUsuarios = $focoTreinamentoUsuariosFull->filter(function ($item) {
+                        return in_array($item->status, ['pendente', 'nao_iniciado']);
+                    })->values();
+                } else {
+                    $focoTreinamentoUsuarios = $focoTreinamentoUsuariosFull->where('status', $statusProgresso)->values();
+                }
+            } else {
+                $focoTreinamentoUsuarios = $focoTreinamentoUsuariosFull;
+            }
+        }
+
+        // Exportação CSV do resumo
+        if ($request->filled('exportar_resumo')) {
+            $headers = [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="resumo_treinamentos_' . date('Y-m-d_His') . '.csv"',
+            ];
+
+            $callback = function () use ($treinamentosResumo, $usuariosPorTreinamento, $statusProgresso) {
+                $file = fopen('php://output', 'w');
+                fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM UTF-8
+                fputcsv($file, ['Treinamento', 'Tipo', 'Participações', 'Concluídas', 'Taxa Conclusão', 'Tempo Total', 'Usuários'], ';');
+
+                foreach ($treinamentosResumo as $resumo) {
+                    $taxa = $resumo->assistencias > 0 ? number_format(($resumo->concluidas / $resumo->assistencias) * 100, 1, ',', '.') . '%' : '0,0%';
+                    $tempo = gmdate('H:i:s', (int) ($resumo->tempo_total_assistido ?? 0));
+
+                    $usuarios = $usuariosPorTreinamento[$resumo->training_id] ?? null;
+                    $nomes = [];
+                    if ($usuarios) {
+                        foreach ($usuarios['concluidos'] as $u) { $nomes[] = $u->nome . ' (concluído)'; }
+                        foreach ($usuarios['pendentes'] as $u) { $nomes[] = $u->nome . ' (pendente)'; }
+                        foreach ($usuarios['nao_iniciados'] as $u) { $nomes[] = $u->nome . ' (não iniciado)'; }
+                    }
+
+                    fputcsv($file, [
+                        optional($resumo->training)->titulo ?? 'Removido',
+                        optional($resumo->training)->tipo ?? '',
+                        $resumo->assistencias,
+                        $resumo->concluidas,
+                        $taxa,
+                        $tempo,
+                        implode(', ', $nomes),
+                    ], ';');
+                }
+
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        }
+
         return view('relatorios.treinamentos', [
             'progressos' => $progressos,
             'treinamentos' => $treinamentos,
@@ -428,10 +659,17 @@ class CertificateManagementController extends Controller
             'users' => $users,
             'treinamentosResumo' => $treinamentosResumo,
             'usuariosEmDestaque' => $usuariosEmDestaque,
+            'usuariosPorTreinamento' => $usuariosPorTreinamento ?? [],
             'conteudosPorTipo' => $conteudosPorTipo,
             'usuariosEmFerias' => $usuariosEmFerias,
             'usuariosEmFeriasLista' => $usuariosEmFeriasLista,
             'statusProgresso' => $statusProgresso,
+            'focoUsuario' => $focoUsuario,
+            'focoUsuarioTreinamentos' => $focoUsuarioTreinamentos,
+            'focoUsuarioResumo' => $focoUsuarioResumo,
+            'focoTreinamento' => $focoTreinamento,
+            'focoTreinamentoUsuarios' => $focoTreinamentoUsuarios,
+            'focoTreinamentoResumo' => $focoTreinamentoResumo,
         ]);
     }
 
@@ -531,7 +769,7 @@ class CertificateManagementController extends Controller
             if ($statusProgresso !== null && $statusProgresso !== '') {
                 if (in_array($statusProgresso, ['1', 'true', 'concluido'], true)) {
                     $query->where('concluido', true);
-                } elseif (in_array($statusProgresso, ['0', 'false', 'pendente'], true)) {
+                } elseif (in_array($statusProgresso, ['0', 'false', 'pendente', 'nao_finalizados'], true)) {
                     $query->where('concluido', false);
                 }
             }
@@ -590,6 +828,194 @@ class CertificateManagementController extends Controller
         $pdf->SetFont('Helvetica', '', 8);
         $pdf->writeHTML($html, true, false, true, false, '');
         $pdf->Output('Relatório_Participacoes.pdf', 'D');
+    }
+
+    /**
+     * Exporta PDF do resumo de desempenho por conteúdo (mesmos filtros da tela)
+     */
+    public function relatorioTreinamentosResumoPdf(Request $request)
+    {
+        $statusProgresso = $request->input('status_progresso');
+        $somenteFerias = $request->filled('somente_ferias');
+        $trainingId = $request->filled('training_id') ? $request->integer('training_id') : null;
+        $trainingFilter = $trainingId ? Training::findOrFail($trainingId) : null;
+
+        // Construir a mesma query do relatorioTreinamentos (ramo nao_finalizados/normal)
+        $query = UserProgress::query();
+        $this->aplicarEscopoUsuariosComuns($query, $request->user(), 'user');
+        $query->whereHas('user', function ($userQuery) {
+            $userQuery->kpiEligible();
+        });
+
+        if ($trainingFilter) {
+            $query->whereHas('user', function ($q) use ($trainingFilter) {
+                $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+            });
+        }
+
+        if ($request->filled('usuario_id')) {
+            $query->where('user_id', $request->integer('usuario_id'));
+        }
+
+        if ($request->filled('tipo_usuario')) {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->kpiEligible()->where('tipo_usuario', $request->input('tipo_usuario'));
+            });
+        }
+
+        if ($trainingFilter) {
+            $query->where('training_id', $trainingFilter->id);
+        }
+
+        if ($request->filled('usuario_nome')) {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->kpiEligible()->where('nome', 'like', '%'.$request->input('usuario_nome').'%');
+            });
+        }
+
+        if ($somenteFerias) {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
+            });
+        }
+
+        if ($statusProgresso !== null && $statusProgresso !== '') {
+            if (in_array($statusProgresso, ['1', 'true', 'concluido'], true)) {
+                $query->where('concluido', true);
+            } elseif (in_array($statusProgresso, ['0', 'false', 'pendente', 'nao_finalizados'], true)) {
+                $query->where('concluido', false);
+            }
+        }
+
+        if ($request->filled('data_inicio')) {
+            $query->whereDate('data_inicio', '>=', $request->input('data_inicio'));
+        }
+
+        if ($request->filled('data_fim')) {
+            $query->whereDate('data_conclusao', '<=', $request->input('data_fim'));
+        }
+
+        $treinamentosResumo = (clone $query)
+            ->select('training_id')
+            ->selectRaw('COUNT(*) as assistencias')
+            ->selectRaw('SUM(CASE WHEN concluido = 1 THEN 1 ELSE 0 END) as concluidas')
+            ->selectRaw('SUM(COALESCE(tempo_assistido, 0)) as tempo_total_assistido')
+            ->groupBy('training_id')
+            ->with(['training:id,titulo,tipo,carga_horaria'])
+            ->orderByDesc('assistencias')
+            ->get();
+
+        $totalTreinamentos = $treinamentosResumo->count();
+        $totalConcluidas = $treinamentosResumo->sum('concluidas');
+        $totalAssistencias = $treinamentosResumo->sum('assistencias');
+        $taxaGeral = $totalAssistencias > 0 ? number_format(($totalConcluidas / $totalAssistencias) * 100, 2, ',', '.') : '0,00';
+        $tempoTotalFormatado = $this->formatarTempoEmHoras($treinamentosResumo->sum('tempo_total_assistido'));
+
+        // Buscar usuários por treinamento
+        $trainingIds = $treinamentosResumo->pluck('training_id')->toArray();
+        $usuariosPorTreinamento = [];
+
+        if (!empty($trainingIds)) {
+            $progressByTraining = UserProgress::whereIn('training_id', $trainingIds)
+                ->with('user:id,nome,cpf,tipo_usuario')
+                ->whereHas('user', function ($uq) {
+                    $uq->kpiEligible();
+                })
+                ->get()
+                ->groupBy('training_id');
+
+            $mostrarNaoIniciados = in_array($statusProgresso, ['nao_iniciado', 'nao_finalizados'], true);
+            $mostrarPendentes = in_array($statusProgresso, ['pendente', 'nao_finalizados', ''], true);
+            $mostrarConcluidos = in_array($statusProgresso, ['concluido', ''], true);
+
+            foreach ($trainingIds as $tId) {
+                $usuariosPorTreinamento[$tId] = [
+                    'concluidos' => collect(),
+                    'pendentes' => collect(),
+                    'nao_iniciados' => collect(),
+                ];
+
+                $progressList = $progressByTraining->get($tId, collect());
+
+                foreach ($progressList as $p) {
+                    if ($p->concluido && $mostrarConcluidos) {
+                        $usuariosPorTreinamento[$tId]['concluidos']->push($p->user);
+                    } elseif (!$p->concluido && $mostrarPendentes) {
+                        $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
+                    }
+                }
+
+                if ($mostrarNaoIniciados) {
+                    $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
+                    $naoIniciadosQuery = User::kpiEligible()
+                        ->whereDoesntHave('progress', function ($pq) use ($tId) {
+                            $pq->where('training_id', $tId);
+                        });
+                    if (!empty($userIdsWithProgress)) {
+                        $naoIniciadosQuery->whereNotIn('id', $userIdsWithProgress);
+                    }
+                    $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciadosQuery
+                        ->orderBy('nome')
+                        ->get();
+                }
+            }
+        }
+
+        // Subtítulo com filtro ativo
+        $subtituloFiltro = '';
+        if ($request->filled('usuario_id')) {
+            $usuario = User::find($request->integer('usuario_id'));
+            $subtituloFiltro .= 'Usuário: ' . ($usuario ? $usuario->nome : '—') . ' | ';
+        }
+        if ($trainingFilter) {
+            $subtituloFiltro .= 'Treinamento: ' . $trainingFilter->titulo . ' | ';
+        }
+        if ($statusProgresso) {
+            $labelStatus = match($statusProgresso) {
+                'concluido' => 'Concluídos',
+                'pendente' => 'Pendentes',
+                'nao_iniciado' => 'Não iniciados',
+                'nao_finalizados' => 'Não finalizados (pendente + não iniciado)',
+                default => $statusProgresso,
+            };
+            $subtituloFiltro .= 'Status: ' . $labelStatus . ' | ';
+        }
+        if ($request->filled('tipo_usuario')) {
+            $subtituloFiltro .= 'Tipo: ' . ucfirst(str_replace('_', ' ', $request->input('tipo_usuario'))) . ' | ';
+        }
+        $subtituloFiltro = rtrim($subtituloFiltro, ' | ');
+
+        // Render HTML
+        $html = view('relatorios.treinamentos_resumo_pdf', [
+            'treinamentosResumo' => $treinamentosResumo,
+            'usuariosPorTreinamento' => $usuariosPorTreinamento,
+            'totalTreinamentos' => $totalTreinamentos,
+            'totalConcluidas' => $totalConcluidas,
+            'taxaGeral' => $taxaGeral,
+            'tempoTotalFormatado' => $tempoTotalFormatado,
+            'subtituloFiltro' => $subtituloFiltro,
+        ])->render();
+
+        // Gerar PDF
+        $pdf = new TCPDF('L');
+        $pdf->SetCreator('Plataforma DSS');
+        $pdf->SetAuthor('Plataforma DSS');
+        $pdf->SetTitle('Resumo de Desempenho por Conteúdo');
+        $pdf->SetMargins(8, 18, 8);
+        $pdf->SetAutoPageBreak(true, 18);
+        $pdf->SetDrawColor(150, 150, 150);
+        $pdf->SetLineWidth(0.2);
+        $pdf->AddPage();
+
+        $logoPath = public_path('images/logo-comav-transportes.png');
+        if (file_exists($logoPath)) {
+            $pdf->Image($logoPath, 10, 20, 22, '', '', '', '', false, 300, '', false, false, 0);
+            $pdf->SetY(18);
+        }
+
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->writeHTML($html, true, false, true, false, '');
+        $pdf->Output('Resumo_Desempenho_Conteudo.pdf', 'D');
     }
 
     /**
