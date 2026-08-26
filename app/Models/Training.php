@@ -59,6 +59,11 @@ class Training extends Model
         return $this->hasMany(Certificate::class);
     }
 
+    public function exemptions()
+    {
+        return $this->hasMany(TrainingVacationExemption::class);
+    }
+
     public function materials()
     {
         return $this->hasMany(TrainingMaterial::class)->orderBy('ordem');
