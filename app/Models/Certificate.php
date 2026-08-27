@@ -20,6 +20,7 @@ class Certificate extends Model
         'data_finalizacao_assistencia',
         'tempo_assistido_segundos',
         'porcentagem_assistida',
+        'foi_reassistido',
         'caminho_arquivo',
         'valido',
     ];

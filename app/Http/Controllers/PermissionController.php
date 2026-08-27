@@ -18,6 +18,7 @@ class PermissionController extends Controller
         'social' => 'Rede Social (Feed, Postagens, Seguidores)',
         'epi' => 'Saúde e Segurança (EPIs, Estoque, Entregas)',
         'projeto_pedagogico' => 'Projetos Pedagógicos (NR-01 Anexo II)',
+        'rewatch' => 'Liberar Conteúdo para Reassistir',
         'permissions' => 'Gerenciar Permissões'
     ];
 

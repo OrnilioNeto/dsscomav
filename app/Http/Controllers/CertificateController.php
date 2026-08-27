@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Certificate;
 use App\Models\Training;
+use App\Models\TrainingRewatchRequest;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -90,6 +91,14 @@ class CertificateController extends Controller
         $dataInicio = $progress->data_inicio ?? $progress->created_at ?? now();
         $dataFinalizacao = $progress->data_conclusao ?? now();
 
+        // Verificar se este certificado é resultado de uma reassistida
+        $rewatchRequest = TrainingRewatchRequest::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->where('status', 'pendente')
+            ->first();
+
+        $foiReassistido = $rewatchRequest !== null;
+
         $payload = [
             'user_id' => $user->id,
             'training_id' => $training->id,
@@ -97,6 +106,7 @@ class CertificateController extends Controller
             'data_emissao' => now(),
             'caminho_arquivo' => null,
             'valido' => true,
+            'foi_reassistido' => $foiReassistido,
         ];
 
         // Compatibilidade com ambientes que ainda não rodaram a migration de auditoria.
@@ -113,7 +123,17 @@ class CertificateController extends Controller
             $payload['porcentagem_assistida'] = (int) $progress->porcentagem_assistida;
         }
 
-        return Certificate::create($payload);
+        $certificate = Certificate::create($payload);
+
+        // Atualizar o ID do novo certificado na solicitação de reassistir
+        if ($rewatchRequest) {
+            $rewatchRequest->update([
+                'certificate_novo_id' => $certificate->id,
+                'status' => 'concluido',
+            ]);
+        }
+
+        return $certificate;
     }
 
     private function buildViewData(Certificate $certificate): array

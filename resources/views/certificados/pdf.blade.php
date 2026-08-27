@@ -170,6 +170,11 @@
                     <div><strong>Válido:</strong> Sim</div>
                     <div><strong>Código:</strong> <span style="font-family: monospace;">{{ $certificate->codigo_certificado }}</span></div>
                     <div><strong>Emitido em:</strong> {{ $certificate->data_emissao->format('d/m/Y H:i') }}</div>
+                    @if($certificate->foi_reassistido)
+                        <div style="margin-top: 4px; padding: 3px 6px; background: #FFF4E6; border-radius: 4px; display: inline-block;">
+                            <strong style="color: #F28C2B; font-size: 7pt;">REASSISTIDO</strong>
+                        </div>
+                    @endif
                 </div>
             </td>
         </tr>
