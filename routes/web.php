@@ -8,6 +8,7 @@ use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CertificateManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeFichaController;
+use App\Http\Controllers\TrainingRewatchController;
 use App\Http\Controllers\TrainingVacationExemptionController;
 use App\Http\Controllers\EpiController;
 use App\Http\Controllers\PermissionController;
@@ -170,6 +171,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/usuarios/{user}/treinamentos-ferias', [TrainingVacationExemptionController::class, 'index'])->name('usuarios.treinamentos_ferias');
         Route::post('/usuarios/{user}/treinamentos-ferias', [TrainingVacationExemptionController::class, 'store'])->name('usuarios.treinamentos_ferias.store');
         Route::delete('/usuarios/{user}/treinamentos-ferias/{exemption}', [TrainingVacationExemptionController::class, 'destroy'])->name('usuarios.treinamentos_ferias.destroy');
+
+        // Liberar conteúdo para reassistir (admin)
+        Route::get('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'index'])->name('usuarios.treinamentos_reassistir');
+        Route::post('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'store'])->name('usuarios.treinamentos_reassistir.store');
+        Route::delete('/usuarios/{user}/treinamentos-reassistir/{rewatch}', [TrainingRewatchController::class, 'destroy'])->name('usuarios.treinamentos_reassistir.destroy');
 
         // Gerenciador de Conteúdos Splash (acesso controlado por permissão:splash)
         Route::get('/admin/splash', [SplashContentController::class, 'index'])->name('admin.splash.index');

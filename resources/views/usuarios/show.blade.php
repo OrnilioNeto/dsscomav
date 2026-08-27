@@ -13,6 +13,9 @@
             <a href="{{ route('usuarios.treinamentos_ferias', $usuario) }}" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
                 <i class="fas fa-calendar-minus mr-2"></i>Isenções por Férias
             </a>
+            <a href="{{ route('usuarios.treinamentos_reassistir', $usuario) }}" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition">
+                <i class="fas fa-redo mr-2"></i>Liberar p/ Reassistir
+            </a>
             <a href="{{ route('usuarios.edit', $usuario) }}" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition">
                 <i class="fas fa-edit mr-2"></i>Editar
             </a>
