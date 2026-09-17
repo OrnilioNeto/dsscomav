@@ -7,45 +7,13 @@ use App\Models\TrainingMaterial;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 
 class TrainingMaterialController extends Controller
 {
     public function __construct()
     {
-        // Garantir que a tabela de materiais existe quando o controller for carregado
-        $this->ensureTrainingMaterialsTableExists();
-
         // Middleware de permissões
         $this->middleware('permission:trainings,edit')->except('download');
-    }
-
-    /**
-     * Verifica se a tabela training_materials existe,
-     * se não existir, a cria automaticamente.
-     */
-    private function ensureTrainingMaterialsTableExists()
-    {
-        try {
-            if (!Schema::hasTable('training_materials')) {
-                Schema::create('training_materials', function ($table) {
-                    $table->id();
-                    $table->unsignedBigInteger('training_id');
-                    $table->string('nome');
-                    $table->text('descricao')->nullable();
-                    $table->string('arquivo');
-                    $table->string('tipo_arquivo');
-                    $table->unsignedBigInteger('tamanho');
-                    $table->integer('ordem')->default(0);
-                    $table->timestamps();
-
-                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
-                    $table->index('training_id');
-                });
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar tabela training_materials: ' . $e->getMessage());
-        }
     }
 
     // Upload de material de apoio
@@ -110,7 +78,7 @@ class TrainingMaterialController extends Controller
                     $extensao = pathinfo($filename, PATHINFO_EXTENSION);
                     $tamanho = filesize($tmpPath);
 
-                    $relativePath = "materiais-apoio/training-{$trainingId}/" . uniqid() . '-' . $filename;
+                    $relativePath = tenant_public_storage_dir("materiais-apoio/training-{$trainingId}") . '/' . uniqid() . '-' . $filename;
                     $fullStoragePath = storage_path('app/public/' . $relativePath);
 
                     // Garante diretório

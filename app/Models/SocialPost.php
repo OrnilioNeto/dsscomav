@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SocialPost extends Model
 {
+    use BelongsToTenant;
     use HasFactory;
 
     protected $table = 'social_posts';
@@ -58,9 +61,20 @@ class SocialPost extends Model
 
     public function getPhotoUrl(): ?string
     {
-        if ($this->photo_path && file_exists(public_path("uploads/social/{$this->photo_path}"))) {
+        if (! $this->photo_path) {
+            return null;
+        }
+
+        // Novo formato: caminho completo relativo (ex.: uploads/3/social/x.jpg)
+        if (str_starts_with($this->photo_path, 'uploads/')) {
+            return file_exists(public_path($this->photo_path)) ? asset($this->photo_path) : null;
+        }
+
+        // Legado: apenas o nome do arquivo em uploads/social
+        if (file_exists(public_path("uploads/social/{$this->photo_path}"))) {
             return asset("uploads/social/{$this->photo_path}");
         }
+
         return null;
     }
 }

@@ -46,6 +46,7 @@ Thumbs.db
 
 # PHPUnit cache
 .phpunit.result.cache
+.phpunit.cache/
 
 # Bootstrap cache
 !bootstrap/cache/.gitkeep

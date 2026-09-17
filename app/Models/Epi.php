@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class Epi extends Model
 {
+    use BelongsToTenant;
     protected $table = 'ss_epi';
     protected $primaryKey = 'ss_e_nb_id';
     public $timestamps = false;
@@ -152,6 +155,7 @@ class Epi extends Model
     public function getSaldoPorFilial($empresaId = null, $variacaoId = null): int
     {
         $query = DB::table('ss_epi_estoque')
+            ->whereTenant('ss_epi_estoque')
             ->where('ss_e_nb_epi_id', $this->ss_e_nb_id);
 
         if ($empresaId !== null && $empresaId !== '') {
@@ -182,6 +186,7 @@ class Epi extends Model
     public function getSaldoTotalRede($variacaoId = null): int
     {
         $query = DB::table('ss_epi_estoque')
+            ->whereTenant('ss_epi_estoque')
             ->where('ss_e_nb_epi_id', $this->ss_e_nb_id);
 
         if ($variacaoId !== null) {

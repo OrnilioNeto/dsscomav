@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class EpiVariacao extends Model
 {
+    use BelongsToTenant;
     protected $table = 'ss_epi_variacao';
     protected $primaryKey = 'ss_ev_nb_id';
     public $timestamps = false;

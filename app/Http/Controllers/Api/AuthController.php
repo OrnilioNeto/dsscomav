@@ -91,7 +91,19 @@ class AuthController extends Controller
         try {
             $user = User::where('cpf', $cpf)->first();
 
-            if (!$user || !Hash::check($request->password, $user->password)) {
+            // Usuário da plataforma (super_admin) pode logar em qualquer host,
+            // mesmo quando há um tenant resolvido (ele não pertence a nenhum tenant).
+            if (! $user) {
+                $candidato = User::withoutGlobalScope(\App\Models\Scopes\TenantScope::class)
+                    ->where('cpf', $cpf)
+                    ->first();
+
+                if ($candidato && $candidato->isSuperAdmin()) {
+                    $user = $candidato;
+                }
+            }
+
+            if (! $user || ! Hash::check($request->password, $user->password)) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'CPF ou senha inválidos',
@@ -108,6 +120,11 @@ class AuthController extends Controller
             $user->tokens()->delete();
 
             $token = $user->createToken('app-dss', ['*'])->plainTextToken;
+
+            // Grava o tenant no token para auditoria/isolamento da API
+            if ($user->tenant_id && method_exists($user->currentAccessToken(), 'forceFill')) {
+                $user->currentAccessToken()->forceFill(['tenant_id' => $user->tenant_id])->save();
+            }
 
             return response()->json([
                 'status' => 'success',

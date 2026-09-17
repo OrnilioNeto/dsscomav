@@ -186,7 +186,7 @@
 
                                     <div class="text-xs text-emerald-400/80 pt-2 flex items-center justify-center gap-1">
                                         <i class="fas fa-shield-alt text-emerald-400"></i>
-                                        <span>Emitido de forma oficial pela Plataforma DSS</span>
+                                        <span>Emitido de forma oficial pela {{ plataforma_nome() }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -373,7 +373,7 @@
         <form action="{{ route('social.posts.store') }}" method="POST" class="space-y-4">
             @csrf
             <input type="hidden" name="training_id" value="{{ $sharedTraining->id }}">
-            <input type="hidden" name="location" value="Plataforma DSS - Treinamentos">
+            <input type="hidden" name="location" value="{{ plataforma_nome() }} - Treinamentos">
 
             <!-- Card de Visualização do Post de Conquista -->
             <div class="bg-gradient-to-br from-[#153B2E] to-[#0F2B22] text-white rounded-xl p-5 text-center relative overflow-hidden shadow-md">

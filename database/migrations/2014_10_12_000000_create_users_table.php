@@ -23,7 +23,9 @@ return new class extends Migration
             $table->date('data_nascimento')->nullable();
             $table->enum('tipo_usuario', ['motorista', 'funcionario', 'terceirizado'])->default('motorista');
             $table->enum('status', ['ativo', 'inativo'])->default('ativo');
-            $table->foreignId('role_id')->nullable()->constrained('roles')->nullOnDelete();
+            // FK para roles é adicionada em 2026_09_16_000001_add_role_id_foreign_to_users_table
+            // (a tabela roles é criada depois, em 2024_01_01_000001).
+            $table->unsignedBigInteger('role_id')->nullable();
             $table->string('cnh')->nullable();
             $table->string('categoria_cnh')->nullable();
             $table->date('validade_cnh')->nullable();

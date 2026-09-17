@@ -1,6 +1,6 @@
 @extends('layout')
 
-@section('title', 'Login - Plataforma DSS')
+@section('title', 'Login - ' . plataforma_nome())
 
 @section('content')
 <div class="min-h-screen flex items-center justify-center" style="background: linear-gradient(135deg,var(--primary) 0%, var(--primary-700) 100%);">
@@ -8,7 +8,7 @@
         <div class="bg-white rounded-lg shadow-2xl p-8">
             <div class="text-center mb-8">
                 <x-logo alt="Logo" class="mx-auto mb-4" height="54px" />
-                <h1 class="text-3xl font-bold text-gray-800">Previa Segurança</h1>
+                <h1 class="text-3xl font-bold text-gray-800">{{ plataforma_nome() }}</h1>
                 <p class="text-gray-600 mt-2">Treinamentos/DSS</p>
             </div>
 

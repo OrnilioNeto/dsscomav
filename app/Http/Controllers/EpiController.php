@@ -11,7 +11,7 @@ use App\Models\EpiKit;
 use App\Models\EpiKitItem;
 use App\Models\EpiVariacao;
 use App\Models\User;
-use Illuminate\Database\Schema\Blueprint;
+use App\Support\TenantManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -31,225 +31,47 @@ class EpiController extends Controller
         }
         self::$tablesEnsured = true;
 
-        if (!Schema::hasTable('ss_epi')) {
-            Schema::create('ss_epi', function (Blueprint $table) {
-                $table->id('ss_e_nb_id');
-                $table->string('ss_e_tx_grupo', 255);
-                $table->string('ss_e_tx_subgrupo', 255)->nullable();
-                $table->string('ss_e_tx_item', 255)->nullable();
-                $table->text('ss_e_tx_descricao')->nullable();
-                $table->string('ss_e_tx_fabricante', 255)->nullable();
-                $table->string('ss_e_tx_ca', 50)->nullable();
-                $table->date('ss_e_tx_validade_ca')->nullable();
-                $table->integer('ss_e_nb_vida_util_dias')->default(0);
-                $table->string('ss_e_tx_status', 30)->default('ativo');
-                $table->string('ss_e_tx_cadastro_tipo', 30)->default('estoque');
-                $table->text('ss_e_tx_foto')->nullable();
-                $table->string('ss_e_tx_modelo', 255)->nullable();
-                $table->integer('ss_e_nb_userCadastro')->nullable();
-                $table->dateTime('ss_e_tx_dataCadastro')->nullable();
-            });
+        // DDL consolidado em migrations (ver database/migrations/2026_07_21_* e 2026_09_16_*).
+        $this->syncColaboradoresFromUsers();
+    }
+
+    /**
+     * Sincronização incremental de colaboradores a partir dos usuários:
+     * cria novos funcionários que ainda não existem em ss_colaborador (por CPF)
+     * e atualiza nome/cargo/status dos já existentes.
+     */
+    private function syncColaboradoresFromUsers(): void
+    {
+        if (! Schema::hasTable('users') || ! Schema::hasTable('ss_colaborador')) {
+            return;
         }
 
-        if (!Schema::hasTable('ss_colaborador')) {
-            Schema::create('ss_colaborador', function (Blueprint $table) {
-                $table->id('ss_c_nb_id');
-                $table->string('ss_c_tx_nome', 255);
-                $table->string('ss_c_tx_cpf', 14)->nullable();
-                $table->string('ss_c_tx_matricula', 50)->nullable();
-                $table->string('ss_c_tx_cargo', 255)->nullable();
-                $table->string('ss_c_tx_status', 30)->default('ativo');
-                $table->integer('ss_c_nb_empresa_id')->nullable();
-            });
-        }
+        // User (Eloquent) já é escopado pelo TenantScope quando há contexto de tenant.
+        $users = User::query()->get(['id', 'nome', 'cpf', 'cargo', 'status']);
 
-        if (!Schema::hasTable('ss_epi_estoque')) {
-            Schema::create('ss_epi_estoque', function (Blueprint $table) {
-                $table->id('ss_e_nb_id');
-                $table->integer('ss_e_nb_epi_id');
-                $table->integer('ss_e_nb_empresa_id')->nullable();
-                $table->integer('ss_e_nb_quantidade');
-                $table->string('ss_e_tx_tipo', 30)->default('entrada');
-                $table->decimal('ss_e_db_valor_unitario', 10, 2)->nullable();
-                $table->decimal('ss_e_db_valor_total', 10, 2)->nullable();
-                $table->date('ss_e_tx_data_recebimento')->nullable();
-                $table->date('ss_e_tx_validade')->nullable();
-                $table->string('ss_e_tx_chave_nf', 100)->nullable();
-                $table->string('ss_e_tx_fornecedor', 255)->nullable();
-                $table->dateTime('ss_e_tx_data');
-                $table->text('ss_e_tx_motivo')->nullable();
-                $table->text('ss_e_tx_foto')->nullable();
-                $table->integer('ss_e_nb_userCadastro')->nullable();
+        foreach ($users as $u) {
+            $dados = [
+                'ss_c_tx_nome' => $u->nome,
+                'ss_c_tx_cargo' => $u->cargo ?: 'Funcionário',
+                'ss_c_tx_status' => $u->status ?: 'ativo',
+            ];
 
-                $table->index(['ss_e_nb_epi_id', 'ss_e_nb_empresa_id']);
-            });
-        }
+            $existente = DB::table('ss_colaborador')
+                ->where('ss_c_tx_cpf', $u->cpf)
+                ->whereTenant('ss_colaborador')
+                ->first();
 
-        if (!Schema::hasTable('ss_epi_entrega')) {
-            Schema::create('ss_epi_entrega', function (Blueprint $table) {
-                $table->id('ss_e_nb_id');
-                $table->integer('ss_e_nb_colaborador_id');
-                $table->integer('ss_e_nb_epi_id');
-                $table->integer('ss_e_nb_empresa_id')->nullable();
-                $table->date('ss_e_tx_data_entrega');
-                $table->integer('ss_e_nb_quantidade');
-                $table->date('ss_e_tx_vencimento')->nullable();
-                $table->string('ss_e_tx_status', 30)->default('ativo');
-                $table->longText('ss_e_tx_assinatura')->nullable();
-                $table->text('ss_e_tx_foto')->nullable();
-                $table->text('ss_e_tx_observacao')->nullable();
-                $table->string('ss_e_tx_justificativa_exclusao', 255)->nullable();
-                $table->integer('ss_e_nb_userCadastro')->nullable();
-                $table->dateTime('ss_e_tx_dataCadastro')->nullable();
-
-                $table->index(['ss_e_nb_colaborador_id', 'ss_e_nb_epi_id']);
-            });
-        }
-
-        if (!Schema::hasTable('ss_kit')) {
-            Schema::create('ss_kit', function (Blueprint $table) {
-                $table->id('ss_k_nb_id');
-                $table->string('ss_k_tx_nome', 255);
-                $table->string('ss_k_tx_status', 30)->default('ativo');
-            });
-        }
-
-        if (!Schema::hasTable('ss_kit_item')) {
-            Schema::create('ss_kit_item', function (Blueprint $table) {
-                $table->id('ss_ki_nb_id');
-                $table->integer('ss_ki_nb_kit_id');
-                $table->integer('ss_ki_nb_epi_id');
-                $table->integer('ss_ki_nb_quantidade')->default(1);
-
-                $table->index(['ss_ki_nb_kit_id', 'ss_ki_nb_epi_id']);
-            });
-        }
-
-        if (!Schema::hasTable('ss_filial')) {
-            Schema::create('ss_filial', function (Blueprint $table) {
-                $table->id('ss_f_nb_id');
-                $table->string('ss_f_tx_nome', 255);
-                $table->string('ss_f_tx_codigo', 50)->nullable();
-                $table->string('ss_f_tx_cidade', 255)->nullable();
-                $table->string('ss_f_tx_status', 30)->default('ativo');
-            });
-        }
-
-        // 8. Tabela ss_epi_variacao (Variações de EPI: tamanhos, cores, etc.)
-        if (!Schema::hasTable('ss_epi_variacao')) {
-            Schema::create('ss_epi_variacao', function (Blueprint $table) {
-                $table->id('ss_ev_nb_id');
-                $table->integer('ss_ev_nb_epi_id');
-                $table->string('ss_ev_tx_nome', 255);
-                $table->string('ss_ev_tx_status', 30)->default('ativo');
-
-                $table->index(['ss_ev_nb_epi_id']);
-            });
-        }
-
-        // 9. Campos de fardamento no cadastro de colaboradores (users)
-        if (Schema::hasTable('users')) {
-            foreach (['camisa_tamanho', 'calca_tamanho', 'bota_numero'] as $coluna) {
-                if (!Schema::hasColumn('users', $coluna)) {
-                    Schema::table('users', function (Blueprint $table) use ($coluna) {
-                        $table->string($coluna, 20)->nullable()->after('cargo');
-                    });
-                }
-            }
-        }
-
-        // Adicionar coluna de variação nas tabelas existentes (se não existir)
-        if (Schema::hasTable('ss_epi_estoque') && !Schema::hasColumn('ss_epi_estoque', 'ss_e_nb_variacao_id')) {
-            Schema::table('ss_epi_estoque', function (Blueprint $table) {
-                $table->integer('ss_e_nb_variacao_id')->nullable()->after('ss_e_nb_empresa_id');
-            });
-        }
-
-        if (Schema::hasTable('ss_epi_entrega') && !Schema::hasColumn('ss_epi_entrega', 'ss_e_nb_variacao_id')) {
-            Schema::table('ss_epi_entrega', function (Blueprint $table) {
-                $table->integer('ss_e_nb_variacao_id')->nullable()->after('ss_e_nb_epi_id');
-            });
-        }
-
-        // Colunas de workflow de assinatura
-        if (Schema::hasTable('ss_epi_entrega') && !Schema::hasColumn('ss_epi_entrega', 'ss_e_tx_requer_assinatura')) {
-            Schema::table('ss_epi_entrega', function (Blueprint $table) {
-                $table->boolean('ss_e_tx_requer_assinatura')->default(true)->after('ss_e_tx_status');
-                $table->string('ss_e_tx_status_assinatura', 30)->default('pendente')->after('ss_e_tx_requer_assinatura');
-                $table->text('ss_e_tx_justificativa_negacao')->nullable()->after('ss_e_tx_status_assinatura');
-                $table->dateTime('ss_e_tx_data_assinatura')->nullable()->after('ss_e_tx_justificativa_negacao');
-                $table->string('ss_e_tx_grupo_assinatura', 36)->nullable()->after('ss_e_tx_data_assinatura');
-            });
-        }
-        if (Schema::hasTable('ss_epi_entrega') && !Schema::hasColumn('ss_epi_entrega', 'ss_e_tx_grupo_assinatura')) {
-            Schema::table('ss_epi_entrega', function (Blueprint $table) {
-                $table->string('ss_e_tx_grupo_assinatura', 36)->nullable()->after('ss_e_tx_data_assinatura');
-            });
-        }
-
-        // Flag de entrega retroativa (atualização de ficha sem baixa de estoque)
-        if (Schema::hasTable('ss_epi_entrega') && !Schema::hasColumn('ss_epi_entrega', 'ss_e_tx_retroativo')) {
-            Schema::table('ss_epi_entrega', function (Blueprint $table) {
-                $table->boolean('ss_e_tx_retroativo')->default(false)->after('ss_e_tx_grupo_assinatura');
-            });
-        }
-
-        // Trilha de devoluções / encerramento de EPIs (auditoria)
-        if (!Schema::hasTable('ss_epi_devolucao')) {
-            Schema::create('ss_epi_devolucao', function (Blueprint $table) {
-                $table->id('ss_ed_nb_id');
-                $table->unsignedBigInteger('ss_ed_nb_entrega_id')->nullable();
-                $table->unsignedBigInteger('ss_ed_nb_epi_id');
-                $table->unsignedBigInteger('ss_ed_nb_colaborador_id')->nullable();
-                $table->unsignedBigInteger('ss_ed_nb_empresa_id')->nullable();
-                $table->unsignedBigInteger('ss_ed_nb_variacao_id')->nullable();
-                $table->unsignedInteger('ss_ed_nb_quantidade')->default(1);
-                $table->string('ss_ed_tx_motivo', 50);
-                $table->string('ss_ed_tx_destino', 20)->default('descarte');
-                $table->string('ss_ed_tx_status', 20)->default('concluida');
-                $table->string('ss_ed_tx_resultado_inspecao', 20)->nullable();
-                $table->text('ss_ed_tx_observacao')->nullable();
-                $table->unsignedBigInteger('ss_ed_nb_userRegistro')->nullable();
-                $table->dateTime('ss_ed_tx_data_registro')->nullable();
-                $table->unsignedBigInteger('ss_ed_nb_userDecisao')->nullable();
-                $table->dateTime('ss_ed_tx_data_decisao')->nullable();
-                $table->index(['ss_ed_nb_entrega_id']);
-                $table->index(['ss_ed_nb_epi_id']);
-                $table->index(['ss_ed_tx_status']);
-            });
-        }
-
-        // [DESATIVADO] Popular EPIs universais se ss_epi estiver vazia
-        // if (DB::table('ss_epi')->count() === 0) { ... }
-
-        // Sincronização incremental de colaboradores a partir dos usuários:
-        // cria novos funcionários que ainda não existem em ss_colaborador (por CPF)
-        // e atualiza nome/cargo/status dos já existentes. Sempre que o módulo abrir.
-        if (Schema::hasTable('users') && Schema::hasTable('ss_colaborador')) {
-            $users = DB::table('users')->get(['id', 'nome', 'cpf', 'cargo', 'status']);
-
-            foreach ($users as $u) {
-                $dados = [
-                    'ss_c_tx_nome' => $u->nome,
-                    'ss_c_tx_cargo' => $u->cargo ?: 'Funcionário',
-                    'ss_c_tx_status' => $u->status ?: 'ativo',
-                ];
-
-                $existente = DB::table('ss_colaborador')
-                    ->where('ss_c_tx_cpf', $u->cpf)
-                    ->first();
-
-                if ($existente) {
-                    DB::table('ss_colaborador')
-                        ->where('ss_c_nb_id', $existente->ss_c_nb_id)
-                        ->update($dados);
-                } else {
-                    DB::table('ss_colaborador')->insert(array_merge($dados, [
-                        'ss_c_tx_cpf' => $u->cpf,
-                        'ss_c_tx_matricula' => 'MAT-' . str_pad($u->id, 5, '0', STR_PAD_LEFT),
-                        'ss_c_nb_empresa_id' => 0,
-                    ]));
-                }
+            if ($existente) {
+                DB::table('ss_colaborador')
+                    ->where('ss_c_nb_id', $existente->ss_c_nb_id)
+                    ->update($dados);
+            } else {
+                DB::table('ss_colaborador')->insert(array_merge($dados, [
+                    'ss_c_tx_cpf' => $u->cpf,
+                    'ss_c_tx_matricula' => 'MAT-' . str_pad($u->id, 5, '0', STR_PAD_LEFT),
+                    'ss_c_nb_empresa_id' => 0,
+                    'tenant_id' => app(TenantManager::class)->id(),
+                ]));
             }
         }
     }
@@ -269,8 +91,8 @@ class EpiController extends Controller
         // 1. Estatísticas Rápidas
         $totalCatalogo = Epi::where('ss_e_tx_status', 'ativo')->count();
         
-        $totalEntradasEstoque = DB::table('ss_epi_estoque')->whereIn('ss_e_tx_tipo', ['entrada', 'devolucao'])->sum('ss_e_nb_quantidade');
-        $totalSaidasEstoque = DB::table('ss_epi_estoque')->whereIn('ss_e_tx_tipo', ['saida', 'substituicao'])->sum('ss_e_nb_quantidade');
+        $totalEntradasEstoque = DB::table('ss_epi_estoque')->whereTenant('ss_epi_estoque')->whereIn('ss_e_tx_tipo', ['entrada', 'devolucao'])->sum('ss_e_nb_quantidade');
+        $totalSaidasEstoque = DB::table('ss_epi_estoque')->whereTenant('ss_epi_estoque')->whereIn('ss_e_tx_tipo', ['saida', 'substituicao'])->sum('ss_e_nb_quantidade');
         $saldoEstoqueTotal = max(0, $totalEntradasEstoque - $totalSaidasEstoque);
 
         $totalEntregasAtivas = EpiEntrega::whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])->count();
@@ -390,6 +212,7 @@ class EpiController extends Controller
         $dateExpr = $driver === 'sqlite' ? "strftime('%Y-%m-%d', ss_e_tx_data)" : 'DATE(ss_e_tx_data)';
 
         $linhasGrafico = DB::table('ss_epi_estoque')
+            ->whereTenant('ss_epi_estoque')
             ->selectRaw("{$dateExpr} AS dia, ss_e_tx_tipo AS tipo, SUM(ss_e_nb_quantidade) AS total")
             ->whereRaw("{$dateExpr} >= ?", [$graficoInicio])
             ->groupBy('dia', 'tipo')
@@ -423,7 +246,7 @@ class EpiController extends Controller
 
         // Lista de Filiais dinâmicas (Matriz + Filiais cadastradas ativas)
         $filiais = $this->getFiliaisList();
-        $filiaisCadastradas = DB::table('ss_filial')->orderBy('ss_f_nb_id', 'desc')->get();
+        $filiaisCadastradas = DB::table('ss_filial')->whereTenant('ss_filial')->orderBy('ss_f_nb_id', 'desc')->get();
 
         // 7. Fardamento: distribuição de tamanhos cadastrados nos colaboradores
         $fardamentoDados = $this->getFardamentoDistribuicao();
@@ -672,6 +495,7 @@ class EpiController extends Controller
 
         if (Schema::hasTable('ss_filial')) {
             $registros = DB::table('ss_filial')
+                ->whereTenant('ss_filial')
                 ->where('ss_f_tx_status', 'ativo')
                 ->orderBy('ss_f_tx_nome')
                 ->get();
@@ -805,7 +629,7 @@ class EpiController extends Controller
 
         // Upload de foto se fornecida
         if ($request->hasFile('ss_e_tx_foto')) {
-            $path = $request->file('ss_e_tx_foto')->store('epis_fotos', 'public');
+            $path = $request->file('ss_e_tx_foto')->store(tenant_public_storage_dir('epis_fotos'), 'public');
             $dados['ss_e_tx_foto'] = '/storage/' . $path;
         }
 
@@ -891,7 +715,7 @@ class EpiController extends Controller
 
         $fotoCaminho = null;
         if ($request->hasFile('ss_e_tx_foto')) {
-            $path = $request->file('ss_e_tx_foto')->store('estoque_comprovantes', 'public');
+            $path = $request->file('ss_e_tx_foto')->store(tenant_public_storage_dir('estoque_comprovantes'), 'public');
             $fotoCaminho = '/storage/' . $path;
         }
 
@@ -1185,7 +1009,7 @@ class EpiController extends Controller
 
         $fotoCaminho = null;
         if ($request->hasFile('ss_e_tx_foto')) {
-            $path = $request->file('ss_e_tx_foto')->store('recibos_entregas', 'public');
+            $path = $request->file('ss_e_tx_foto')->store(tenant_public_storage_dir('recibos_entregas'), 'public');
             $fotoCaminho = '/storage/' . $path;
         }
 
@@ -1317,6 +1141,7 @@ class EpiController extends Controller
     private function calcularVencimentoEntrega(int $epiId, ?int $variacaoId, string $dataEntrega): ?string
     {
         $validadeLote = DB::table('ss_epi_estoque')
+            ->whereTenant('ss_epi_estoque')
             ->where('ss_e_nb_epi_id', $epiId)
             ->where('ss_e_tx_tipo', 'entrada')
             ->whereNotNull('ss_e_tx_validade')
@@ -2020,10 +1845,10 @@ class EpiController extends Controller
         ];
 
         if (!empty($id)) {
-            DB::table('ss_filial')->where('ss_f_nb_id', $id)->update($dados);
+            DB::table('ss_filial')->whereTenant('ss_filial')->where('ss_f_nb_id', $id)->update($dados);
             $msg = 'Filial atualizada com sucesso!';
         } else {
-            DB::table('ss_filial')->insert($dados);
+            DB::table('ss_filial')->insert(array_merge($dados, ['tenant_id' => app(TenantManager::class)->id()]));
             $msg = 'Filial cadastrada com sucesso!';
         }
 
@@ -2037,10 +1862,10 @@ class EpiController extends Controller
     {
         $this->ensureTablesExist();
 
-        $filial = DB::table('ss_filial')->where('ss_f_nb_id', $id)->first();
+        $filial = DB::table('ss_filial')->whereTenant('ss_filial')->where('ss_f_nb_id', $id)->first();
         if ($filial) {
             $novoStatus = ($filial->ss_f_tx_status === 'ativo') ? 'inativo' : 'ativo';
-            DB::table('ss_filial')->where('ss_f_nb_id', $id)->update(['ss_f_tx_status' => $novoStatus]);
+            DB::table('ss_filial')->whereTenant('ss_filial')->where('ss_f_nb_id', $id)->update(['ss_f_tx_status' => $novoStatus]);
         }
 
         return redirect()->back()->with('success', 'Status da filial alterado com sucesso!');
@@ -2053,7 +1878,7 @@ class EpiController extends Controller
     {
         $this->ensureTablesExist();
 
-        DB::table('ss_filial')->where('ss_f_nb_id', $id)->delete();
+        DB::table('ss_filial')->whereTenant('ss_filial')->where('ss_f_nb_id', $id)->delete();
 
         return redirect()->back()->with('success', 'Filial excluída com sucesso!');
     }

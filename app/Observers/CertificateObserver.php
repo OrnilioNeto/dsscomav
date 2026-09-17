@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Models\Certificate;
 use App\Services\RankingRecalculationService;
 use App\Services\RankingMonthlyConsolidationService;
+use App\Support\TenantManager;
 use Illuminate\Support\Facades\Log;
 
 class CertificateObserver
@@ -23,9 +24,19 @@ class CertificateObserver
      * 1. Atualiza o ranking_scores do usuário (recálculo pontual).
      * 2. Reconsolida o ranking_monthly_scores do período, para que todos
      *    os usuários vejam sua posição atualizada imediatamente.
+     *
+     * O recálculo roda no contexto do tenant do usuário (isolamento).
      */
     public function created(Certificate $certificate): void
     {
+        $manager = app(TenantManager::class);
+        $tenantId = $certificate->user?->tenant_id;
+
+        if ($manager->isEnabled() && $tenantId) {
+            $tenant = \App\Models\Tenant::find($tenantId);
+            $manager->set($tenant ?: null);
+        }
+
         try {
             // Passo 1: recalcula ranking_scores para este certificado específico
             $period = $this->recalculator->recalculateForCertificate($certificate);
@@ -46,6 +57,8 @@ class CertificateObserver
             Log::info("CertificateObserver: ranking consolidado para {$month}/{$year} após certificado #{$certificate->id} ({$count} usuários).");
         } catch (\Throwable $e) {
             Log::error('CertificateObserver: erro ao consolidar ranking após certificado #' . $certificate->id . ': ' . $e->getMessage());
+        } finally {
+            $manager->clear();
         }
     }
 }

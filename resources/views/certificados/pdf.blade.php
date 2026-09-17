@@ -64,9 +64,12 @@
             <tr>
                 <td style="text-align: center;">
                     @php
-                        $logoPath = file_exists(public_path('images/logo-comav-transportes.png'))
-                            ? public_path('images/logo-comav-transportes.png')
-                            : public_path('imagens/logo-comav-transportes.png');
+                        $tenant = tenant();
+                        $logoPath = $tenant?->logoFilePath('logo_certificado')
+                            ?? $tenant?->logoFilePath('logo')
+                            ?? (file_exists(public_path('images/logo-comav-transportes.png'))
+                                ? public_path('images/logo-comav-transportes.png')
+                                : public_path('imagens/logo-comav-transportes.png'));
                         $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
                     @endphp
 
@@ -94,7 +97,7 @@
                             <td style="width: 50%; padding-bottom: 6px;"><strong>E-mail:</strong> {{ $certificate->user->email }}</td>
                         </tr>
                         <tr>
-                            <td style="padding-bottom: 6px;"><strong>Empresa:</strong> {{ $certificate->user->empresa ?? 'Não informada' }}</td>
+                            <td style="padding-bottom: 6px;"><strong>Empresa:</strong> {{ $certificate->user->empresa ?? plataforma_nome() }}</td>
                             <td style="padding-bottom: 6px;"><strong>Tipo de usuário:</strong> {{ ucfirst($certificate->user->tipo_usuario ?? 'Não informado') }}</td>
                         </tr>
                         <tr>
@@ -125,7 +128,7 @@
 
                     <div style="margin-top: 8px;">
                         <strong>Instrutor:</strong>
-                        <div style="margin-top: 4px; font-size: 8pt;" class="muted">Ornilio Machado Neto, Tec Seguranca do trabalho, RG - 10827, Bombeiro Civil</div>
+                        <div style="margin-top: 4px; font-size: 8pt;" class="muted">{{ $tenant?->getInstrutorNome() ?? 'Ornilio Machado Neto' }}, {{ $tenant?->getInstrutorQualificacao() ?? 'Tec Segurança do Trabalho' }}, RG - {{ $tenant?->getInstrutorRg() ?? '10827' }}, Bombeiro Civil</div>
                     </div>
                 </div>
             </td>

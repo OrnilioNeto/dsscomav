@@ -51,7 +51,7 @@ class ProfileController extends Controller
         }
 
         try {
-            $uploadDir = public_path('uploads/perfil');
+            $uploadDir = public_path(tenant_upload_dir('perfil'));
             if (!is_dir($uploadDir)) {
                 @mkdir($uploadDir, 0755, true);
             }
@@ -109,15 +109,17 @@ class ProfileController extends Controller
                 $photo->move($uploadDir, $filename);
             }
 
-            // Remover foto antiga
-            if ($user->foto_perfil && $user->foto_perfil !== $filename) {
-                $oldPath = public_path("uploads/perfil/{$user->foto_perfil}");
+            // Remover foto antiga (legado: uploads/perfil; novo: caminho completo com tenant)
+            if ($user->foto_perfil) {
+                $oldPath = str_starts_with($user->foto_perfil, 'uploads/')
+                    ? public_path($user->foto_perfil)
+                    : public_path("uploads/perfil/{$user->foto_perfil}");
                 if (file_exists($oldPath)) {
                     @unlink($oldPath);
                 }
             }
 
-            $user->update(['foto_perfil' => $filename]);
+            $user->update(['foto_perfil' => tenant_upload_dir('perfil') . '/' . $filename]);
 
             return response()->json([
                 'status' => 'success',
@@ -140,7 +142,9 @@ class ProfileController extends Controller
         $user = $request->user();
 
         if ($user->foto_perfil) {
-            $oldPath = public_path("uploads/perfil/{$user->foto_perfil}");
+            $oldPath = str_starts_with($user->foto_perfil, 'uploads/')
+                ? public_path($user->foto_perfil)
+                : public_path("uploads/perfil/{$user->foto_perfil}");
             if (file_exists($oldPath)) {
                 @unlink($oldPath);
             }

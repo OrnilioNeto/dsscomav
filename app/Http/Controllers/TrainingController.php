@@ -6,7 +6,6 @@ use App\Models\Training;
 use App\Models\TrainingMaterial;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
@@ -14,168 +13,9 @@ class TrainingController extends Controller
 {
     public function __construct()
     {
-        // Garantir que a tabela de materiais existe quando o controller for carregado
-        $this->ensureTrainingMaterialsTableExists();
-        $this->ensureTrainingReleaseColumnExists();
-        $this->ensureTrainingMandatoryColumnExists();
-        $this->ensureTrainingAssignmentsTableExists();
-        $this->ensureTrainingComplianceColumnsExist();
-        $this->ensureTrainingQuestionsTableExists();
-
         // Middleware de permissões
         $this->middleware('permission:trainings,view')->only(['index', 'show']);
         $this->middleware('permission:trainings,edit')->except(['index', 'show']);
-    }
-
-    /**
-     * Garante que a tabela training_assignments exista,
-     * se não existir, a cria automaticamente.
-     */
-    private function ensureTrainingAssignmentsTableExists()
-    {
-        try {
-            if (!Schema::hasTable('training_assignments')) {
-                Schema::create('training_assignments', function ($table) {
-                    $table->id();
-                    $table->unsignedBigInteger('training_id');
-                    $table->unsignedBigInteger('user_id');
-                    $table->timestamps();
-
-                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
-                    $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-                    $table->unique(['training_id', 'user_id']);
-                    $table->index('user_id');
-                });
-            }
-        } catch (\Exception $e) {
-            // Se houver erro, apenas registra no log mas não interrompe a execução
-            \Log::warning('Erro ao verificar/criar tabela training_assignments: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Verifica se a tabela training_materials existe,
-     * se não existir, a cria automaticamente.
-     */
-    private function ensureTrainingMaterialsTableExists()
-    {
-        try {
-            if (!Schema::hasTable('training_materials')) {
-                // Criar a tabela training_materials
-                Schema::create('training_materials', function ($table) {
-                    $table->id();
-                    $table->unsignedBigInteger('training_id');
-                    $table->string('nome');
-                    $table->text('descricao')->nullable();
-                    $table->string('arquivo');
-                    $table->string('tipo_arquivo');
-                    $table->unsignedBigInteger('tamanho');
-                    $table->integer('ordem')->default(0);
-                    $table->timestamps();
-
-                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
-                    $table->index('training_id');
-                });
-            }
-        } catch (\Exception $e) {
-            // Se houver erro, apenas registra no log mas não interrompe a execução
-            \Log::warning('Erro ao verificar/criar tabela training_materials: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Garante que a coluna data_liberacao exista na tabela trainings.
-     */
-    private function ensureTrainingReleaseColumnExists()
-    {
-        try {
-            if (Schema::hasTable('trainings') && !Schema::hasColumn('trainings', 'data_liberacao')) {
-                Schema::table('trainings', function ($table) {
-                    $table->dateTime('data_liberacao')->nullable()->after('data_publicacao');
-                });
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar coluna data_liberacao em trainings: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Garante que a coluna obrigatorio exista na tabela trainings.
-     */
-    private function ensureTrainingMandatoryColumnExists()
-    {
-        try {
-            if (Schema::hasTable('trainings') && !Schema::hasColumn('trainings', 'obrigatorio')) {
-                Schema::table('trainings', function ($table) {
-                    $table->boolean('obrigatorio')->default(false)->after('status');
-                });
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar coluna obrigatorio em trainings: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Garante as colunas de conformidade NR-01 (ementa, tipo, validade e prova).
-     */
-    private function ensureTrainingComplianceColumnsExist()
-    {
-        try {
-            if (Schema::hasTable('trainings')) {
-                if (!Schema::hasColumn('trainings', 'conteudo_programatico')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->text('conteudo_programatico')->nullable()->after('descricao');
-                    });
-                }
-                if (!Schema::hasColumn('trainings', 'tipo_treinamento')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->string('tipo_treinamento', 20)->nullable()->after('tipo');
-                    });
-                }
-                if (!Schema::hasColumn('trainings', 'dias_validade')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->unsignedInteger('dias_validade')->nullable()->after('carga_horaria');
-                    });
-                }
-                if (!Schema::hasColumn('trainings', 'quantidade_questoes_prova')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->unsignedTinyInteger('quantidade_questoes_prova')->nullable()->after('avaliacao_resposta_correta');
-                    });
-                }
-                if (!Schema::hasColumn('trainings', 'nota_minima_aprovacao')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->unsignedTinyInteger('nota_minima_aprovacao')->default(70)->after('quantidade_questoes_prova');
-                    });
-                }
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar colunas de conformidade em trainings: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Garante que a tabela training_questions exista.
-     */
-    private function ensureTrainingQuestionsTableExists()
-    {
-        try {
-            if (!Schema::hasTable('training_questions')) {
-                Schema::create('training_questions', function ($table) {
-                    $table->id();
-                    $table->unsignedBigInteger('training_id');
-                    $table->text('pergunta');
-                    $table->json('opcoes');
-                    $table->unsignedTinyInteger('resposta_correta');
-                    $table->unsignedTinyInteger('ordem')->default(0);
-                    $table->timestamps();
-
-                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
-                    $table->index('training_id');
-                });
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar tabela training_questions: ' . $e->getMessage());
-        }
     }
 
     public function index()
@@ -330,8 +170,8 @@ class TrainingController extends Controller
                     continue; // Pular este arquivo se não passar na validação
                 }
 
-                // Armazenar o arquivo
-                $storagePath = "materiais-apoio/training-{$training->id}";
+                // Armazenar o arquivo (isolado por tenant)
+                $storagePath = tenant_public_storage_dir("materiais-apoio/training-{$training->id}");
                 $fileName = $file->getClientOriginalName();
                 $filePath = $file->storeAs($storagePath, $fileName, 'public');
 

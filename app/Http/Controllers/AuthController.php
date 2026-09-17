@@ -35,7 +35,19 @@ class AuthController extends Controller
         try {
             $user = User::where('cpf', $cpf)->first();
 
-            if (!$user || !Hash::check($request->password, $user->password)) {
+            // Usuário da plataforma (super_admin) pode logar em qualquer host,
+            // mesmo quando há um tenant resolvido (ele não pertence a nenhum tenant).
+            if (! $user) {
+                $candidato = User::withoutGlobalScope(\App\Models\Scopes\TenantScope::class)
+                    ->where('cpf', $cpf)
+                    ->first();
+
+                if ($candidato && $candidato->isSuperAdmin()) {
+                    $user = $candidato;
+                }
+            }
+
+            if (! $user || ! Hash::check($request->password, $user->password)) {
                 return back()->withInput()->with('error', 'CPF ou senha inválidos');
             }
 

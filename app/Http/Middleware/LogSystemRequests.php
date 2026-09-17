@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use App\Support\TenantManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,6 +22,7 @@ class LogSystemRequests
             'full_url' => $request->fullUrl(),
             'ip' => $request->ip(),
             'user_id' => optional($request->user())->id,
+            'tenant_id' => app(TenantManager::class)->id(),
             'user_agent' => $request->userAgent(),
         ];
 

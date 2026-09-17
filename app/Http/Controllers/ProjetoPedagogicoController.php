@@ -184,8 +184,8 @@ class ProjetoPedagogicoController extends Controller
         $html = view('projetos_pedagogicos.pp_pdf', ['pp' => $pp, 'treinamentos' => $pp->trainings_list])->render();
 
         $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('Plataforma DSS');
-        $pdf->SetAuthor('Plataforma DSS');
+        $pdf->SetCreator(plataforma_nome());
+        $pdf->SetAuthor(plataforma_nome());
         $pdf->SetTitle('Projeto Pedagógico');
         $pdf->SetSubject('Projeto Pedagógico (NR-01 Anexo II 3.1)');
         $pdf->SetMargins(15, 15, 15);
@@ -301,7 +301,7 @@ class ProjetoPedagogicoController extends Controller
         $pdf->SetY($y + 3);
         $pdf->SetFont('helvetica', '', 8);
         $pdf->SetTextColor(107, 114, 128);
-        $pdf->Cell(0, 4, 'Documento gerado eletronicamente pela Plataforma DSS em ' . now()->format('d/m/Y H:i') . ' — válido conforme NR-01 Anexo II, item 4.1.', 0, 0, 'C');
+        $pdf->Cell(0, 4, 'Documento gerado eletronicamente pela ' . plataforma_nome() . ' em ' . now()->format('d/m/Y H:i') . ' — válido conforme NR-01 Anexo II, item 4.1.', 0, 0, 'C');
     }
 
     /**
@@ -356,11 +356,11 @@ class ProjetoPedagogicoController extends Controller
         $ids = collect();
 
         if (Schema::hasTable('projeto_pedagogico_trainings')) {
-            $ids = $ids->merge(DB::table('projeto_pedagogico_trainings')->pluck('training_id'));
+            $ids = $ids->merge(DB::table('projeto_pedagogico_trainings')->whereTenant('projeto_pedagogico_trainings')->pluck('training_id'));
         }
 
         if (Schema::hasTable('training_projetos_pedagogicos') && Schema::hasColumn('training_projetos_pedagogicos', 'training_id')) {
-            $ids = $ids->merge(DB::table('training_projetos_pedagogicos')->whereNotNull('training_id')->pluck('training_id'));
+            $ids = $ids->merge(DB::table('training_projetos_pedagogicos')->whereTenant('training_projetos_pedagogicos')->whereNotNull('training_id')->pluck('training_id'));
         }
 
         return $ids->map(fn ($id) => (int) $id)->unique()->values();
@@ -444,7 +444,7 @@ class ProjetoPedagogicoController extends Controller
         if ($request->hasFile('arquivo_pdf')) {
             $arquivo = $request->file('arquivo_pdf');
             $caminho = $arquivo->storeAs(
-                'projetos-pedagogicos/pp-' . $pp->id,
+                tenant_public_storage_dir('projetos-pedagogicos/pp-' . $pp->id),
                 'projeto-pedagogico-' . $pp->id . '-' . time() . '.pdf',
                 'public'
             );
@@ -494,7 +494,7 @@ class ProjetoPedagogicoController extends Controller
      */
     private function getTemplates(): array
     {
-        $infra = 'Ambiente Virtual de Aprendizagem (AVA) da Plataforma DSS, com acesso individual por CPF e senha, registro de tempo de estudo (logs), bloqueio de adiantamento de vídeo, re-identificação por senha antes da avaliação, emissão de certificado com QR de validação e canal de dúvidas via WhatsApp.';
+        $infra = 'Ambiente Virtual de Aprendizagem (AVA) da ' . plataforma_nome() . ', com acesso individual por CPF e senha, registro de tempo de estudo (logs), bloqueio de adiantamento de vídeo, re-identificação por senha antes da avaliação, emissão de certificado com QR de validação e canal de dúvidas via WhatsApp.';
         $avaliacaoBase = 'Prova online com questões de múltipla escolha envolvendo situações práticas da rotina. Aprovação com nota mínima de 70% (conceito satisfatório), com até 2 tentativas; após 2 falhas, o aluno reassiste o conteúdo e refaz a avaliação.';
         $instrumentos = 'Videoaula, quiz de fixação, estudo de casos reais da rotina, material didático em PDF e canal de dúvidas via WhatsApp.';
 

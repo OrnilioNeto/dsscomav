@@ -38,10 +38,12 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\CheckSplashContent::class, // Adicione esta linha
+            \App\Http\Middleware\ResolveTenant::class,
         ],
 
         'api' => [
             \App\Http\Middleware\ForceApiRootUrl::class,
+            \App\Http\Middleware\ResolveTenant::class,
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
@@ -69,6 +71,8 @@ class Kernel extends HttpKernel
         'admin' => \App\Http\Middleware\CheckAdmin::class,
         'api.permission' => \App\Http\Middleware\ApiCheckPermission::class,
         'api.admin' => \App\Http\Middleware\ApiCheckAdmin::class,
+        'tenant' => \App\Http\Middleware\ResolveTenant::class,
+        'module' => \App\Http\Middleware\CheckModule::class,
     ];
 
     /**
@@ -91,5 +95,7 @@ class Kernel extends HttpKernel
         'admin' => \App\Http\Middleware\CheckAdmin::class,
         'api.permission' => \App\Http\Middleware\ApiCheckPermission::class,
         'api.admin' => \App\Http\Middleware\ApiCheckAdmin::class,
+        'tenant' => \App\Http\Middleware\ResolveTenant::class,
+        'module' => \App\Http\Middleware\CheckModule::class,
     ];
 }

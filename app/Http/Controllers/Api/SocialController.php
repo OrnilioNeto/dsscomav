@@ -23,7 +23,7 @@ class SocialController extends Controller
             'id' => $post->id,
             'caption' => $post->caption,
             'location' => $post->location,
-            'photo_url' => $post->photo_path ? url("uploads/social/{$post->photo_path}") : null,
+            'photo_url' => $post->getPhotoUrl(),
             'created_at' => $post->created_at?->toISOString(),
             'created_at_diff' => $post->created_at?->diffForHumans(),
             'user' => [
@@ -118,7 +118,7 @@ class SocialController extends Controller
             $photoPath = null;
 
             if ($request->hasFile('photo')) {
-                $uploadDir = public_path('uploads/social');
+                $uploadDir = public_path(tenant_upload_dir('social'));
                 if (!is_dir($uploadDir)) {
                     @mkdir($uploadDir, 0755, true);
                 }
@@ -178,7 +178,7 @@ class SocialController extends Controller
                     $photo->move($uploadDir, $filename);
                 }
 
-                $photoPath = $filename;
+                $photoPath = tenant_upload_dir('social') . '/' . $filename;
             }
 
             $score = null;
@@ -237,7 +237,9 @@ class SocialController extends Controller
 
         try {
             if ($post->photo_path) {
-                $filePath = public_path("uploads/social/{$post->photo_path}");
+                $filePath = str_starts_with($post->photo_path, 'uploads/')
+                    ? public_path($post->photo_path)
+                    : public_path("uploads/social/{$post->photo_path}");
                 if (file_exists($filePath)) {
                     @unlink($filePath);
                 }

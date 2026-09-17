@@ -6,11 +6,12 @@
     <title>Ficha de Conformidade - {{ $usuario->nome }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    @php $tenant = tenant(); @endphp
     <style>
         :root {
-            --primary: #153B2E;
-            --primary-dark: #0F2B22;
-            --accent: #F28C2B;
+            --primary: {{ $tenant?->getCorPrimaria() ?? '#153B2E' }};
+            --primary-dark: {{ $tenant?->getCorSecundaria() ?? '#0F2B22' }};
+            --accent: {{ $tenant?->getAccentColor() ?? '#F28C2B' }};
         }
         .bg-primary { background-color: var(--primary); }
         .text-primary { color: var(--primary); }
@@ -27,7 +28,7 @@
         <div class="max-w-4xl mx-auto flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <span class="text-2xl">🚛</span>
-                <span class="font-bold text-lg tracking-wider">COMAV TRANSPORTES</span>
+                <span class="font-bold text-lg tracking-wider">{{ strtoupper(plataforma_nome()) }}</span>
             </div>
             <div class="text-xs bg-white/20 px-3 py-1 rounded-full uppercase tracking-wider font-semibold">
                 Painel de Conformidade
@@ -59,7 +60,7 @@
                         </p>
                         <p class="text-white/85 text-xs mt-2 font-mono">
                             CPF: {{ substr($usuario->cpf, 0, 3) }}.***.***-{{ substr($usuario->cpf, -2) }} | 
-                            Empresa: {{ $usuario->empresa ?? 'COMAV Transportes' }}
+                            Empresa: {{ $usuario->empresa ?? plataforma_nome() }}
                         </p>
                     </div>
                 </div>
@@ -266,7 +267,7 @@
     <!-- Footer -->
     <footer class="bg-gray-200 border-t py-6 px-4 text-center text-xs text-gray-500 mt-auto">
         <div class="max-w-4xl mx-auto space-y-1">
-            <p>&copy; 2026 COMAV Transportes. Todos os direitos reservados.</p>
+            <p>&copy; 2026 {{ plataforma_nome() }}. Todos os direitos reservados.</p>
             <p>Ficha de conformidade gerada e validada digitalmente.</p>
         </div>
     </footer>

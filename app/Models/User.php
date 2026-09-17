@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -10,7 +11,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, BelongsToTenant;
 
     protected $fillable = [
         'nome',
@@ -23,6 +24,7 @@ class User extends Authenticatable
         'status',
         'data_inativacao',
         'role_id',
+        'tenant_id',
         'participa_treinamentos',
         'cnh',
         'categoria_cnh',
@@ -319,12 +321,31 @@ class User extends Authenticatable
      */
     public function getFotoPerfilUrl(): string
     {
-        $path = $this->foto_perfil ? public_path("uploads/perfil/{$this->foto_perfil}") : null;
-        
-        if ($path && file_exists($path)) {
-            return asset("uploads/perfil/{$this->foto_perfil}");
+        if (! $this->foto_perfil) {
+            return $this->getAvatarFallbackUrl();
         }
 
+        // Novo formato: caminho relativo completo (ex.: uploads/3/perfil/x.jpg)
+        $stored = $this->foto_perfil;
+        if (str_starts_with($stored, 'uploads/')) {
+            if (file_exists(public_path($stored))) {
+                return asset($stored);
+            }
+
+            return $this->getAvatarFallbackUrl();
+        }
+
+        // Legado: apenas o nome do arquivo em uploads/perfil
+        $legacy = "uploads/perfil/{$stored}";
+        if (file_exists(public_path($legacy))) {
+            return asset($legacy);
+        }
+
+        return $this->getAvatarFallbackUrl();
+    }
+
+    private function getAvatarFallbackUrl(): string
+    {
         // Avatar colorido baseado nas iniciais do nome
         $initials = $this->getInitials();
         $color = $this->getAvatarColor();

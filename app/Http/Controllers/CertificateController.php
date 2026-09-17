@@ -166,8 +166,8 @@ class CertificateController extends Controller
         ])->render();
 
         $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('Plataforma DSS');
-        $pdf->SetAuthor('Plataforma DSS');
+        $pdf->SetCreator(plataforma_nome());
+        $pdf->SetAuthor(plataforma_nome());
         $pdf->SetTitle('Certificado - ' . $certificate->user->nome);
         $pdf->SetSubject('Certificado de Conclusão');
         $pdf->SetMargins(10, 10, 10);
@@ -201,8 +201,8 @@ class CertificateController extends Controller
         ])->render();
 
         $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('Plataforma DSS');
-        $pdf->SetAuthor('Plataforma DSS');
+        $pdf->SetCreator(plataforma_nome());
+        $pdf->SetAuthor(plataforma_nome());
         $pdf->SetTitle('Certificado - ' . $certificate->user->nome);
         $pdf->SetSubject('Certificado de Conclusão');
         $pdf->SetMargins(10, 10, 10);

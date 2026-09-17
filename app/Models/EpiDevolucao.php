@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class EpiDevolucao extends Model
 {
+    use BelongsToTenant;
     protected $table = 'ss_epi_devolucao';
 
     protected $primaryKey = 'ss_ed_nb_id';

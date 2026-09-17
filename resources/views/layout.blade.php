@@ -5,15 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https:; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:; style-src 'self' 'unsafe-inline' https:;">
-    <title>@yield('title', 'Plataforma DSS')</title>
+    @php
+        $tenant = tenant();
+        $brandPrimary = $tenant?->getCorPrimaria() ?? '#153B2E';
+        $brandPrimaryDark = $tenant?->getCorSecundaria() ?? '#0F2B22';
+        $brandAccent = $tenant?->getAccentColor() ?? '#F28C2B';
+        $brandName = plataforma_nome();
+    @endphp
+    <title>@yield('title', $brandName)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         :root{
-            --primary: #153B2E; /* dark green from logo */
-            --primary-700: #0F2B22; /* darker */
-            --accent: #F28C2B; /* orange accent from logo */
+            --primary: {{ $brandPrimary }}; /* cor principal da marca */
+            --primary-700: {{ $brandPrimaryDark }}; /* tom escuro */
+            --accent: {{ $brandAccent }}; /* cor de destaque */
             --bg-start: #FFF8F1;
             --bg-end: #FFFFFF;
         }
@@ -57,7 +64,7 @@
     </style>
     @yield('extra_css')
 </head>
-<body class="bg-gray-50" style="--primary: #153B2E; --primary-700:#0F2B22; --accent:#F28C2B;">
+<body class="bg-gray-50" style="--primary: {{ $brandPrimary }}; --primary-700:{{ $brandPrimaryDark }}; --accent:{{ $brandAccent }};">
     @if(Auth::check())
         @php
             $epiAlertaCount = 0;
@@ -79,7 +86,7 @@
                     <div class="flex items-center space-x-3">
                         <a href="{{ route('dashboard') }}" class="flex items-center gap-2">
                             <x-logo alt="logo" class="w-8 md:w-10" />
-                            <span class="font-bold text-lg brand-text hidden md:inline-block">Plataforma DSS</span>
+                            <span class="font-bold text-lg brand-text hidden md:inline-block">{{ $brandName }}</span>
                         </a>
                     </div>
 
@@ -170,9 +177,17 @@
                                             <i class="fas fa-bullhorn w-5 mr-2 text-orange-500"></i> Avisos / Splash
                                         </a>
                                     @endif
+                                    @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('folgas', 'view'))
+                                        <a href="{{ route('admin.folgas.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-calendar-day w-5 mr-2 text-emerald-600"></i> Folgas
+                                        </a>
+                                    @endif
                                     @if(Auth::user()->isSuperAdmin())
                                         <a href="{{ route('admin.permissoes.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900 border-t border-gray-100">
                                             <i class="fas fa-user-shield w-5 mr-2 text-purple-600"></i> Permissões
+                                        </a>
+                                        <a href="{{ route('plataforma.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-building w-5 mr-2 text-indigo-600"></i> Plataforma (Clientes)
                                         </a>
                                     @endif
                                 </div>
@@ -315,9 +330,17 @@
                                         <i class="fas fa-bullhorn mr-2"></i> Avisos / Splash
                                     </a>
                                 @endif
+                                @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('folgas', 'view'))
+                                    <a href="{{ route('admin.folgas.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-calendar-day mr-2"></i> Folgas
+                                    </a>
+                                @endif
                                 @if(Auth::user()->isSuperAdmin())
                                     <a href="{{ route('admin.permissoes.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
                                         <i class="fas fa-user-shield mr-2"></i> Permissões
+                                    </a>
+                                    <a href="{{ route('plataforma.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-building mr-2"></i> Plataforma (Clientes)
                                     </a>
                                 @endif
                             </div>

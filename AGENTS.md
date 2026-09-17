@@ -5,11 +5,28 @@ Laravel 10 + PHP 8.1 app ("Plataforma DSS" - corporate training / safety trainin
 ## Commands & tooling
 
 - **No frontend build step**: there is no `package.json`/`node_modules`. Tailwind, jQuery, FontAwesome and SweetAlert are loaded from CDNs in `resources/views/layout.blade.php`. Never run `npm install`/`npm run build`.
-- **No test suite**: no `tests/` dir and no `phpunit.xml` exist. `php artisan test` is useless here. Verify changes with `php artisan tinker` or manual browser testing (`php artisan serve`).
+- **Tests exist** (`phpunit.xml` + `tests/`). Run: `php -d extension=gd -d extension=fileinfo vendor/phpunit/phpunit/phpunit` (SQLite `:memory:`). On Windows CLI, pdo_mysql/gd/fileinfo may need `-d extension=...`.
+- **No `php artisan test` shortcut** (phpunit isn't installed as bin); use the command above.
 - Dev server with raised upload limits: `serve_with_limits.bat` (`php -d upload_max_filesize=250M -d post_max_size=300M -d memory_limit=512M artisan serve`). Needed for video/material uploads.
 - Docker stack: `docker compose up` → app on `localhost:9000`, MariaDB `dss_db` on `3306`, Adminer on `8001`.
 - Ranking artisan commands (live in `app/Console/Commands/`): `php artisan ranking:recalculate --month= --year=`, `php artisan ranking:consolidate --month= --year=`, `php artisan ranking:check`. `ranking:recalculate` is scheduled daily in `app/Console/Kernel.php` (needs cron on deploy).
-- Code style: `vendor/bin/pint` (laravel/pint is a dev dep).
+- **Tenant commands**: `php artisan tenant:backfill --name= --slug=` (cria tenant #1 e preenche tenant_id — rodar na produção após `migrate`).
+- Code style: `vendor/bin/pint` — **run it only on changed files** (`pint <file>...`), never on the whole repo (it reformats everything, line endings included).
+- **Auto-migrate foi desligado (F0)**: DDL de runtime removido. Deploy DEVE rodar `php artisan migrate --force` manualmente.
+
+## Multi-tenancy (em andamento — F1/F2)
+
+- `config/saas.php`: flag `SAAS_MULTITENANT_ENABLED` (default **false** = comportamento single-tenant atual). Ao ativar: tenant resolvido pelo host (raiz = tenant padrão `root_tenant_slug`, subdomínio = slug).
+- Models de domínio usam `App\Models\Concerns\BelongsToTenant` (global scope `TenantScope` + auto-fill de `tenant_id`). `users.tenant_id = NULL` = usuário da plataforma (super_admin), que não é filtrado pelo escopo.
+- `TenantScope` tem regra especial para `Role`/`RolePermission`: além das linhas do tenant, as linhas de sistema (tenant_id NULL) são sempre visíveis.
+- Auth: provider customizado `tenant-eloquent` (`config/auth.php`) ignora o TenantScope na resolução de sessão; login por CPF tem fallback para super_admin em qualquer host.
+- Queries raw (`DB::table`) usam a macro `->whereTenant('tabela')` (definida no `AppServiceProvider`) — obrigatório em tabelas de domínio (EPI, filiais, projeto pedagógico).
+- Módulos por tenant: `tenant_modules` + gate central no `CheckPermission` + middleware `module:<slug>` (rotas admin sem `permission:`).
+- Painel da Plataforma: `/plataforma` (somente super_admin) — CRUD de clientes e toggle de módulos (`Admin\PlataformaTenantController`).
+- Uploads isolados por tenant: `tenant_upload_dir()` (public/uploads/{tenant}/...) e `tenant_public_storage_dir()` (storage/app/public/tenants/{tenant}/...) — fallback legado nos acessores (foto de perfil, social).
+- Comandos (`ranking:*`, `folgas:*`) iteram por tenant via `TenantManager::runForEachTenant()` quando a flag está ativa; `CertificateObserver` roda no contexto do tenant do usuário; `LogSystemRequests` grava `tenant_id`.
+- Rotas públicas (ficha QR, validação de certificado) usam lookups globais (`qrcode_token`, `codigo_certificado` continuam UNIQUE globais).
+- **Deploy**: rodar `php artisan migrate --force` + `php artisan tenant:backfill` antes de ativar a flag.
 
 ## Database
 
@@ -30,11 +47,9 @@ Laravel 10 + PHP 8.1 app ("Plataforma DSS" - corporate training / safety trainin
 
 ## Gotchas
 
-- **Many stale/misplaced PHP files exist. The canonical code is under `app/`.** Treat these as dead code, do not edit them:
-  - Repo root: `RankingController.php`, `RankingCriterion.php`, `RankingRule.php`, `RankingRuleResolverService.php`, `RankingSettingsController.php`, `2026_06_03_000009_create_engagement_ranks_table.php`, `check_ranking.php`, `verify_ranking_data.php`, `test_*.php`, `run_ss_epi_ddl_mysql.php`, `gen_hash.php`, `create_admin.php`, `create_super_admin.php`, `index.blade.php`.
-  - `database/seeders/`: `RankingController.php`, `RankingSettingsController.php`, `settings.blade.php`.
-  - `app/Services/`: `index.blade.php`, `2026_06_08_000000_add_total_raw_score_to_ranking_monthly_scores_table.php`.
-  - Root `index.php` is a real duplicate of `public/index.php` used for cPanel root hosting — update both if you ever touch the front controller.
+- **Código morto removido em 2026-09-16** (backup local em temp). Os arquivos antes listados como dead code (controllers de ranking/folgas na raiz, `test_*.php`, `create_admin.php`, `create_super_admin.php`, migrations fora de `database/migrations`, `*.blade.php` soltos, `composer.json.exemplo`, `camera-test.html`, `.venv`) foram excluídos. Não reintroduza arquivos na raiz do repo.
+- **Documentação** organizada em `docs/`: `SAAS_PLANO.md` + `SAAS_RUNBOOK_DEPLOY.md` na raiz de docs; `docs/operacao/` (instalação, deploy cPanel/ValueHost, logs, dependências); `docs/modulos/` (manuais por módulo); `docs/arquivo/` (históricos — não refletem o estado atual). `README.md` é a porta de entrada.
+- Root `index.php` is a real duplicate of `public/index.php` used for cPanel root hosting — update both if you ever touch the front controller.
 - **`.env.example` and `.env.production.example` are gitignored and absent** from the repo (only `.env` exists locally). README/QUICKSTART/setup.bat reference them, but a fresh clone cannot `cp .env.example .env`.
 - EPI module (`routes/web.php` `epi` prefix) uses legacy `ss_` snake_case column names (e.g. `ss_c_tx_cpf`) — don't "modernize" them.
 - Dockerfile installs `php:8.2-cli` (no apache/nginx — serves via `artisan serve`); local docs say PHP 8.1+.

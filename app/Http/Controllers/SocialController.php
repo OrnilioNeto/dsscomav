@@ -89,7 +89,7 @@ class SocialController extends Controller
 
             // 1. Processar Upload de Foto (se houver)
             if ($request->hasFile('photo')) {
-                $uploadDir = public_path('uploads/social');
+                $uploadDir = public_path(tenant_upload_dir('social'));
                 if (!is_dir($uploadDir)) {
                     @mkdir($uploadDir, 0755, true);
                 }
@@ -151,7 +151,7 @@ class SocialController extends Controller
                     $photo->move($uploadDir, $filename);
                 }
 
-                $photoPath = $filename;
+                $photoPath = tenant_upload_dir('social') . '/' . $filename;
             }
 
             // 2. Processar Dados de Ranking se for compartilhamento de conquista
@@ -197,9 +197,11 @@ class SocialController extends Controller
         }
 
         try {
-            // Deletar arquivo físico
+            // Deletar arquivo físico (legado: uploads/social; novo: caminho completo com tenant)
             if ($post->photo_path) {
-                $filePath = public_path("uploads/social/{$post->photo_path}");
+                $filePath = str_starts_with($post->photo_path, 'uploads/')
+                    ? public_path($post->photo_path)
+                    : public_path("uploads/social/{$post->photo_path}");
                 if (file_exists($filePath)) {
                     @unlink($filePath);
                 }

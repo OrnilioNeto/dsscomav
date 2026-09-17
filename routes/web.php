@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\FolgasController;
+use App\Http\Controllers\Admin\FolgaRelatorioController;
+use App\Http\Controllers\Admin\PlataformaTenantController;
 use App\Http\Controllers\Admin\RankingController;
 use App\Http\Controllers\Admin\RankingSettingsController;
 use App\Http\Controllers\Admin\SplashContentController;
@@ -142,19 +145,21 @@ Route::middleware('auth')->group(function () {
         Route::delete('/materiais/{materialId}', [TrainingMaterialController::class, 'delete'])->name('materiais.delete');
         Route::post('/treinamentos/{trainingId}/materiais/reorder', [TrainingMaterialController::class, 'updateOrder'])->name('materiais.reorder');
 
-        // Certificados e Relatórios Gerenciais
-        Route::get('/certificados-gerencial', [CertificateManagementController::class, 'index'])->name('certificados.gerencial');
-        Route::get('/relatorios/treinamentos', [CertificateManagementController::class, 'relatorioTreinamentos'])->name('relatorios.treinamentos');
-        Route::get('/relatorios/treinamentos/pdf', [CertificateManagementController::class, 'relatorioTreinamentosPdf'])->name('relatorios.treinamentos.pdf');
-        Route::get('/relatorios/treinamentos/resumo-pdf', [CertificateManagementController::class, 'relatorioTreinamentosResumoPdf'])->name('relatorios.treinamentos.resumo_pdf');
-        // IA / Análises gerenciais (Super Admin)
-        Route::get('/relatorios/ia', [CertificateManagementController::class, 'relatoriosIa'])->name('relatorios.ia');
-        Route::post('/relatorios/ia/analyze-local', [CertificateManagementController::class, 'analyzeLocal'])->name('relatorios.ia.analyze_local');
-        Route::post('/relatorios/ia/analyze-ai', [CertificateManagementController::class, 'analyzeAi'])->name('relatorios.ia.analyze_ai');
-        Route::get('/relatorios/ia/pdf', [CertificateManagementController::class, 'relatorioIaPdf'])->name('relatorios.ia.pdf');
-        Route::get('/relatorios/usuarios', [CertificateManagementController::class, 'relatorioUsuarios'])->name('relatorios.usuarios');
-        Route::get('/relatorios/auditoria', [CertificateManagementController::class, 'relatorioAuditoria'])->name('relatorios.auditoria');
-        Route::get('/certificados/exportar', [CertificateManagementController::class, 'exportarCertificados'])->name('certificados.exportar');
+        // Certificados e Relatórios Gerenciais (módulo:certificates)
+        Route::middleware('module:certificates')->group(function () {
+            Route::get('/certificados-gerencial', [CertificateManagementController::class, 'index'])->name('certificados.gerencial');
+            Route::get('/relatorios/treinamentos', [CertificateManagementController::class, 'relatorioTreinamentos'])->name('relatorios.treinamentos');
+            Route::get('/relatorios/treinamentos/pdf', [CertificateManagementController::class, 'relatorioTreinamentosPdf'])->name('relatorios.treinamentos.pdf');
+            Route::get('/relatorios/treinamentos/resumo-pdf', [CertificateManagementController::class, 'relatorioTreinamentosResumoPdf'])->name('relatorios.treinamentos.resumo_pdf');
+            // IA / Análises gerenciais (Super Admin)
+            Route::get('/relatorios/ia', [CertificateManagementController::class, 'relatoriosIa'])->name('relatorios.ia');
+            Route::post('/relatorios/ia/analyze-local', [CertificateManagementController::class, 'analyzeLocal'])->name('relatorios.ia.analyze_local');
+            Route::post('/relatorios/ia/analyze-ai', [CertificateManagementController::class, 'analyzeAi'])->name('relatorios.ia.analyze_ai');
+            Route::get('/relatorios/ia/pdf', [CertificateManagementController::class, 'relatorioIaPdf'])->name('relatorios.ia.pdf');
+            Route::get('/relatorios/usuarios', [CertificateManagementController::class, 'relatorioUsuarios'])->name('relatorios.usuarios');
+            Route::get('/relatorios/auditoria', [CertificateManagementController::class, 'relatorioAuditoria'])->name('relatorios.auditoria');
+            Route::get('/certificados/exportar', [CertificateManagementController::class, 'exportarCertificados'])->name('certificados.exportar');
+        });
 
         // Ranking (acesso controlado por permissão:rankings)
         Route::get('/admin/ranking', [RankingController::class, 'index'])->name('admin.ranking.index');
@@ -167,15 +172,38 @@ Route::middleware('auth')->group(function () {
         Route::put('/admin/ranking/regras/{rule}', [RankingSettingsController::class, 'updateRule'])->name('admin.ranking.rules.update');
         Route::delete('/admin/ranking/regras/{rule}', [RankingSettingsController::class, 'destroyRule'])->name('admin.ranking.rules.destroy');
 
-        // Isenções de treinamento por férias (Super Admin)
-        Route::get('/usuarios/{user}/treinamentos-ferias', [TrainingVacationExemptionController::class, 'index'])->name('usuarios.treinamentos_ferias');
-        Route::post('/usuarios/{user}/treinamentos-ferias', [TrainingVacationExemptionController::class, 'store'])->name('usuarios.treinamentos_ferias.store');
-        Route::delete('/usuarios/{user}/treinamentos-ferias/{exemption}', [TrainingVacationExemptionController::class, 'destroy'])->name('usuarios.treinamentos_ferias.destroy');
+        // Folgas (acesso controlado por permissão:folgas)
+        Route::prefix('admin/folgas')->middleware('permission:folgas')->group(function () {
+            Route::get('/', [FolgasController::class, 'index'])->name('admin.folgas.index');
+            Route::get('/motorista-dados', [FolgasController::class, 'motoristaDados'])->name('admin.folgas.motorista-dados');
+            Route::post('/dia', [FolgasController::class, 'storeDia'])->name('admin.folgas.dia.store');
+            Route::put('/dia/{id}', [FolgasController::class, 'updateDia'])->name('admin.folgas.dia.update');
+            Route::delete('/dia/{id}', [FolgasController::class, 'destroyDia'])->name('admin.folgas.dia.destroy');
+            Route::post('/ajuste', [FolgasController::class, 'ajuste'])->name('admin.folgas.ajuste');
+            Route::post('/ultima-folga', [FolgasController::class, 'registrarUltimaFolga'])->name('admin.folgas.ultima-folga');
+            Route::post('/recalcular', [FolgasController::class, 'recalcular'])->name('admin.folgas.recalcular');
+            Route::post('/importar', [FolgasController::class, 'importar'])->name('admin.folgas.importar');
+            Route::get('/configuracoes', [FolgasController::class, 'configuracoes'])->name('admin.folgas.config');
+            Route::put('/configuracoes', [FolgasController::class, 'updateConfiguracoes'])->name('admin.folgas.config.update');
+            Route::get('/auditoria', [FolgasController::class, 'auditoria'])->name('admin.folgas.auditoria');
+            Route::get('/relatorios', [FolgaRelatorioController::class, 'index'])->name('admin.folgas.relatorios');
+            Route::get('/relatorios/csv', [FolgaRelatorioController::class, 'exportCsv'])->name('admin.folgas.relatorios.csv');
+            Route::get('/relatorios/pdf', [FolgaRelatorioController::class, 'exportPdf'])->name('admin.folgas.relatorios.pdf');
+        });
 
-        // Liberar conteúdo para reassistir (admin)
-        Route::get('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'index'])->name('usuarios.treinamentos_reassistir');
-        Route::post('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'store'])->name('usuarios.treinamentos_reassistir.store');
-        Route::delete('/usuarios/{user}/treinamentos-reassistir/{rewatch}', [TrainingRewatchController::class, 'destroy'])->name('usuarios.treinamentos_reassistir.destroy');
+        // Isenções de treinamento por férias (módulo:trainings)
+        Route::middleware('module:trainings')->group(function () {
+            Route::get('/usuarios/{user}/treinamentos-ferias', [TrainingVacationExemptionController::class, 'index'])->name('usuarios.treinamentos_ferias');
+            Route::post('/usuarios/{user}/treinamentos-ferias', [TrainingVacationExemptionController::class, 'store'])->name('usuarios.treinamentos_ferias.store');
+            Route::delete('/usuarios/{user}/treinamentos-ferias/{exemption}', [TrainingVacationExemptionController::class, 'destroy'])->name('usuarios.treinamentos_ferias.destroy');
+        });
+
+        // Liberar conteúdo para reassistir (módulo:rewatch)
+        Route::middleware('module:rewatch')->group(function () {
+            Route::get('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'index'])->name('usuarios.treinamentos_reassistir');
+            Route::post('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'store'])->name('usuarios.treinamentos_reassistir.store');
+            Route::delete('/usuarios/{user}/treinamentos-reassistir/{rewatch}', [TrainingRewatchController::class, 'destroy'])->name('usuarios.treinamentos_reassistir.destroy');
+        });
 
         // Gerenciador de Conteúdos Splash (acesso controlado por permissão:splash)
         Route::get('/admin/splash', [SplashContentController::class, 'index'])->name('admin.splash.index');
@@ -193,6 +221,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/admin/permissoes/perfis', [PermissionController::class, 'storeRole'])->name('admin.permissoes.storeRole');
         Route::delete('/admin/permissoes/perfis/{id}', [PermissionController::class, 'destroyRole'])->name('admin.permissoes.destroyRole');
         Route::post('/admin/permissoes/salvar', [PermissionController::class, 'updatePermissions'])->name('admin.permissoes.update');
+
+        // Painel da Plataforma (clientes + módulos) — sem contexto de tenant
+        Route::prefix('plataforma')->name('plataforma.')->group(function () {
+            Route::get('/', [PlataformaTenantController::class, 'index'])->name('index');
+            Route::get('/criar', [PlataformaTenantController::class, 'create'])->name('create');
+            Route::post('/', [PlataformaTenantController::class, 'store'])->name('store');
+            Route::get('/{tenant}', [PlataformaTenantController::class, 'edit'])->name('edit');
+            Route::put('/{tenant}', [PlataformaTenantController::class, 'update'])->name('update');
+            Route::post('/{tenant}/admin', [PlataformaTenantController::class, 'createAdmin'])->name('admins.store');
+            Route::post('/{tenant}/modulos/{module}/toggle', [PlataformaTenantController::class, 'toggleModule'])->name('modules.toggle');
+        });
     });
 
     // REDE SOCIAL (Acesso controlado por permissão:social)

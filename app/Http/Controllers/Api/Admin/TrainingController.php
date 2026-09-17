@@ -269,7 +269,7 @@ class TrainingController extends Controller
         }
 
         $file = $request->file('arquivo');
-        $path = $file->store("materiais-apoio/training-{$training->id}", 'public');
+        $path = $file->store(tenant_public_storage_dir("materiais-apoio/training-{$training->id}"), 'public');
 
         $material = TrainingMaterial::create([
             'training_id' => $training->id,

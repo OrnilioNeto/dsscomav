@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+
+use App\Models\Concerns\BelongsToTenant;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +11,7 @@ use Illuminate\Support\Facades\Schema;
 
 class Certificate extends Model
 {
+    use BelongsToTenant;
     use HasFactory;
 
     protected $fillable = [

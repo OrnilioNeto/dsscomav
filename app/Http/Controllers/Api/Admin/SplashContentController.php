@@ -5,28 +5,9 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SplashContent;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 
 class SplashContentController extends Controller
 {
-    private function ensureSplashTableExists()
-    {
-        if (!Schema::hasTable('splash_contents')) {
-            Schema::create('splash_contents', function ($table) {
-                $table->id();
-                $table->string('titulo');
-                $table->text('texto_conteudo')->nullable();
-                $table->string('material_path')->nullable();
-                $table->string('material_tipo')->nullable();
-                $table->date('data_inicio');
-                $table->date('data_fim');
-                $table->string('status')->default('ativo');
-                $table->integer('ordem')->default(0);
-                $table->timestamps();
-            });
-        }
-    }
-
     private function serialize(SplashContent $c): array
     {
         return [
@@ -44,7 +25,6 @@ class SplashContentController extends Controller
 
     public function __construct()
     {
-        $this->ensureSplashTableExists();
     }
 
     public function index()
@@ -81,8 +61,8 @@ class SplashContentController extends Controller
         if ($request->hasFile('material')) {
             $file = $request->file('material');
             $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
-            $file->move(public_path('uploads/splash'), $filename);
-            $data['material_path'] = 'uploads/splash/' . $filename;
+            $file->move(public_path(tenant_upload_dir('splash')), $filename);
+            $data['material_path'] = tenant_upload_dir('splash') . '/' . $filename;
             $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
         }
 
@@ -121,8 +101,8 @@ class SplashContentController extends Controller
 
             $file = $request->file('material');
             $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
-            $file->move(public_path('uploads/splash'), $filename);
-            $data['material_path'] = 'uploads/splash/' . $filename;
+            $file->move(public_path(tenant_upload_dir('splash')), $filename);
+            $data['material_path'] = tenant_upload_dir('splash') . '/' . $filename;
             $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
         }
 

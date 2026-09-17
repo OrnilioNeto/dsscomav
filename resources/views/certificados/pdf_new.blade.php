@@ -274,9 +274,12 @@
     <!-- Header with title and code -->
     <div class="certificate-header" style="text-align:center;">
         @php
-            $logoPath = file_exists(public_path('images/logo-comav-transportes.png'))
-                ? public_path('images/logo-comav-transportes.png')
-                : public_path('imagens/logo-comav-transportes.png');
+            $tenant = tenant();
+            $logoPath = $tenant?->logoFilePath('logo_certificado')
+                ?? $tenant?->logoFilePath('logo')
+                ?? (file_exists(public_path('images/logo-comav-transportes.png'))
+                    ? public_path('images/logo-comav-transportes.png')
+                    : public_path('imagens/logo-comav-transportes.png'));
             $logoBase64 = file_exists($logoPath) ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)) : null;
         @endphp
 
@@ -316,7 +319,7 @@
                 <div class="info-grid">
                     <div class="info-item">
                         <div class="info-label">EMPRESA</div>
-                        <div class="info-value">{{ $certificate->user->empresa ?? 'Não informada' }}</div>
+                        <div class="info-value">{{ $certificate->user->empresa ?? plataforma_nome() }}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">TIPO DE USUÁRIO</div>
@@ -330,17 +333,17 @@
                 <div class="section-title">Instrutor</div>
                 <div class="field-row">
                     <div class="field-label">Nome</div>
-                    <div class="field-value">Ornilio Machado Neto</div>
+                    <div class="field-value">{{ $tenant?->getInstrutorNome() ?? 'Ornilio Machado Neto' }}</div>
                 </div>
 
                 <div class="info-grid">
                     <div class="info-item">
                         <div class="info-label">QUALIFICAÇÃO</div>
-                        <div class="info-value">Tec Segurança do Trabalho</div>
+                        <div class="info-value">{{ $tenant?->getInstrutorQualificacao() ?? 'Tec Segurança do Trabalho' }}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">RG</div>
-                        <div class="info-value">10827</div>
+                        <div class="info-value">{{ $tenant?->getInstrutorRg() ?? '10827' }}</div>
                     </div>
                 </div>
 

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SplashContent;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 
@@ -13,27 +12,8 @@ class SplashContentController extends Controller
 {
     public function __construct()
     {
-        $this->ensureSplashTableExists();
         $this->middleware('permission:splash,view')->only(['index']);
         $this->middleware('permission:splash,edit')->except(['index']);
-    }
-
-    private function ensureSplashTableExists()
-    {
-        if (!Schema::hasTable('splash_contents')) {
-            Schema::create('splash_contents', function ($table) {
-                $table->id();
-                $table->string('titulo');
-                $table->text('texto_conteudo')->nullable();
-                $table->string('material_path')->nullable();
-                $table->string('material_tipo')->nullable(); // imagem, pdf
-                $table->date('data_inicio');
-                $table->date('data_fim');
-                $table->string('status')->default('ativo'); // ativo, inativo
-                $table->integer('ordem')->default(0);
-                $table->timestamps();
-            });
-        }
     }
 
     public function index()
@@ -58,8 +38,8 @@ class SplashContentController extends Controller
         if ($request->hasFile('material')) {
             $file = $request->file('material');
             $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
-            $file->move(public_path('uploads/splash'), $filename);
-            $data['material_path'] = 'uploads/splash/' . $filename;
+            $file->move(public_path(tenant_upload_dir('splash')), $filename);
+            $data['material_path'] = tenant_upload_dir('splash') . '/' . $filename;
             $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
         }
 
@@ -88,8 +68,8 @@ class SplashContentController extends Controller
             
             $file = $request->file('material');
             $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
-            $file->move(public_path('uploads/splash'), $filename);
-            $data['material_path'] = 'uploads/splash/' . $filename;
+            $file->move(public_path(tenant_upload_dir('splash')), $filename);
+            $data['material_path'] = tenant_upload_dir('splash') . '/' . $filename;
             $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
         }
 
