@@ -4,41 +4,23 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SplashContent;
+use App\Support\SafeUpload;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB;
 
 class SplashContentController extends Controller
 {
+    private const MATERIAL_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf'];
+
     public function __construct()
     {
-        $this->ensureSplashTableExists();
         $this->middleware('permission:splash,view')->only(['index']);
         $this->middleware('permission:splash,edit')->except(['index']);
-    }
-
-    private function ensureSplashTableExists()
-    {
-        if (!Schema::hasTable('splash_contents')) {
-            Schema::create('splash_contents', function ($table) {
-                $table->id();
-                $table->string('titulo');
-                $table->text('texto_conteudo')->nullable();
-                $table->string('material_path')->nullable();
-                $table->string('material_tipo')->nullable(); // imagem, pdf
-                $table->date('data_inicio');
-                $table->date('data_fim');
-                $table->string('status')->default('ativo'); // ativo, inativo
-                $table->integer('ordem')->default(0);
-                $table->timestamps();
-            });
-        }
     }
 
     public function index()
     {
         $contents = SplashContent::orderBy('ordem')->get();
+
         return view('admin.splash.index', compact('contents'));
     }
 
@@ -57,10 +39,16 @@ class SplashContentController extends Controller
 
         if ($request->hasFile('material')) {
             $file = $request->file('material');
-            $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
-            $file->move(public_path('uploads/splash'), $filename);
-            $data['material_path'] = 'uploads/splash/' . $filename;
-            $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
+            $extensao = SafeUpload::extensionFromUploadedFile($file, self::MATERIAL_EXTENSIONS);
+
+            if ($extensao === null) {
+                return redirect()->back()->withErrors(['material' => 'Tipo de arquivo não permitido. Envie JPG, PNG ou PDF.']);
+            }
+
+            $filename = time().'_'.uniqid().'.'.$extensao;
+            $file->move(public_path(tenant_upload_dir('splash')), $filename);
+            $data['material_path'] = tenant_upload_dir('splash').'/'.$filename;
+            $data['material_tipo'] = $extensao === 'pdf' ? 'pdf' : 'imagem';
         }
 
         SplashContent::create($data);
@@ -76,6 +64,7 @@ class SplashContentController extends Controller
             'titulo' => 'required|max:255',
             'data_inicio' => 'required|date',
             'data_fim' => 'required|date|after_or_equal:data_inicio',
+            'material' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240', // 10MB
         ]);
 
         $data = $request->only(['titulo', 'texto_conteudo', 'data_inicio', 'data_fim', 'status']);
@@ -85,12 +74,18 @@ class SplashContentController extends Controller
             if ($content->material_path && file_exists(public_path($content->material_path))) {
                 @unlink(public_path($content->material_path));
             }
-            
+
             $file = $request->file('material');
-            $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
-            $file->move(public_path('uploads/splash'), $filename);
-            $data['material_path'] = 'uploads/splash/' . $filename;
-            $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
+            $extensao = SafeUpload::extensionFromUploadedFile($file, self::MATERIAL_EXTENSIONS);
+
+            if ($extensao === null) {
+                return redirect()->back()->withErrors(['material' => 'Tipo de arquivo não permitido. Envie JPG, PNG ou PDF.']);
+            }
+
+            $filename = time().'_'.uniqid().'.'.$extensao;
+            $file->move(public_path(tenant_upload_dir('splash')), $filename);
+            $data['material_path'] = tenant_upload_dir('splash').'/'.$filename;
+            $data['material_tipo'] = $extensao === 'pdf' ? 'pdf' : 'imagem';
         }
 
         $content->update($data);
@@ -101,7 +96,7 @@ class SplashContentController extends Controller
     public function destroy($id)
     {
         $content = SplashContent::findOrFail($id);
-        
+
         if ($content->material_path && file_exists(public_path($content->material_path))) {
             @unlink(public_path($content->material_path));
         }
@@ -124,7 +119,7 @@ class SplashContentController extends Controller
     {
         $request->validate([
             'ids' => 'required|array',
-            'ids.*' => 'exists:splash_contents,id'
+            'ids.*' => 'exists:splash_contents,id',
         ]);
 
         foreach ($request->ids as $index => $id) {

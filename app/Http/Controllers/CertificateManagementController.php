@@ -844,7 +844,7 @@ class CertificateManagementController extends Controller
 
         // Generate PDF with TCPDF (Landscape orientation)
         $pdf = new TCPDF('L');
-        $pdf->SetCreator('Plataforma DSS');
+        $pdf->SetCreator(plataforma_nome());
         $pdf->SetAuthor('Plataforma DSS');
         $pdf->SetTitle('Relatorio de Treinamentos');
         $pdf->SetMargins(8, 18, 8);
@@ -854,7 +854,7 @@ class CertificateManagementController extends Controller
         $pdf->AddPage();
 
         // Add logo if exists
-        $logoPath = public_path('images/logo-comav-transportes.png');
+        $logoPath = tenant()?->logoFilePath('logo_certificado') ?? tenant()?->logoFilePath('logo') ?? public_path('images/logo-comav-transportes.png');
         if (file_exists($logoPath)) {
             $pdf->Image($logoPath, 10, 20, 22, '', '', '', '', false, 300, '', false, false, 0);
             $pdf->SetY(18);
@@ -1066,7 +1066,7 @@ class CertificateManagementController extends Controller
 
         // Gerar PDF
         $pdf = new TCPDF('L');
-        $pdf->SetCreator('Plataforma DSS');
+        $pdf->SetCreator(plataforma_nome());
         $pdf->SetAuthor('Plataforma DSS');
         $pdf->SetTitle('Resumo de Desempenho por Conteúdo');
         $pdf->SetMargins(8, 18, 8);
@@ -1075,7 +1075,7 @@ class CertificateManagementController extends Controller
         $pdf->SetLineWidth(0.2);
         $pdf->AddPage();
 
-        $logoPath = public_path('images/logo-comav-transportes.png');
+        $logoPath = tenant()?->logoFilePath('logo_certificado') ?? tenant()?->logoFilePath('logo') ?? public_path('images/logo-comav-transportes.png');
         if (file_exists($logoPath)) {
             $pdf->Image($logoPath, 10, 20, 22, '', '', '', '', false, 300, '', false, false, 0);
             $pdf->SetY(18);
@@ -1327,7 +1327,7 @@ class CertificateManagementController extends Controller
 
         // Generate PDF with TCPDF (Landscape orientation)
         $pdf = new TCPDF('L');
-        $pdf->SetCreator('Plataforma DSS');
+        $pdf->SetCreator(plataforma_nome());
         $pdf->SetAuthor('Plataforma DSS');
         $pdf->SetTitle('Relatorio Analitico - '.$training->titulo);
         $pdf->SetMargins(8, 18, 8);
@@ -1337,7 +1337,7 @@ class CertificateManagementController extends Controller
         $pdf->AddPage();
 
         // Add logo if exists
-        $logoPath = public_path('images/logo-comav-transportes.png');
+        $logoPath = tenant()?->logoFilePath('logo_certificado') ?? tenant()?->logoFilePath('logo') ?? public_path('images/logo-comav-transportes.png');
         if (file_exists($logoPath)) {
             $pdf->Image($logoPath, 10, 20, 22, '', '', '', '', false, 300, '', false, false, 0);
             $pdf->SetY(18);

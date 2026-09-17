@@ -19,7 +19,7 @@
 </head>
 <body>
     <h1>PROJETO PEDAGÓGICO</h1>
-    <div class="subtitulo">Capacitações em Segurança e Saúde no Trabalho — Plataforma DSS</div>
+    <div class="subtitulo">Capacitações em Segurança e Saúde no Trabalho — {{ plataforma_nome() }}</div>
     <div class="barra"></div>
 
     <div class="cabecalho">

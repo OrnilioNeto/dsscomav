@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\SplashContentController;
+use App\Http\Controllers\Api\Admin\TrainingController as AdminTrainingController;
+use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\DashboardController;
@@ -10,8 +13,6 @@ use App\Http\Controllers\Api\RankingController;
 use App\Http\Controllers\Api\SocialController;
 use App\Http\Controllers\Api\TrainingController;
 use App\Http\Controllers\Api\TrainingMaterialController;
-use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
-use App\Http\Controllers\Api\Admin\TrainingController as AdminTrainingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -23,12 +24,12 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     // ---- Públicas ----
-    Route::get('/certificates/validate/{codigo}', [CertificateController::class, 'validateCertificate']);
-    Route::get('/ficha/{token}', [MiscController::class, 'fichaPublica']);
+    Route::get('/certificates/validate/{codigo}', [CertificateController::class, 'validateCertificate'])->middleware('throttle:30,1');
+    Route::get('/ficha/{token}', [MiscController::class, 'fichaPublica'])->middleware('throttle:30,1');
 
     // Proxy de vídeo (autenticado por header OU token na query — players nativos
     // podem não enviar headers personalizados)
-    Route::get('/trainings/{id}/stream-proxy', [TrainingController::class, 'streamProxy']);
+    Route::get('/trainings/{id}/stream-proxy', [TrainingController::class, 'streamProxy'])->middleware('throttle:120,1');
 
     // ---- Autenticação ----
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -114,11 +115,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/admin/ranking/recalculate', [RankingController::class, 'recalculate'])->middleware('api.permission:rankings,edit');
 
             // Splash (admin)
-            Route::get('/admin/splash', [App\Http\Controllers\Api\Admin\SplashContentController::class, 'index'])->middleware('api.permission:splash,view');
-            Route::post('/admin/splash', [App\Http\Controllers\Api\Admin\SplashContentController::class, 'store'])->middleware('api.permission:splash,edit');
-            Route::put('/admin/splash/{id}', [App\Http\Controllers\Api\Admin\SplashContentController::class, 'update'])->middleware('api.permission:splash,edit');
-            Route::delete('/admin/splash/{id}', [App\Http\Controllers\Api\Admin\SplashContentController::class, 'destroy'])->middleware('api.permission:splash,edit');
-            Route::patch('/admin/splash/{id}/toggle', [App\Http\Controllers\Api\Admin\SplashContentController::class, 'toggleStatus'])->middleware('api.permission:splash,edit');
+            Route::get('/admin/splash', [SplashContentController::class, 'index'])->middleware('api.permission:splash,view');
+            Route::post('/admin/splash', [SplashContentController::class, 'store'])->middleware('api.permission:splash,edit');
+            Route::put('/admin/splash/{id}', [SplashContentController::class, 'update'])->middleware('api.permission:splash,edit');
+            Route::delete('/admin/splash/{id}', [SplashContentController::class, 'destroy'])->middleware('api.permission:splash,edit');
+            Route::patch('/admin/splash/{id}/toggle', [SplashContentController::class, 'toggleStatus'])->middleware('api.permission:splash,edit');
         });
     });
 });

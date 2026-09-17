@@ -37,7 +37,7 @@
                     <i class="fas fa-shield-alt"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold text-emerald-950 uppercase tracking-wide">Plataforma DSS - Saúde e Segurança</h1>
+                    <h1 class="text-xl font-bold text-emerald-950 uppercase tracking-wide">{{ plataforma_nome() }} - Saúde e Segurança</h1>
                     <p class="text-xs text-gray-500 font-semibold">Gestão de Equipamentos de Proteção Individual (NR-06)</p>
                 </div>
             </div>

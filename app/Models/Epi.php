@@ -2,13 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use App\Models\Concerns\BelongsToTenant;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class Epi extends Model
 {
+    use Auditable;
+    use BelongsToTenant;
+
     protected $table = 'ss_epi';
+
     protected $primaryKey = 'ss_e_nb_id';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -57,7 +65,7 @@ class Epi extends Model
         }
 
         try {
-            $vencimento = \Carbon\Carbon::parse($this->ss_e_tx_validade_ca)->startOfDay();
+            $vencimento = Carbon::parse($this->ss_e_tx_validade_ca)->startOfDay();
         } catch (\Throwable $e) {
             return 'sem_data';
         }
@@ -89,13 +97,13 @@ class Epi extends Model
     public function getStatusCaBadgeAttribute(): array
     {
         $mapa = [
-            'vencido'      => ['CA Vencido', 'bg-rose-100 text-rose-700'],
+            'vencido' => ['CA Vencido', 'bg-rose-100 text-rose-700'],
             'expirando_30' => ['CA vence em 30 dias', 'bg-amber-100 text-amber-800'],
             'expirando_60' => ['CA vence em 60 dias', 'bg-yellow-100 text-yellow-800'],
             'expirando_90' => ['CA vence em 90 dias', 'bg-yellow-50 text-yellow-700'],
-            'sem_data'     => ['Sem validade de CA', 'bg-gray-200 text-gray-600'],
-            'sem_info'     => ['CA não informado', 'bg-gray-100 text-gray-400'],
-            'valido'       => ['CA válido', 'bg-emerald-100 text-emerald-700'],
+            'sem_data' => ['Sem validade de CA', 'bg-gray-200 text-gray-600'],
+            'sem_info' => ['CA não informado', 'bg-gray-100 text-gray-400'],
+            'valido' => ['CA válido', 'bg-emerald-100 text-emerald-700'],
         ];
 
         return $mapa[$this->status_ca] ?? $mapa['sem_info'];
@@ -121,13 +129,15 @@ class Epi extends Model
         foreach ($itens as $item) {
             if (empty($item->ss_e_tx_validade_ca)) {
                 $semData++;
+
                 continue;
             }
 
             try {
-                $vencimento = \Carbon\Carbon::parse($item->ss_e_tx_validade_ca)->startOfDay();
+                $vencimento = Carbon::parse($item->ss_e_tx_validade_ca)->startOfDay();
             } catch (\Throwable $e) {
                 $semData++;
+
                 continue;
             }
 
@@ -139,10 +149,10 @@ class Epi extends Model
         }
 
         return [
-            'total'     => $vencidos + $expirando + $semData,
-            'vencidos'  => $vencidos,
+            'total' => $vencidos + $expirando + $semData,
+            'vencidos' => $vencidos,
             'expirando' => $expirando,
-            'sem_data'  => $semData,
+            'sem_data' => $semData,
         ];
     }
 
@@ -152,14 +162,15 @@ class Epi extends Model
     public function getSaldoPorFilial($empresaId = null, $variacaoId = null): int
     {
         $query = DB::table('ss_epi_estoque')
+            ->whereTenant('ss_epi_estoque')
             ->where('ss_e_nb_epi_id', $this->ss_e_nb_id);
 
         if ($empresaId !== null && $empresaId !== '') {
-            $empresaIdInt = (int)$empresaId;
+            $empresaIdInt = (int) $empresaId;
             if ($empresaIdInt === 0) {
                 $query->where(function ($q) {
                     $q->whereNull('ss_e_nb_empresa_id')
-                      ->orWhere('ss_e_nb_empresa_id', 0);
+                        ->orWhere('ss_e_nb_empresa_id', 0);
                 });
             } else {
                 $query->where('ss_e_nb_empresa_id', $empresaIdInt);
@@ -182,6 +193,7 @@ class Epi extends Model
     public function getSaldoTotalRede($variacaoId = null): int
     {
         $query = DB::table('ss_epi_estoque')
+            ->whereTenant('ss_epi_estoque')
             ->where('ss_e_nb_epi_id', $this->ss_e_nb_id);
 
         if ($variacaoId !== null) {

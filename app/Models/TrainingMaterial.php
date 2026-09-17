@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class TrainingMaterial extends Model
 {
+    use Auditable;
+    use BelongsToTenant;
     use HasFactory;
 
     protected $table = 'training_materials';
@@ -41,12 +45,12 @@ class TrainingMaterial extends Model
 
         foreach ($unidades as $unidade) {
             if ($tamanho < 1024) {
-                return round($tamanho, 2) . ' ' . $unidade;
+                return round($tamanho, 2).' '.$unidade;
             }
             $tamanho /= 1024;
         }
 
-        return round($tamanho, 2) . ' TB';
+        return round($tamanho, 2).' TB';
     }
 
     public function getIcone()

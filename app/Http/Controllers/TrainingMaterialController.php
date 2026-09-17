@@ -4,55 +4,31 @@ namespace App\Http\Controllers;
 
 use App\Models\Training;
 use App\Models\TrainingMaterial;
+use App\Services\AuditLogger;
+use App\Support\SafeUpload;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class TrainingMaterialController extends Controller
 {
+    private const MATERIAL_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'zip', 'rar', 'txt'];
+
+    private const MATERIAL_MIMES = 'pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,zip,rar,txt';
+
+    private const MAX_CHUNK_INDEX = 20000;
+
     public function __construct()
     {
-        // Garantir que a tabela de materiais existe quando o controller for carregado
-        $this->ensureTrainingMaterialsTableExists();
-
         // Middleware de permissões
         $this->middleware('permission:trainings,edit')->except('download');
-    }
-
-    /**
-     * Verifica se a tabela training_materials existe,
-     * se não existir, a cria automaticamente.
-     */
-    private function ensureTrainingMaterialsTableExists()
-    {
-        try {
-            if (!Schema::hasTable('training_materials')) {
-                Schema::create('training_materials', function ($table) {
-                    $table->id();
-                    $table->unsignedBigInteger('training_id');
-                    $table->string('nome');
-                    $table->text('descricao')->nullable();
-                    $table->string('arquivo');
-                    $table->string('tipo_arquivo');
-                    $table->unsignedBigInteger('tamanho');
-                    $table->integer('ordem')->default(0);
-                    $table->timestamps();
-
-                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
-                    $table->index('training_id');
-                });
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar tabela training_materials: ' . $e->getMessage());
-        }
     }
 
     // Upload de material de apoio
     public function upload(Request $request, $trainingId)
     {
         // Validar que o usuário é admin
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -70,7 +46,7 @@ class TrainingMaterialController extends Controller
             ]);
         } catch (\Exception $e) {
             // Não interromper o fluxo em caso de erro de logging
-            \Log::warning('Falha ao logar debug de upload: ' . $e->getMessage());
+            \Log::warning('Falha ao logar debug de upload: '.$e->getMessage());
         }
         // Suporte a upload por chunks: se vierem os campos upload_id e chunk_index
         $isChunk = $request->filled('upload_id') && $request->filled('chunk_index') && $request->hasFile('chunk');
@@ -79,14 +55,18 @@ class TrainingMaterialController extends Controller
             $uploadId = preg_replace('/[^A-Za-z0-9\-_]/', '', $request->input('upload_id'));
             $chunkIndex = (int) $request->input('chunk_index');
             $chunkCount = (int) $request->input('chunk_count');
-            $originalName = $request->input('original_name', 'upload.bin');
+            $originalName = basename((string) $request->input('original_name', 'upload.bin'));
 
-            $tmpDir = storage_path('app/tmp/uploads');
-            if (!is_dir($tmpDir)) {
-                mkdir($tmpDir, 0777, true);
+            if ($uploadId === '' || $chunkIndex < 0 || $chunkCount < 1 || $chunkIndex >= $chunkCount || $chunkCount > self::MAX_CHUNK_INDEX) {
+                return response()->json(['error' => 'Parâmetros de upload em chunks inválidos.'], 422);
             }
 
-            $tmpPath = $tmpDir . DIRECTORY_SEPARATOR . $uploadId . '.part';
+            $tmpDir = storage_path('app/tmp/uploads');
+            if (! is_dir($tmpDir)) {
+                mkdir($tmpDir, 0755, true);
+            }
+
+            $tmpPath = $tmpDir.DIRECTORY_SEPARATOR.$uploadId.'.part';
 
             $chunkFile = $request->file('chunk');
             if (! $chunkFile->isValid()) {
@@ -98,24 +78,39 @@ class TrainingMaterialController extends Controller
                 $contents = file_get_contents($chunkFile->getRealPath());
                 file_put_contents($tmpPath, $contents, FILE_APPEND);
             } catch (\Exception $e) {
-                return response()->json(['error' => 'Falha ao gravar chunk: ' . $e->getMessage()], 500);
+                return response()->json(['error' => 'Falha ao gravar chunk: '.$e->getMessage()], 500);
             }
 
             // Se for o último chunk, processa como upload completo
             if ($chunkIndex + 1 >= $chunkCount) {
-                // Criar uma instância simulada para seguir o fluxo de armazenamento
                 try {
-                    $stream = fopen($tmpPath, 'r');
                     $filename = basename($originalName);
-                    $extensao = pathinfo($filename, PATHINFO_EXTENSION);
                     $tamanho = filesize($tmpPath);
 
-                    $relativePath = "materiais-apoio/training-{$trainingId}/" . uniqid() . '-' . $filename;
-                    $fullStoragePath = storage_path('app/public/' . $relativePath);
+                    if ($tamanho === false || $tamanho > 256000 * 1024) {
+                        @unlink($tmpPath);
+
+                        return response()->json(['error' => 'O arquivo deve ter no máximo 250 MB.'], 422);
+                    }
+
+                    // Extensão derivada do conteúdo real do arquivo (allowlist)
+                    $extensao = SafeUpload::extensionFromPath($tmpPath, self::MATERIAL_EXTENSIONS);
+                    $safeFileName = SafeUpload::filenameForPath($tmpPath, self::MATERIAL_EXTENSIONS);
+
+                    if ($extensao === null || $safeFileName === null) {
+                        @unlink($tmpPath);
+
+                        return response()->json(['error' => 'Tipo de arquivo não permitido. Envie PDF, Office, imagem, zip/rar ou txt.'], 422);
+                    }
+
+                    $relativePath = tenant_public_storage_dir("materiais-apoio/training-{$trainingId}").'/'.$safeFileName;
+                    $fullStoragePath = storage_path('app/public/'.$relativePath);
 
                     // Garante diretório
                     $dir = dirname($fullStoragePath);
-                    if (!is_dir($dir)) mkdir($dir, 0777, true);
+                    if (! is_dir($dir)) {
+                        mkdir($dir, 0755, true);
+                    }
 
                     // Move o arquivo temporário para o storage público
                     rename($tmpPath, $fullStoragePath);
@@ -144,7 +139,7 @@ class TrainingMaterialController extends Controller
                         'tamanho_formatado' => $material->getTamanhoFormatado(),
                     ]);
                 } catch (\Exception $e) {
-                    return response()->json(['error' => 'Falha ao finalizar upload: ' . $e->getMessage()], 500);
+                    return response()->json(['error' => 'Falha ao finalizar upload: '.$e->getMessage()], 500);
                 }
             }
 
@@ -155,13 +150,14 @@ class TrainingMaterialController extends Controller
         $validator = \Validator::make($request->all(), [
             'nome' => 'nullable|string|max:255',
             'descricao' => 'nullable|string',
-            'arquivo' => 'required|file|max:256000', // 250MB max
+            'arquivo' => 'required|file|max:256000|mimes:'.self::MATERIAL_MIMES, // 250MB max
         ], [
             'nome.max' => 'O nome do material deve ter no máximo 255 caracteres.',
             'arquivo.required' => 'Selecione um arquivo para o material de apoio.',
             'arquivo.file' => 'O arquivo não pôde ser enviado. Verifique se ele não excede o limite do PHP ou se o upload foi concluído corretamente.',
             'arquivo.uploaded' => 'O arquivo não pôde ser enviado. Verifique se o tamanho permitido no PHP é maior do que o arquivo selecionado.',
             'arquivo.max' => 'O arquivo deve ter no máximo 250 MB.',
+            'arquivo.mimes' => 'Tipo de arquivo não permitido. Envie PDF, Office, imagem, zip/rar ou txt.',
         ]);
 
         if ($validator->fails()) {
@@ -171,12 +167,21 @@ class TrainingMaterialController extends Controller
         try {
             $arquivo = $request->file('arquivo');
             $nomeOriginal = $arquivo->getClientOriginalName();
-            $extensao = $arquivo->getClientOriginalExtension();
             $tamanho = $arquivo->getSize();
-            
-            // Armazenar o arquivo
-            $caminhoArmazenado = $arquivo->store(
-                "materiais-apoio/training-{$trainingId}",
+
+            // Nome/extensão gerados no servidor a partir do MIME real do arquivo
+            $safeFileName = SafeUpload::filenameForUploadedFile($arquivo, self::MATERIAL_EXTENSIONS);
+
+            if ($safeFileName === null) {
+                return response()->json(['errors' => ['arquivo' => ['Tipo de arquivo não permitido.']]], 422);
+            }
+
+            $extensao = pathinfo($safeFileName, PATHINFO_EXTENSION);
+
+            // Armazenar o arquivo (isolado por tenant)
+            $caminhoArmazenado = $arquivo->storeAs(
+                tenant_public_storage_dir("materiais-apoio/training-{$trainingId}"),
+                $safeFileName,
                 'public'
             );
 
@@ -229,7 +234,7 @@ class TrainingMaterialController extends Controller
     public function delete($materialId)
     {
         // Validar que o usuário é admin
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -260,18 +265,25 @@ class TrainingMaterialController extends Controller
         $training = $material->training;
         $user = Auth::user();
 
-        if (!$training->isPermittedFor($user->tipo_usuario) && !$user->canAccessTraining($training)) {
+        if (! $training->isPermittedFor($user->tipo_usuario) && ! $user->canAccessTraining($training)) {
             return redirect()->back()->with('error', 'Você não tem acesso a este material.');
         }
 
         // Verificar se o arquivo existe
-        if (!Storage::disk('public')->exists($material->arquivo)) {
+        if (! Storage::disk('public')->exists($material->arquivo)) {
             return redirect()->back()->with('error', 'Arquivo não encontrado.');
         }
 
         // Fazer download do arquivo físico armazenado
         $fullPath = Storage::disk('public')->path($material->arquivo);
         $downloadName = basename($material->arquivo);
+
+        app(AuditLogger::class)->log('downloaded', [
+            'module' => 'trainings',
+            'auditable_type' => TrainingMaterial::class,
+            'auditable_id' => $material->id,
+            'description' => 'Baixou o material: '.$material->nome,
+        ]);
 
         return response()->download($fullPath, $downloadName, [
             'Content-Type' => Storage::disk('public')->mimeType($material->arquivo) ?: 'application/octet-stream',
@@ -281,7 +293,7 @@ class TrainingMaterialController extends Controller
     // Atualizar ordem dos materiais (AJAX)
     public function updateOrder(Request $request, $trainingId)
     {
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

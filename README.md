@@ -1,95 +1,96 @@
-# 🎓 Plataforma DSS - Treinamento Corporativo
+# Plataforma DSS — Treinamento Corporativo (SaaS Multi-Tenant)
 
-Sistema web completo para gestão de treinamentos e DSS (Diálogo Semanal de Segurança) desenvolvido em Laravel com Tailwind CSS.
+Sistema web de treinamentos corporativos e DSS (Diálogo Semanal de Segurança) em **Laravel 10 / PHP 8.1+**, com multi-tenancy: vários clientes na mesma base, cada um com seus dados, módulos e marca próprios.
 
-## 📋 Características
+## Características
 
-- ✅ Autenticação por CPF
-- ✅ Sistema de Roles (Super Admin, Admin, Motorista, Funcionário, Terceirizado)
-- ✅ Cadastro de treinamentos por tipo de usuário
-- ✅ Reprodutor de vídeos (YouTube, Vimeo, Upload)
-- ✅ Acompanhamento de progresso
-- ✅ Geração automática de certificados com QR Code
-- ✅ Validação de certificados
-- ✅ Dashboard administrativo
-- ✅ Relatórios e métricas
-- ✅ Interface responsiva com Tailwind CSS
+- Autenticação por CPF (web + API mobile via Sanctum)
+- RBAC customizada (roles + permissões por módulo)
+- Treinamentos em vídeo (YouTube/Vimeo/upload), progresso, avaliação e certificados TCPDF com QR Code
+- Módulos: EPI, banco de folgas, ranking/gamificação, rede social, splash, projeto pedagógico (NR-01), relatórios
+- **Segurança**: uploads com allowlist/UUID, rate limit no login, headers de segurança, mascaramento de PII (LGPD)
+- **Auditoria**: trilha de logins, CRUD e downloads em `audit_logs` + tela `/admin/auditoria` com filtros e CSV
+- **Modular**: novos módulos autocontidos em `app/Modules/<Nome>` (descoberta automática, rotas/views/migrations próprias) — `docs/modulos/GUIA_MODULOS.md`
+- **Multi-tenant**: banco único + `tenant_id`, subdomínio por cliente, módulos liberados por cliente (`tenant_modules`), white-label (logo, cores, nome, instrutor)
+- Painel da plataforma (`/plataforma`, super admin): clientes, módulos, admin inicial, branding
 
-## 🛠️ Tecnologias
+## Tecnologias
 
-- **Backend**: Laravel 10
-- **Frontend**: Tailwind CSS
-- **Banco de Dados**: PostgreSQL
-- **PHP**: 8.1+
+| Camada | Stack |
+|---|---|
+| Backend | Laravel 10, PHP 8.1+ |
+| Frontend | Tailwind CSS (CDN), jQuery, FontAwesome, SweetAlert — **sem build step** |
+| Banco | MySQL/MariaDB (produção) / SQLite (testes `:memory:`) |
+| PDF/QR | TCPDF + simple-qrcode |
 
-## 📦 Instalação
+## Início rápido
 
-1. Clone o repositório
-```bash
-git clone <seu-repositorio>
-cd plataforma_dss
-```
-
-2. Instale as dependências
 ```bash
 composer install
+# Docker: docker compose up  →  app em http://localhost:9000 (MariaDB dss_db em :3306)
+# Local:  php artisan serve    (requer banco configurado no .env)
+
+# Migrations e dados iniciais
+php artisan migrate --force
+php artisan tenant:backfill --name="<Cliente Atual>" --slug=cliente   # cria o tenant #1 (idempotente)
+
+# Testes
+php -d extension=gd -d extension=fileinfo vendor/phpunit/phpunit/phpunit
 ```
 
-3. Configure o arquivo `.env`
-```bash
-cp .env.example .env
-php artisan key:generate
-```
+> ⚠️ O auto-migrate foi desligado (F0): todo deploy deve rodar `php artisan migrate --force` manualmente.
 
-4. Execute as migrations
-```bash
-php artisan migrate --seed
-```
+## Credenciais padrão (seeders)
 
-5. Inicie o servidor
-```bash
-php artisan serve
-```
+| Perfil | CPF | Senha |
+|---|---|---|
+| Super admin (plataforma) | `10178415430` | `@Machado2025` |
+| Admin | `11111111111` | `admin123` |
+| Motorista | `22222222222` | `senha123` |
 
-## 🔐 Credenciais Padrão
+## Multi-tenancy (resumo)
 
-**Super Administrador**
-- CPF: `10178415430`
-- Senha: `@Machado2025`
+- `config/saas.php` → flag `SAAS_MULTITENANT_ENABLED` + `SAAS_ROOT_DOMAIN` (raiz = tenant #1; subdomínio = slug)
+- Isolamento: global scope `TenantScope` + macro `whereTenant()` para queries raw + middleware `ResolveTenant`
+- Provisionar cliente: painel `/plataforma` ou `php artisan tenant:create --name=... --admin-cpf=... --admin-senha=...`
+- Detalhes: `docs/SAAS_PLANO.md` (plano mestre) e `docs/SAAS_RUNBOOK_DEPLOY.md` (deploy/backup)
 
-**Administrador**
-- CPF: `11111111111`
-- Senha: `admin123`
+## Documentação
 
-## 📁 Estrutura do Projeto
+A documentação vive em `docs/`:
 
 ```
-plataforma_dss/
-├── app/
-│   ├── Models/
-│   ├── Http/
-│   │   ├── Controllers/
-│   │   └── Middleware/
-│   └── Policies/
-├── resources/
-│   ├── views/
-│   ├── css/
-│   └── js/
-├── routes/
+docs/
+├── SAAS_PLANO.md              # Plano mestre da transformação em SaaS (decisões, fases, riscos)
+├── SAAS_RUNBOOK_DEPLOY.md     # Runbook operacional (deploy, backup, staging, rollback)
+├── operacao/                  # Instalação, quickstart, deploy cPanel/ValueHost, logs, dependências,
+│                              # SEGURANCA.md, AUDITORIA.md, VERSIONAMENTO.md
+├── modulos/                   # Manuais por módulo + GUIA_MODULOS.md (como criar um módulo)
+└── arquivo/                   # Documentos históricos/one-off (não refletem o estado atual)
+```
+
+Versão atual exibida no rodapé: `config/version.php` + `CHANGELOG.md`
+(regras em `docs/operacao/VERSIONAMENTO.md`).
+
+## Estrutura do projeto
+
+```
+├── app/                # Models, Controllers, Middleware, Services, Commands, Support (TenantManager)
+│                       # + Modules/ (módulos novos autocontidos — GUIA_MODULOS.md)
+├── bootstrap/
+├── config/             # config/saas.php (multi-tenancy), config/modules.php (catálogo de módulos)
 ├── database/
-│   ├── migrations/
-│   └── seeders/
-├── public/
-└── storage/
+│   ├── migrations/     # Fonte da verdade do schema (nada de DDL em runtime)
+│   ├── seeders/
+│   └── sql/            # Scripts SQL avulsos (ex.: seed_super_admin.sql)
+├── docs/               # Documentação (plano SaaS, operação, módulos, arquivo)
+├── public/             # index.php, images, uploads/
+├── resources/views/
+├── routes/             # web.php (todas as rotas web) + api.php
+├── storage/
+└── tests/              # Feature tests (SQLite :memory:)
 ```
 
-## 🚀 Deploy no ValueHost
+## Deploy
 
-1. Envie os arquivos via FTP
-2. Configure o banco de dados PostgreSQL
-3. Execute as migrations
-4. Defina permissões nas pastas `storage/` e `bootstrap/cache`
-
-## 📞 Suporte
-
-Para dúvidas ou problemas, entre em contato.
+Ver `docs/operacao/DEPLOYMENT_CPANEL.md` e `docs/SAAS_RUNBOOK_DEPLOY.md`.

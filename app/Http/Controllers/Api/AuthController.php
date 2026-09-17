@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Scopes\TenantScope;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -36,7 +38,7 @@ class AuthController extends Controller
             'foto_perfil' => $user->foto_perfil,
             'avatar_url' => $user->getFotoPerfilUrl(),
             'ficha_url' => $user->qrcode_token
-                ? url('/ficha/' . $user->qrcode_token)
+                ? url('/ficha/'.$user->qrcode_token)
                 : null,
             'is_admin' => $user->isAdmin(),
             'is_super_admin' => $user->isSuperAdmin(),
@@ -91,7 +93,26 @@ class AuthController extends Controller
         try {
             $user = User::where('cpf', $cpf)->first();
 
-            if (!$user || !Hash::check($request->password, $user->password)) {
+            // Usuário da plataforma (super_admin) pode logar em qualquer host,
+            // mesmo quando há um tenant resolvido (ele não pertence a nenhum tenant).
+            if (! $user) {
+                $candidato = User::withoutGlobalScope(TenantScope::class)
+                    ->where('cpf', $cpf)
+                    ->first();
+
+                if ($candidato && $candidato->isSuperAdmin()) {
+                    $user = $candidato;
+                }
+            }
+
+            if (! $user || ! Hash::check($request->password, $user->password)) {
+                app(AuditLogger::class)->log('login_failed', [
+                    'user_id' => $user?->id,
+                    'module' => 'auth',
+                    'description' => 'CPF ou senha inválidos (API)',
+                    'new_values' => ['cpf' => mask_cpf($cpf)],
+                ]);
+
                 return response()->json([
                     'status' => 'error',
                     'message' => 'CPF ou senha inválidos',
@@ -99,6 +120,13 @@ class AuthController extends Controller
             }
 
             if ($user->status !== 'ativo') {
+                app(AuditLogger::class)->log('login_blocked', [
+                    'user_id' => $user->id,
+                    'module' => 'auth',
+                    'description' => 'Login bloqueado na API: usuário inativo',
+                    'new_values' => ['cpf' => mask_cpf($cpf)],
+                ]);
+
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Usuário inativo. Contate o administrador.',
@@ -108,6 +136,17 @@ class AuthController extends Controller
             $user->tokens()->delete();
 
             $token = $user->createToken('app-dss', ['*'])->plainTextToken;
+
+            // Grava o tenant no token para auditoria/isolamento da API
+            if ($user->tenant_id && method_exists($user->currentAccessToken(), 'forceFill')) {
+                $user->currentAccessToken()->forceFill(['tenant_id' => $user->tenant_id])->save();
+            }
+
+            app(AuditLogger::class)->log('login', [
+                'user_id' => $user->id,
+                'module' => 'auth',
+                'description' => 'Login realizado via API: '.$user->nome,
+            ]);
 
             return response()->json([
                 'status' => 'success',
@@ -137,7 +176,14 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        $user->currentAccessToken()->delete();
+
+        app(AuditLogger::class)->log('logout', [
+            'user_id' => $user->id,
+            'module' => 'auth',
+            'description' => 'Logout realizado via API: '.$user->nome,
+        ]);
 
         return response()->json([
             'status' => 'success',
@@ -147,7 +193,14 @@ class AuthController extends Controller
 
     public function logoutAllDevices(Request $request)
     {
-        $request->user()->tokens()->delete();
+        $user = $request->user();
+        $user->tokens()->delete();
+
+        app(AuditLogger::class)->log('logout', [
+            'user_id' => $user->id,
+            'module' => 'auth',
+            'description' => 'Logout em todos os dispositivos via API: '.$user->nome,
+        ]);
 
         return response()->json([
             'status' => 'success',

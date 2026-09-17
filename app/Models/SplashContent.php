@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 
 class SplashContent extends Model
 {
+    use Auditable;
+    use BelongsToTenant;
+
     protected $fillable = [
         'titulo',
         'texto_conteudo',
@@ -15,7 +19,7 @@ class SplashContent extends Model
         'data_inicio',
         'data_fim',
         'status',
-        'ordem'
+        'ordem',
     ];
 
     protected $casts = [

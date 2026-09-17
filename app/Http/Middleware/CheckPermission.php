@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\TenantManager;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -12,8 +13,16 @@ class CheckPermission
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login');
+        }
+
+        // Gate de tenant: módulo não contratado = 403 (super_admin passa).
+        $manager = app(TenantManager::class);
+        if ($manager->isEnabled() && $manager->has() && ! $user->isSuperAdmin()) {
+            if (! $manager->current()->hasModule($module)) {
+                abort(403, 'Módulo não contratado para esta empresa.');
+            }
         }
 
         if ($user->hasPermission($module, $action)) {

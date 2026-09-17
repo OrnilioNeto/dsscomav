@@ -4,183 +4,30 @@ namespace App\Http\Controllers;
 
 use App\Models\Training;
 use App\Models\TrainingMaterial;
+use App\Models\TrainingQuestion;
+use App\Models\User;
+use App\Support\SafeUpload;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
-use Carbon\Carbon;
 
 class TrainingController extends Controller
 {
+    private const MATERIAL_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'zip', 'rar', 'txt'];
+
+    private const MATERIAL_MIMES = 'pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,zip,rar,txt';
+
     public function __construct()
     {
-        // Garantir que a tabela de materiais existe quando o controller for carregado
-        $this->ensureTrainingMaterialsTableExists();
-        $this->ensureTrainingReleaseColumnExists();
-        $this->ensureTrainingMandatoryColumnExists();
-        $this->ensureTrainingAssignmentsTableExists();
-        $this->ensureTrainingComplianceColumnsExist();
-        $this->ensureTrainingQuestionsTableExists();
-
         // Middleware de permissões
         $this->middleware('permission:trainings,view')->only(['index', 'show']);
         $this->middleware('permission:trainings,edit')->except(['index', 'show']);
     }
 
-    /**
-     * Garante que a tabela training_assignments exista,
-     * se não existir, a cria automaticamente.
-     */
-    private function ensureTrainingAssignmentsTableExists()
-    {
-        try {
-            if (!Schema::hasTable('training_assignments')) {
-                Schema::create('training_assignments', function ($table) {
-                    $table->id();
-                    $table->unsignedBigInteger('training_id');
-                    $table->unsignedBigInteger('user_id');
-                    $table->timestamps();
-
-                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
-                    $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-                    $table->unique(['training_id', 'user_id']);
-                    $table->index('user_id');
-                });
-            }
-        } catch (\Exception $e) {
-            // Se houver erro, apenas registra no log mas não interrompe a execução
-            \Log::warning('Erro ao verificar/criar tabela training_assignments: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Verifica se a tabela training_materials existe,
-     * se não existir, a cria automaticamente.
-     */
-    private function ensureTrainingMaterialsTableExists()
-    {
-        try {
-            if (!Schema::hasTable('training_materials')) {
-                // Criar a tabela training_materials
-                Schema::create('training_materials', function ($table) {
-                    $table->id();
-                    $table->unsignedBigInteger('training_id');
-                    $table->string('nome');
-                    $table->text('descricao')->nullable();
-                    $table->string('arquivo');
-                    $table->string('tipo_arquivo');
-                    $table->unsignedBigInteger('tamanho');
-                    $table->integer('ordem')->default(0);
-                    $table->timestamps();
-
-                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
-                    $table->index('training_id');
-                });
-            }
-        } catch (\Exception $e) {
-            // Se houver erro, apenas registra no log mas não interrompe a execução
-            \Log::warning('Erro ao verificar/criar tabela training_materials: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Garante que a coluna data_liberacao exista na tabela trainings.
-     */
-    private function ensureTrainingReleaseColumnExists()
-    {
-        try {
-            if (Schema::hasTable('trainings') && !Schema::hasColumn('trainings', 'data_liberacao')) {
-                Schema::table('trainings', function ($table) {
-                    $table->dateTime('data_liberacao')->nullable()->after('data_publicacao');
-                });
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar coluna data_liberacao em trainings: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Garante que a coluna obrigatorio exista na tabela trainings.
-     */
-    private function ensureTrainingMandatoryColumnExists()
-    {
-        try {
-            if (Schema::hasTable('trainings') && !Schema::hasColumn('trainings', 'obrigatorio')) {
-                Schema::table('trainings', function ($table) {
-                    $table->boolean('obrigatorio')->default(false)->after('status');
-                });
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar coluna obrigatorio em trainings: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Garante as colunas de conformidade NR-01 (ementa, tipo, validade e prova).
-     */
-    private function ensureTrainingComplianceColumnsExist()
-    {
-        try {
-            if (Schema::hasTable('trainings')) {
-                if (!Schema::hasColumn('trainings', 'conteudo_programatico')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->text('conteudo_programatico')->nullable()->after('descricao');
-                    });
-                }
-                if (!Schema::hasColumn('trainings', 'tipo_treinamento')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->string('tipo_treinamento', 20)->nullable()->after('tipo');
-                    });
-                }
-                if (!Schema::hasColumn('trainings', 'dias_validade')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->unsignedInteger('dias_validade')->nullable()->after('carga_horaria');
-                    });
-                }
-                if (!Schema::hasColumn('trainings', 'quantidade_questoes_prova')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->unsignedTinyInteger('quantidade_questoes_prova')->nullable()->after('avaliacao_resposta_correta');
-                    });
-                }
-                if (!Schema::hasColumn('trainings', 'nota_minima_aprovacao')) {
-                    Schema::table('trainings', function ($table) {
-                        $table->unsignedTinyInteger('nota_minima_aprovacao')->default(70)->after('quantidade_questoes_prova');
-                    });
-                }
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar colunas de conformidade em trainings: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Garante que a tabela training_questions exista.
-     */
-    private function ensureTrainingQuestionsTableExists()
-    {
-        try {
-            if (!Schema::hasTable('training_questions')) {
-                Schema::create('training_questions', function ($table) {
-                    $table->id();
-                    $table->unsignedBigInteger('training_id');
-                    $table->text('pergunta');
-                    $table->json('opcoes');
-                    $table->unsignedTinyInteger('resposta_correta');
-                    $table->unsignedTinyInteger('ordem')->default(0);
-                    $table->timestamps();
-
-                    $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
-                    $table->index('training_id');
-                });
-            }
-        } catch (\Exception $e) {
-            \Log::warning('Erro ao verificar/criar tabela training_questions: ' . $e->getMessage());
-        }
-    }
-
     public function index()
     {
         $treinamentos = Training::paginate(15);
+
         return view('treinamentos.index', compact('treinamentos'));
     }
 
@@ -236,8 +83,8 @@ class TrainingController extends Controller
 
         // Para treinamento é obrigatório haver avaliação: banco de questões OU pergunta única legada.
         if ($request->input('tipo') === 'treinamento') {
-            $temLegado = !empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
-            if (empty($questoesBanco) && !$temLegado) {
+            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
+            if (empty($questoesBanco) && ! $temLegado) {
                 return redirect()->back()
                     ->withErrors(['questoes' => 'Cadastre pelo menos uma questão no banco de questões (ou preencha a pergunta única).'])
                     ->withInput();
@@ -246,10 +93,10 @@ class TrainingController extends Controller
 
         // Para DSS é obrigatório o formato de pergunta única (legado).
         if ($request->input('tipo') === 'dss') {
-            $temLegado = !empty(trim((string) $request->avaliacao_pergunta))
+            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta))
                 && count($assessments) >= 2
                 && $request->filled('avaliacao_resposta_correta');
-            if (!$temLegado) {
+            if (! $temLegado) {
                 return redirect()->back()
                     ->withErrors(['avaliacao_pergunta' => 'Para DSS é obrigatório preencher a pergunta, ao menos 2 opções e a resposta correta.'])
                     ->withInput();
@@ -270,9 +117,9 @@ class TrainingController extends Controller
             'obrigatorio' => $request->boolean('obrigatorio'),
             'data_publicacao' => now(),
             'status' => 'ativo',
-            'avaliacao_pergunta' => !empty($questoesBanco) ? null : $request->avaliacao_pergunta,
-            'avaliacao_opcoes' => !empty($questoesBanco) ? null : $assessments,
-            'avaliacao_resposta_correta' => !empty($questoesBanco) ? null : (int) $request->avaliacao_resposta_correta,
+            'avaliacao_pergunta' => ! empty($questoesBanco) ? null : $request->avaliacao_pergunta,
+            'avaliacao_opcoes' => ! empty($questoesBanco) ? null : $assessments,
+            'avaliacao_resposta_correta' => ! empty($questoesBanco) ? null : (int) $request->avaliacao_resposta_correta,
             'quantidade_questoes_prova' => $request->filled('quantidade_questoes_prova') ? (int) $request->quantidade_questoes_prova : null,
             'nota_minima_aprovacao' => $request->filled('nota_minima_aprovacao') ? (int) $request->nota_minima_aprovacao : 70,
         ];
@@ -304,7 +151,7 @@ class TrainingController extends Controller
         // Importante: quando nome/descrição são opcionais, pode não existir
         // payload em input('materiais'), mas os arquivos ainda chegam em file('materiais').
         $materiaisArquivos = $request->file('materiais', []);
-        if (is_array($materiaisArquivos) && !empty($materiaisArquivos)) {
+        if (is_array($materiaisArquivos) && ! empty($materiaisArquivos)) {
             $ordem = 0;
 
             \Log::info('Create training: materiais recebidos', [
@@ -316,24 +163,30 @@ class TrainingController extends Controller
             foreach ($materiaisArquivos as $index => $materialArquivoData) {
                 $file = is_array($materialArquivoData) ? ($materialArquivoData['arquivo'] ?? null) : null;
 
-                if (!$file) {
+                if (! $file) {
                     continue;
                 }
 
                 // Validar o arquivo
                 $fileValidator = Validator::make(
                     ['arquivo' => $file],
-                    ['arquivo' => 'required|file|max:102400'] // 100MB max
+                    ['arquivo' => 'required|file|max:102400|mimes:'.self::MATERIAL_MIMES] // 100MB max
                 );
 
                 if ($fileValidator->fails()) {
                     continue; // Pular este arquivo se não passar na validação
                 }
 
-                // Armazenar o arquivo
-                $storagePath = "materiais-apoio/training-{$training->id}";
+                // Nome gerado no servidor (nunca usa nome/extensão do cliente)
+                $safeFileName = SafeUpload::filenameForUploadedFile($file, self::MATERIAL_EXTENSIONS);
+                if ($safeFileName === null) {
+                    continue;
+                }
+
+                // Armazenar o arquivo (isolado por tenant)
+                $storagePath = tenant_public_storage_dir("materiais-apoio/training-{$training->id}");
                 $fileName = $file->getClientOriginalName();
-                $filePath = $file->storeAs($storagePath, $fileName, 'public');
+                $filePath = $file->storeAs($storagePath, $safeFileName, 'public');
 
                 // Obter informações do arquivo e metadados opcionais
                 $fileSize = $file->getSize();
@@ -370,6 +223,7 @@ class TrainingController extends Controller
     public function show($id)
     {
         $training = Training::with('materials', 'assignedUsers')->findOrFail($id);
+
         return view('treinamentos.show', compact('training'));
     }
 
@@ -426,8 +280,8 @@ class TrainingController extends Controller
 
         // Para treinamento é obrigatório haver avaliação: banco de questões OU pergunta única legada.
         if ($request->input('tipo') === 'treinamento') {
-            $temLegado = !empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
-            if (empty($questoesBanco) && !$temLegado) {
+            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
+            if (empty($questoesBanco) && ! $temLegado) {
                 return redirect()->back()
                     ->withErrors(['questoes' => 'Cadastre pelo menos uma questão no banco de questões (ou preencha a pergunta única).'])
                     ->withInput();
@@ -436,10 +290,10 @@ class TrainingController extends Controller
 
         // Para DSS é obrigatório o formato de pergunta única (legado).
         if ($request->input('tipo') === 'dss') {
-            $temLegado = !empty(trim((string) $request->avaliacao_pergunta))
+            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta))
                 && count($assessments) >= 2
                 && $request->filled('avaliacao_resposta_correta');
-            if (!$temLegado) {
+            if (! $temLegado) {
                 return redirect()->back()
                     ->withErrors(['avaliacao_pergunta' => 'Para DSS é obrigatório preencher a pergunta, ao menos 2 opções e a resposta correta.'])
                     ->withInput();
@@ -457,9 +311,9 @@ class TrainingController extends Controller
             'dias_validade' => $request->filled('dias_validade') ? (int) $request->dias_validade : null,
             'status' => $request->status ?? $training->status,
             'obrigatorio' => $request->boolean('obrigatorio'),
-            'avaliacao_pergunta' => !empty($questoesBanco) ? null : $request->avaliacao_pergunta,
-            'avaliacao_opcoes' => !empty($questoesBanco) ? null : $assessments,
-            'avaliacao_resposta_correta' => !empty($questoesBanco) ? null : (int) $request->avaliacao_resposta_correta,
+            'avaliacao_pergunta' => ! empty($questoesBanco) ? null : $request->avaliacao_pergunta,
+            'avaliacao_opcoes' => ! empty($questoesBanco) ? null : $assessments,
+            'avaliacao_resposta_correta' => ! empty($questoesBanco) ? null : (int) $request->avaliacao_resposta_correta,
             'quantidade_questoes_prova' => $request->filled('quantidade_questoes_prova') ? (int) $request->quantidade_questoes_prova : null,
             'nota_minima_aprovacao' => $request->filled('nota_minima_aprovacao') ? (int) $request->nota_minima_aprovacao : 70,
         ];
@@ -505,13 +359,13 @@ class TrainingController extends Controller
     private function normalizeQuestions(Request $request): array
     {
         $questoes = $request->input('questoes', []);
-        if (!is_array($questoes)) {
+        if (! is_array($questoes)) {
             return [];
         }
 
         $normalizadas = [];
         foreach (array_values($questoes) as $q) {
-            if (!is_array($q)) {
+            if (! is_array($q)) {
                 continue;
             }
 
@@ -547,7 +401,7 @@ class TrainingController extends Controller
         $training->questions()->delete();
 
         foreach ($questoes as $i => $q) {
-            \App\Models\TrainingQuestion::create([
+            TrainingQuestion::create([
                 'training_id' => $training->id,
                 'pergunta' => $q['pergunta'],
                 'opcoes' => $q['opcoes'],
@@ -568,7 +422,7 @@ class TrainingController extends Controller
      */
     private function getAssignableUsers()
     {
-        return \App\Models\User::where('status', 'ativo')
+        return User::where('status', 'ativo')
             ->where(function ($query) {
                 $query->whereNull('role_id')
                     ->orWhereHas('role', function ($role) {

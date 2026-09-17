@@ -3,10 +3,10 @@
 namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -28,6 +28,15 @@ class RouteServiceProvider extends ServiceProvider
     {
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('login', function (Request $request) {
+            $cpf = preg_replace('/[^0-9]/', '', (string) $request->input('cpf'));
+
+            return [
+                Limit::perMinute(5)->by('login:cpf:'.$cpf.'|'.$request->ip()),
+                Limit::perMinute(20)->by('login:ip:'.$request->ip()),
+            ];
         });
     }
 }

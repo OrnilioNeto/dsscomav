@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\SafeUpload;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -14,7 +14,7 @@ class ProfileController extends Controller
 
         $validator = validator($request->all(), [
             'telefone' => 'nullable|string|max:50',
-            'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
+            'email' => 'nullable|email|max:255|unique:users,email,'.$user->id,
             'data_nascimento' => 'nullable|date',
         ]);
 
@@ -51,13 +51,14 @@ class ProfileController extends Controller
         }
 
         try {
-            $uploadDir = public_path('uploads/perfil');
-            if (!is_dir($uploadDir)) {
+            $uploadDir = public_path(tenant_upload_dir('perfil'));
+            if (! is_dir($uploadDir)) {
                 @mkdir($uploadDir, 0755, true);
             }
 
             $photo = $request->file('foto');
-            $filename = 'perfil_' . $user->id . '_' . time() . '.' . $photo->getClientOriginalExtension();
+            $extensao = SafeUpload::extensionFromUploadedFile($photo, ['jpg', 'jpeg', 'png', 'gif', 'webp']) ?? 'jpg';
+            $filename = 'perfil_'.$user->id.'_'.time().'.'.$extensao;
             $tmpPath = $photo->getRealPath();
             $saved = false;
 
@@ -95,7 +96,7 @@ class ProfileController extends Controller
                             imagefill($resized, 0, 0, $whiteBg);
                             imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
 
-                            $filePath = $uploadDir . '/' . $filename;
+                            $filePath = $uploadDir.'/'.$filename;
                             $saved = imagejpeg($resized, $filePath, 80) === true;
 
                             imagedestroy($image);
@@ -105,19 +106,21 @@ class ProfileController extends Controller
                 }
             }
 
-            if (!$saved) {
+            if (! $saved) {
                 $photo->move($uploadDir, $filename);
             }
 
-            // Remover foto antiga
-            if ($user->foto_perfil && $user->foto_perfil !== $filename) {
-                $oldPath = public_path("uploads/perfil/{$user->foto_perfil}");
+            // Remover foto antiga (legado: uploads/perfil; novo: caminho completo com tenant)
+            if ($user->foto_perfil) {
+                $oldPath = str_starts_with($user->foto_perfil, 'uploads/')
+                    ? public_path($user->foto_perfil)
+                    : public_path("uploads/perfil/{$user->foto_perfil}");
                 if (file_exists($oldPath)) {
                     @unlink($oldPath);
                 }
             }
 
-            $user->update(['foto_perfil' => $filename]);
+            $user->update(['foto_perfil' => tenant_upload_dir('perfil').'/'.$filename]);
 
             return response()->json([
                 'status' => 'success',
@@ -126,7 +129,7 @@ class ProfileController extends Controller
                 'avatar_url' => $user->getFotoPerfilUrl(),
             ]);
         } catch (\Throwable $e) {
-            \Log::error('Erro ao fazer upload da foto de perfil: ' . $e->getMessage());
+            \Log::error('Erro ao fazer upload da foto de perfil: '.$e->getMessage());
 
             return response()->json([
                 'status' => 'error',
@@ -140,7 +143,9 @@ class ProfileController extends Controller
         $user = $request->user();
 
         if ($user->foto_perfil) {
-            $oldPath = public_path("uploads/perfil/{$user->foto_perfil}");
+            $oldPath = str_starts_with($user->foto_perfil, 'uploads/')
+                ? public_path($user->foto_perfil)
+                : public_path("uploads/perfil/{$user->foto_perfil}");
             if (file_exists($oldPath)) {
                 @unlink($oldPath);
             }

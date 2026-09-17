@@ -6,9 +6,9 @@ use App\Models\Certificate;
 use App\Models\Training;
 use App\Models\TrainingRewatchRequest;
 use App\Models\UserProgress;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use App\Services\AuditLogger;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use TCPDF;
 
 class CertificateController extends Controller
@@ -22,7 +22,7 @@ class CertificateController extends Controller
             ->where('training_id', $training->id)
             ->firstOrFail();
 
-        if (!$progress->concluido || !$progress->avaliacao_aprovada) {
+        if (! $progress->concluido || ! $progress->avaliacao_aprovada) {
             abort(403, 'O certificado só fica disponível após assistir todo o conteúdo e responder corretamente a avaliação.');
         }
 
@@ -36,9 +36,16 @@ class CertificateController extends Controller
         $user = auth()->user();
         $certificate = Certificate::with(['user', 'training'])->findOrFail($id);
 
-        if ($certificate->user_id !== $user->id && !$user->isAdmin()) {
+        if ($certificate->user_id !== $user->id && ! $user->isAdmin()) {
             abort(403);
         }
+
+        app(AuditLogger::class)->log('downloaded', [
+            'module' => 'certificates',
+            'auditable_type' => Certificate::class,
+            'auditable_id' => $certificate->id,
+            'description' => 'Baixou o certificado '.$certificate->codigo_certificado,
+        ]);
 
         return $this->streamPdf($certificate);
     }
@@ -47,14 +54,14 @@ class CertificateController extends Controller
     {
         $certificate = Certificate::with(['user', 'training'])->where('codigo_certificado', $codigo)->first();
 
-        if (!$certificate) {
+        if (! $certificate) {
             return view('certificados.validacao', [
                 'valido' => false,
                 'mensagem' => 'Certificado não encontrado',
             ]);
         }
 
-        if (!$certificate->valido) {
+        if (! $certificate->valido) {
             return view('certificados.validacao', [
                 'valido' => false,
                 'mensagem' => 'Certificado inválido ou revogado',
@@ -155,7 +162,7 @@ class CertificateController extends Controller
         $qrDataUri = null;
         $qrBinary = @file_get_contents($certificate->qr_code_url);
         if ($qrBinary !== false) {
-            $qrDataUri = 'data:image/png;base64,' . base64_encode($qrBinary);
+            $qrDataUri = 'data:image/png;base64,'.base64_encode($qrBinary);
         }
 
         $html = view('certificados.pdf', [
@@ -166,18 +173,18 @@ class CertificateController extends Controller
         ])->render();
 
         $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('Plataforma DSS');
-        $pdf->SetAuthor('Plataforma DSS');
-        $pdf->SetTitle('Certificado - ' . $certificate->user->nome);
+        $pdf->SetCreator(plataforma_nome());
+        $pdf->SetAuthor(plataforma_nome());
+        $pdf->SetTitle('Certificado - '.$certificate->user->nome);
         $pdf->SetSubject('Certificado de Conclusão');
         $pdf->SetMargins(10, 10, 10);
         $pdf->SetAutoPageBreak(true, 10);
         $pdf->AddPage();
         $pdf->writeHTML($html, true, false, true, false, '');
 
-        return response($pdf->Output('certificado-' . $certificate->codigo_certificado . '.pdf', 'S'))
+        return response($pdf->Output('certificado-'.$certificate->codigo_certificado.'.pdf', 'S'))
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'attachment; filename="certificado-' . $certificate->codigo_certificado . '.pdf"');
+            ->header('Content-Disposition', 'attachment; filename="certificado-'.$certificate->codigo_certificado.'.pdf"');
     }
 
     /**
@@ -190,7 +197,7 @@ class CertificateController extends Controller
         $qrDataUri = null;
         $qrBinary = @file_get_contents($certificate->qr_code_url);
         if ($qrBinary !== false) {
-            $qrDataUri = 'data:image/png;base64,' . base64_encode($qrBinary);
+            $qrDataUri = 'data:image/png;base64,'.base64_encode($qrBinary);
         }
 
         $html = view('certificados.pdf', [
@@ -201,18 +208,18 @@ class CertificateController extends Controller
         ])->render();
 
         $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('Plataforma DSS');
-        $pdf->SetAuthor('Plataforma DSS');
-        $pdf->SetTitle('Certificado - ' . $certificate->user->nome);
+        $pdf->SetCreator(plataforma_nome());
+        $pdf->SetAuthor(plataforma_nome());
+        $pdf->SetTitle('Certificado - '.$certificate->user->nome);
         $pdf->SetSubject('Certificado de Conclusão');
         $pdf->SetMargins(10, 10, 10);
         $pdf->SetAutoPageBreak(true, 10);
         $pdf->AddPage();
         $pdf->writeHTML($html, true, false, true, false, '');
 
-        return response($pdf->Output('certificado-' . $certificate->codigo_certificado . '.pdf', 'S'))
+        return response($pdf->Output('certificado-'.$certificate->codigo_certificado.'.pdf', 'S'))
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'inline; filename="certificado-' . $certificate->codigo_certificado . '.pdf"');
+            ->header('Content-Disposition', 'inline; filename="certificado-'.$certificate->codigo_certificado.'.pdf"');
     }
 
     public function myCertificates()

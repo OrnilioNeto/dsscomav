@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class RankingRule extends Model
 {
+    use Auditable;
+    use BelongsToTenant;
     use HasFactory;
 
     protected $fillable = [

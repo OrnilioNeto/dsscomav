@@ -4,28 +4,12 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SplashContent;
+use App\Support\SafeUpload;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 
 class SplashContentController extends Controller
 {
-    private function ensureSplashTableExists()
-    {
-        if (!Schema::hasTable('splash_contents')) {
-            Schema::create('splash_contents', function ($table) {
-                $table->id();
-                $table->string('titulo');
-                $table->text('texto_conteudo')->nullable();
-                $table->string('material_path')->nullable();
-                $table->string('material_tipo')->nullable();
-                $table->date('data_inicio');
-                $table->date('data_fim');
-                $table->string('status')->default('ativo');
-                $table->integer('ordem')->default(0);
-                $table->timestamps();
-            });
-        }
-    }
+    private const MATERIAL_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf'];
 
     private function serialize(SplashContent $c): array
     {
@@ -42,10 +26,7 @@ class SplashContentController extends Controller
         ];
     }
 
-    public function __construct()
-    {
-        $this->ensureSplashTableExists();
-    }
+    public function __construct() {}
 
     public function index()
     {
@@ -80,10 +61,19 @@ class SplashContentController extends Controller
 
         if ($request->hasFile('material')) {
             $file = $request->file('material');
-            $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
-            $file->move(public_path('uploads/splash'), $filename);
-            $data['material_path'] = 'uploads/splash/' . $filename;
-            $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
+            $extensao = SafeUpload::extensionFromUploadedFile($file, self::MATERIAL_EXTENSIONS);
+
+            if ($extensao === null) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tipo de arquivo não permitido. Envie JPG, PNG ou PDF.',
+                ], 422);
+            }
+
+            $filename = time().'_'.uniqid().'.'.$extensao;
+            $file->move(public_path(tenant_upload_dir('splash')), $filename);
+            $data['material_path'] = tenant_upload_dir('splash').'/'.$filename;
+            $data['material_tipo'] = $extensao === 'pdf' ? 'pdf' : 'imagem';
         }
 
         $content = SplashContent::create($data);
@@ -103,6 +93,7 @@ class SplashContentController extends Controller
             'titulo' => 'required|max:255',
             'data_inicio' => 'required|date',
             'data_fim' => 'required|date|after_or_equal:data_inicio',
+            'material' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
         if ($validator->fails()) {
@@ -120,10 +111,19 @@ class SplashContentController extends Controller
             }
 
             $file = $request->file('material');
-            $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
-            $file->move(public_path('uploads/splash'), $filename);
-            $data['material_path'] = 'uploads/splash/' . $filename;
-            $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
+            $extensao = SafeUpload::extensionFromUploadedFile($file, self::MATERIAL_EXTENSIONS);
+
+            if ($extensao === null) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tipo de arquivo não permitido. Envie JPG, PNG ou PDF.',
+                ], 422);
+            }
+
+            $filename = time().'_'.uniqid().'.'.$extensao;
+            $file->move(public_path(tenant_upload_dir('splash')), $filename);
+            $data['material_path'] = tenant_upload_dir('splash').'/'.$filename;
+            $data['material_tipo'] = $extensao === 'pdf' ? 'pdf' : 'imagem';
         }
 
         $content->update($data);

@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
 use App\Models\UserVacation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -19,6 +20,17 @@ class UserController extends Controller
     }
 
     private const TIPOS_USUARIO_VALIDOS = ['motorista', 'funcionario', 'terceirizado'];
+
+    private function roleExistsRule(): array
+    {
+        $rule = Rule::exists('roles', 'id');
+
+        if (! auth()->user()?->isSuperAdmin()) {
+            $rule->where(fn ($query) => $query->where('nome', '!=', 'super_admin'));
+        }
+
+        return ['required', 'integer', $rule];
+    }
 
     private function ensureBaseRoles(): void
     {
@@ -44,7 +56,7 @@ class UserController extends Controller
         $usuariosQuery = User::with('role');
 
         if ($nome !== '') {
-            $usuariosQuery->where('nome', 'like', '%' . $nome . '%');
+            $usuariosQuery->where('nome', 'like', '%'.$nome.'%');
         }
 
         if (! empty($tiposSelecionados)) {
@@ -87,15 +99,28 @@ class UserController extends Controller
             'ferias_inicio' => 'nullable|date|required_with:ferias_fim',
             'ferias_fim' => 'nullable|date|required_with:ferias_inicio|after_or_equal:ferias_inicio',
             'usuario_teste' => 'nullable|boolean',
-            'role_id' => 'required|exists:roles,id',
+            'role_id' => $this->roleExistsRule(),
         ]);
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        // Dados específicos conforme tipo de usuário
-        $data = $request->all();
+        // Whitelist de campos (nunca usar $request->all())
+        $data = $request->only([
+            'nome',
+            'cpf',
+            'email',
+            'password',
+            'telefone',
+            'tipo_usuario',
+            'empresa',
+            'cargo',
+            'camisa_tamanho',
+            'calca_tamanho',
+            'bota_numero',
+            'role_id',
+        ]);
         $data['cpf'] = preg_replace('/\D/', '', $data['cpf']);
         $data['password'] = Hash::make($data['password']);
         $data['ferias_inicio'] = $request->filled('ferias_inicio') ? $request->input('ferias_inicio') : null;
@@ -103,11 +128,11 @@ class UserController extends Controller
         $data['usuario_teste'] = $request->boolean('usuario_teste');
         $data['participa_treinamentos'] = $request->boolean('participa_treinamentos');
 
-        User::create($data);
+        $usuario = User::create($data);
 
         if ($request->filled('ferias_inicio') && $request->filled('ferias_fim')) {
             UserVacation::create([
-                'user_id' => User::latest()->first()->id,
+                'user_id' => $usuario->id,
                 'data_inicio' => $request->input('ferias_inicio'),
                 'data_fim' => $request->input('ferias_fim'),
             ]);
@@ -119,6 +144,7 @@ class UserController extends Controller
     public function show($id)
     {
         $usuario = User::with('role', 'certificates', 'progress')->findOrFail($id);
+
         return view('usuarios.show', compact('usuario'));
     }
 
@@ -138,9 +164,13 @@ class UserController extends Controller
     {
         $usuario = User::findOrFail($id);
 
+        if (! auth()->user()->isSuperAdmin() && $usuario->isSuperAdmin()) {
+            abort(403, 'Apenas super_admin pode alterar um super_admin.');
+        }
+
         $rules = [
             'nome' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $id,
+            'email' => 'required|email|unique:users,email,'.$id,
             'telefone' => 'nullable|string',
             'tipo_usuario' => 'required|in:motorista,funcionario,terceirizado',
             'empresa' => 'nullable|string|max:255',
@@ -154,8 +184,8 @@ class UserController extends Controller
             'usuario_teste' => 'nullable|boolean',
         ];
 
-        if (!$usuario->isSuperAdmin()) {
-            $rules['role_id'] = 'required|exists:roles,id';
+        if (! $usuario->isSuperAdmin()) {
+            $rules['role_id'] = $this->roleExistsRule();
         }
 
         // Se super_admin, permitir alteração de senha
@@ -169,7 +199,20 @@ class UserController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $data = $request->all();
+        // Whitelist de campos (nunca usar $request->all())
+        $data = $request->only([
+            'nome',
+            'email',
+            'telefone',
+            'tipo_usuario',
+            'empresa',
+            'cargo',
+            'camisa_tamanho',
+            'calca_tamanho',
+            'bota_numero',
+            'status',
+            'role_id',
+        ]);
         $data['ferias_inicio'] = $request->filled('ferias_inicio') ? $request->input('ferias_inicio') : null;
         $data['ferias_fim'] = $request->filled('ferias_fim') ? $request->input('ferias_fim') : null;
         $data['usuario_teste'] = $request->boolean('usuario_teste');
@@ -188,7 +231,7 @@ class UserController extends Controller
         if ($usuario->isSuperAdmin()) {
             unset($data['role_id']);
         }
-        
+
         // Se super_admin e preencheu nova senha, hashear e incluir na atualização
         if (auth()->user()->isSuperAdmin() && $request->filled('password')) {
             $data['password'] = Hash::make($request->input('password'));
@@ -196,10 +239,10 @@ class UserController extends Controller
             // Remover da tentativa de update para não alterar senha
             unset($data['password']);
         }
-        
+
         // Remover confirmação de senha da atualização
         unset($data['password_confirmation']);
-        
+
         // Se é um admin, permitir marcar participação em treinamentos
         if ($usuario->isAdmin()) {
             $data['participa_treinamentos'] = $request->has('participa_treinamentos');
@@ -211,7 +254,7 @@ class UserController extends Controller
             $novaInicio = $request->input('ferias_inicio');
             $novaFim = $request->input('ferias_fim');
             $ultimoHistorico = $usuario->vacations()->latest()->first();
-            if (!$ultimoHistorico || $ultimoHistorico->data_inicio->format('Y-m-d') !== $novaInicio || $ultimoHistorico->data_fim->format('Y-m-d') !== $novaFim) {
+            if (! $ultimoHistorico || $ultimoHistorico->data_inicio->format('Y-m-d') !== $novaInicio || $ultimoHistorico->data_fim->format('Y-m-d') !== $novaFim) {
                 UserVacation::create([
                     'user_id' => $usuario->id,
                     'data_inicio' => $novaInicio,
@@ -226,6 +269,15 @@ class UserController extends Controller
     public function destroy($id)
     {
         $usuario = User::findOrFail($id);
+
+        if ($usuario->id === auth()->id()) {
+            abort(403, 'Não é possível excluir a própria conta.');
+        }
+
+        if (! auth()->user()->isSuperAdmin() && $usuario->isSuperAdmin()) {
+            abort(403, 'Apenas super_admin pode excluir um super_admin.');
+        }
+
         $usuario->delete();
 
         return redirect()->route('usuarios.index')->with('success', 'Usuário deletado!');

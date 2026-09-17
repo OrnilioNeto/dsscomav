@@ -27,16 +27,18 @@ class ProfilePhotoController extends Controller
 
             $user = auth()->user();
 
-            // Deletar foto anterior se existir
+            // Deletar foto anterior se existir (legado: uploads/perfil; novo: caminho completo com tenant)
             if ($user->foto_perfil) {
-                $oldPath = public_path("uploads/perfil/{$user->foto_perfil}");
+                $oldPath = str_starts_with($user->foto_perfil, 'uploads/')
+                    ? public_path($user->foto_perfil)
+                    : public_path("uploads/perfil/{$user->foto_perfil}");
                 if (file_exists($oldPath)) {
                     @unlink($oldPath);
                 }
             }
 
-            // Garantir que diretório existe
-            $uploadDir = public_path('uploads/perfil');
+            // Garantir que diretório existe (isolado por tenant)
+            $uploadDir = public_path(tenant_upload_dir('perfil'));
             if (!is_dir($uploadDir)) {
                 @mkdir($uploadDir, 0755, true);
             }
@@ -98,8 +100,8 @@ class ProfilePhotoController extends Controller
                 $foto->move($uploadDir, $filename);
             }
             
-            // Atualizar usuário
-            $user->update(['foto_perfil' => $filename]);
+            // Atualizar usuário (caminho relativo completo, isolado por tenant)
+            $user->update(['foto_perfil' => tenant_upload_dir('perfil') . '/' . $filename]);
 
             return response()->json([
                 'success' => true,
@@ -127,8 +129,13 @@ class ProfilePhotoController extends Controller
         try {
             $user = auth()->user();
 
-            if ($user->foto_perfil && file_exists(public_path("uploads/perfil/{$user->foto_perfil}"))) {
-                @unlink(public_path("uploads/perfil/{$user->foto_perfil}"));
+            if ($user->foto_perfil) {
+                $oldPath = str_starts_with($user->foto_perfil, 'uploads/')
+                    ? public_path($user->foto_perfil)
+                    : public_path("uploads/perfil/{$user->foto_perfil}");
+                if (file_exists($oldPath)) {
+                    @unlink($oldPath);
+                }
             }
 
             $user->update(['foto_perfil' => null]);

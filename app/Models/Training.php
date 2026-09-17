@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use App\Models\Concerns\BelongsToTenant;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
-use Carbon\Carbon;
 
 class Training extends Model
 {
+    use Auditable;
+    use BelongsToTenant;
     use HasFactory;
 
     protected $table = 'trainings';
@@ -150,12 +153,15 @@ class Training extends Model
         if ($this->tipo_video === 'youtube') {
             preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/', $this->url_video, $matches);
             $videoId = $matches[1] ?? '';
+
             return "https://www.youtube.com/embed/{$videoId}?enablejsapi=1&playsinline=1";
         } elseif ($this->tipo_video === 'vimeo') {
             preg_match('/vimeo\.com\/(\d+)/', $this->url_video, $matches);
             $videoId = $matches[1] ?? '';
+
             return "https://player.vimeo.com/video/{$videoId}";
         }
+
         return $this->url_video;
     }
 
@@ -165,7 +171,7 @@ class Training extends Model
             return true;
         }
 
-        return !empty($this->avaliacao_pergunta)
+        return ! empty($this->avaliacao_pergunta)
             && is_array($this->avaliacao_opcoes)
             && count(array_filter($this->avaliacao_opcoes)) >= 2
             && $this->avaliacao_resposta_correta !== null;
@@ -199,7 +205,7 @@ class Training extends Model
 
     public function isReleased(): bool
     {
-        if (!$this->data_liberacao) {
+        if (! $this->data_liberacao) {
             return true;
         }
 

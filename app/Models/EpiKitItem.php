@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class EpiKitItem extends Model
 {
+    use BelongsToTenant;
     protected $table = 'ss_kit_item';
     protected $primaryKey = 'ss_ki_nb_id';
     public $timestamps = false;

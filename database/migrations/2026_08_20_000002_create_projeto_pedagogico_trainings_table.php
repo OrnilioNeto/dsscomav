@@ -19,7 +19,7 @@ return new class extends Migration
                 $table->foreign('projeto_pedagogico_id')->references('id')->on('training_projetos_pedagogicos')->onDelete('cascade');
                 $table->foreign('training_id')->references('id')->on('trainings')->onDelete('cascade');
                 $table->unique('training_id'); // um treinamento só pode pertencer a um único PP
-                $table->unique(['projeto_pedagogico_id', 'training_id']);
+                $table->unique(['projeto_pedagogico_id', 'training_id'], 'pp_trainings_pp_training_unique');
                 $table->index('training_id');
             });
         }

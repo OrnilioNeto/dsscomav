@@ -291,7 +291,7 @@
             </head>
             <body>
                 <div class="container">
-                    <h2>COMAV Transportes</h2>
+                    <h2>{{ plataforma_nome() }}</h2>
                     <p>Ficha do Funcionário: <strong>${name}</strong></p>
                     <img src="${url}" alt="QR Code">
                     <p class="footer">Escaneie para visualizar a ficha de conformidade do colaborador</p>

@@ -7,13 +7,13 @@
         <h1 class="text-2xl font-bold mb-4">Política de Privacidade e Proteção de Dados</h1>
 
         <div class="bg-white shadow p-6 rounded mb-6">
-            <p class="text-gray-700">A 64 Bits Soluções, responsável pela plataforma Previa Segurança, reafirma seu compromisso com a proteção, privacidade e segurança dos dados pessoais tratados em seus sistemas, em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).</p>
+            <p class="text-gray-700">A 64 Bits Soluções, responsável pela plataforma {{ plataforma_nome() }}, reafirma seu compromisso com a proteção, privacidade e segurança dos dados pessoais tratados em seus sistemas, em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018).</p>
             <p class="text-gray-700 mt-3">Esta política tem como objetivo apresentar, de forma transparente, como os dados são coletados, utilizados, armazenados e protegidos durante a utilização da plataforma.</p>
         </div>
 
         <div class="bg-white shadow p-6 rounded mb-4">
             <h2 class="text-lg font-semibold mb-2">1. Finalidade do tratamento de dados</h2>
-            <p class="text-gray-700">A plataforma Previa Segurança realiza o tratamento de dados pessoais exclusivamente para finalidades legítimas, específicas e relacionadas às atividades operacionais, administrativas e contratuais das empresas utilizadoras do sistema.</p>
+            <p class="text-gray-700">A plataforma {{ plataforma_nome() }} realiza o tratamento de dados pessoais exclusivamente para finalidades legítimas, específicas e relacionadas às atividades operacionais, administrativas e contratuais das empresas utilizadoras do sistema.</p>
             <p class="text-gray-700 mt-2">Os dados podem ser utilizados para:</p>
             <ul class="list-disc list-inside text-gray-700 ml-4">
                 <li>gerenciamento de treinamentos e DSS;</li>
@@ -55,7 +55,7 @@
 
         <div class="bg-white shadow p-6 rounded mb-4">
             <h2 class="text-lg font-semibold mb-2">4. Segurança das informações</h2>
-            <p class="text-gray-700">A plataforma Previa Segurança adota medidas técnicas e administrativas adequadas para proteger os dados pessoais contra acessos não autorizados, perda, alteração, vazamento ou qualquer forma de tratamento inadequado.</p>
+            <p class="text-gray-700">A plataforma {{ plataforma_nome() }} adota medidas técnicas e administrativas adequadas para proteger os dados pessoais contra acessos não autorizados, perda, alteração, vazamento ou qualquer forma de tratamento inadequado.</p>
             <p class="text-gray-700 mt-2">Entre as medidas adotadas estão:</p>
             <ul class="list-disc list-inside text-gray-700 ml-4">
                 <li>controle de acesso por usuário e permissões;</li>

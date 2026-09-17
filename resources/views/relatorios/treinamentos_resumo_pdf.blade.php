@@ -113,7 +113,7 @@
     @endif
 
     <div style="margin-top:8px;font-size:6px;color:#999;text-align:right;">
-        Gerado em {{ now()->format('d/m/Y H:i') }} — Plataforma DSS
+        Gerado em {{ now()->format('d/m/Y H:i') }} — {{ plataforma_nome() }}
     </div>
 
 </body>

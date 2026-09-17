@@ -5,36 +5,58 @@ Laravel 10 + PHP 8.1 app ("Plataforma DSS" - corporate training / safety trainin
 ## Commands & tooling
 
 - **No frontend build step**: there is no `package.json`/`node_modules`. Tailwind, jQuery, FontAwesome and SweetAlert are loaded from CDNs in `resources/views/layout.blade.php`. Never run `npm install`/`npm run build`.
-- **No test suite**: no `tests/` dir and no `phpunit.xml` exist. `php artisan test` is useless here. Verify changes with `php artisan tinker` or manual browser testing (`php artisan serve`).
+- **Tests exist** (`phpunit.xml` + `tests/`). Run: `php -d extension=gd -d extension=fileinfo vendor/phpunit/phpunit/phpunit` (SQLite `:memory:`). On Windows CLI, pdo_mysql/gd/fileinfo may need `-d extension=...`.
+- **No `php artisan test` shortcut** (phpunit isn't installed as bin); use the command above.
 - Dev server with raised upload limits: `serve_with_limits.bat` (`php -d upload_max_filesize=250M -d post_max_size=300M -d memory_limit=512M artisan serve`). Needed for video/material uploads.
 - Docker stack: `docker compose up` → app on `localhost:9000`, MariaDB `dss_db` on `3306`, Adminer on `8001`.
 - Ranking artisan commands (live in `app/Console/Commands/`): `php artisan ranking:recalculate --month= --year=`, `php artisan ranking:consolidate --month= --year=`, `php artisan ranking:check`. `ranking:recalculate` is scheduled daily in `app/Console/Kernel.php` (needs cron on deploy).
-- Code style: `vendor/bin/pint` (laravel/pint is a dev dep).
+- **Auditoria**: `php artisan audit:prune --days= --tenant=` remove registros antigos (agendado 03:15; retenção em `config/audit.php`/`AUDIT_RETENTION_DAYS`). Tela `/admin/auditoria` (permissão `auditoria`). Docs: `docs/operacao/AUDITORIA.md` e `docs/operacao/SEGURANCA.md`.
+- **Versão do sistema**: fonte única `config/version.php` (exibida no rodapé via `app_version()`/`app_version_date()`); mantenha o `CHANGELOG.md` em sincronia — `docs/operacao/VERSIONAMENTO.md`.
+- **Tenant commands**: `php artisan tenant:backfill --name= --slug=` (cria tenant #1 e preenche tenant_id — rodar na produção após `migrate`).
+- Code style: `vendor/bin/pint` — **run it only on changed files** (`pint <file>...`), never on the whole repo (it reformats everything, line endings included).
+- **Auto-migrate foi desligado (F0)**: DDL de runtime removido. Deploy DEVE rodar `php artisan migrate --force` manualmente.
+
+## Multi-tenancy (em andamento — F1/F2)
+
+- `config/saas.php`: flag `SAAS_MULTITENANT_ENABLED` (default **false** = comportamento single-tenant atual). Ao ativar: tenant resolvido pelo host (raiz = tenant padrão `root_tenant_slug`, subdomínio = slug).
+- Models de domínio usam `App\Models\Concerns\BelongsToTenant` (global scope `TenantScope` + auto-fill de `tenant_id`). `users.tenant_id = NULL` = usuário da plataforma (super_admin), que não é filtrado pelo escopo.
+- `TenantScope` tem regra especial para `Role`/`RolePermission`: além das linhas do tenant, as linhas de sistema (tenant_id NULL) são sempre visíveis.
+- Auth: provider customizado `tenant-eloquent` (`config/auth.php`) ignora o TenantScope na resolução de sessão; login por CPF tem fallback para super_admin em qualquer host.
+- Queries raw (`DB::table`) usam a macro `->whereTenant('tabela')` (definida no `AppServiceProvider`) — obrigatório em tabelas de domínio (EPI, filiais, projeto pedagógico).
+- Módulos por tenant: `tenant_modules` + gate central no `CheckPermission` + middleware `module:<slug>` (rotas admin sem `permission:`).
+- Painel da Plataforma: `/plataforma` (somente super_admin) — CRUD de clientes e toggle de módulos (`Admin\PlataformaTenantController`).
+- Uploads isolados por tenant: `tenant_upload_dir()` (public/uploads/{tenant}/...) e `tenant_public_storage_dir()` (storage/app/public/tenants/{tenant}/...) — fallback legado nos acessores (foto de perfil, social).
+- Comandos (`ranking:*`, `folgas:*`) iteram por tenant via `TenantManager::runForEachTenant()` quando a flag está ativa; `CertificateObserver` roda no contexto do tenant do usuário; `LogSystemRequests` grava `tenant_id`.
+- Rotas públicas (ficha QR, validação de certificado) usam lookups globais (`qrcode_token`, `codigo_certificado` continuam UNIQUE globais).
+- **Deploy**: rodar `php artisan migrate --force` + `php artisan tenant:backfill` antes de ativar a flag.
 
 ## Database
 
 - Default connection is `mysql` (`config/database.php`); deploy target (ValueHost/cPanel) uses `pgsql`; Docker uses MariaDB; local dev commonly uses SQLite (`database/database.sqlite`, gitignored).
 - **Raw date SQL must branch per driver.** Pattern used in `app/Http/Controllers/Admin/RankingController.php:148` and `CertificateManagementController.php:960`: `DB::connection()->getDriverName() === 'sqlite' ? 'strftime(...)' : 'DATE_FORMAT(...)'` / `UNIX_TIMESTAMP(...)`. Follow it — code has no PostgreSQL-specific paths.
 - JSON-ish columns (`users.tipo_usuario`, `trainings.tipo_usuario_permitido`) are stored as text and decoded manually with `json_decode` (see `app/Models/User.php:175`), not cast to JSON.
-- Migrations are the source of truth; seeder order matters (`database/seeders/DatabaseSeeder.php`).
+- Migrations are the source of truth; seeder order matters (`database/seeders/DatabaseSeeder.php`). Migrations de módulos novos ficam em `app/Modules/<Nome>/database/migrations` (carregadas via `loadMigrationsFrom`).
 
 ## Architecture
 
-- **All routes live in `routes/web.php`** (no per-module route files). Admin routes are nested under `middleware('admin')`; some modules also need `permission:<module>`; super-admin-only routes use `CheckRole::class . ':super_admin'` (class-string concat style).
+- **All routes live in `routes/web.php`** (no per-module route files) — legado. **Módulos novos** ficam autocontidos em `app/Modules/<Nome>` com rotas próprias (`routes/web.php`/`api.php`), descobertos por `App\Providers\ModulesServiceProvider` (não registrar em `config/app.php`); ver `docs/modulos/GUIA_MODULOS.md`. Admin routes are nested under `middleware('admin')`; some modules also need `permission:<module>`; super-admin-only routes use `CheckRole::class . ':super_admin'` (class-string concat style).
 - **Custom RBAC, no Spatie**: `roles` (super_admin / admin / usuario) + `role_permissions` (module, can_view, can_edit). See `app/Models/User.php:126` (`hasPermission`). Middleware aliases are declared in BOTH `$routeMiddleware` and `$middlewareAliases` in `app/Http/Kernel.php` (legacy duplication — keep both in sync).
 - **Auth is by CPF**: login strips non-digits and matches the 11-digit `cpf` string (`app/Http/Controllers/AuthController.php:33`). Seeded logins: super admin `10178415430` / `@Machado2025`, admin `11111111111` / `admin123`, motorista `22222222222` / `senha123`.
 - Ranking: controllers in `app/Http/Controllers/Admin/`, logic in `app/Services/Ranking*.php`, repo in `app/Repositories/RankingRepository.php`. Routes under `/admin/ranking`, protected by `permission:rankings`.
 - `app/Http/Middleware/LogSystemRequests.php` is global middleware — every request is logged.
 - Certificates are TCPDF generated **on the fly** (never stored); QR codes via `simplesoftwareio/simple-qrcode`.
+- **Uploads são sempre via `App\Support\SafeUpload`** (extensão derivada do MIME + nome UUID; allowlist por módulo) — nunca use `getClientOriginalName()`/`getClientOriginalExtension()` para o caminho físico. Uploads novos devem ter validação `mimes:` + `SafeUpload`.
+- **Auditoria**: models administrativos usam a trait `App\Models\Concerns\Auditable`; ações não-CRUD (download/exportação) chamam `app(\App\Services\AuditLogger::class)->log(...)`. O `AuditLogger` mascara campos sensíveis e nunca lança exceção.
+- **PII em rotas públicas**: use `mask_cpf()` / `mask_email()` / `mask_phone()` (helpers) em validações/consultas públicas (LGPD).
+- Login web tem `throttle:login` (limiter em `RouteServiceProvider`); senhas nunca devem ir para `withInput()`.
+- **Módulos novos** (padrão desde 2.1.0): pasta `app/Modules/<Nome>` com `Providers/<Nome>ServiceProvider.php` estendendo `App\Support\Modules\ModuleServiceProvider` (define `$slug`), rotas/migrations/views próprias, item de menu via `registerMenu()`, entrada em `config/modules.php` para RBAC/tenant (o `PermissionController` lê esse config — não duplique labels). Testes em `tests/Feature/Modules/<Nome>/`. Exemplo vivo: `app/Modules/Exemplo` (removível).
 - Uploads: profile photos `public/uploads/perfil`, splash `public/uploads/splash`, social `public/uploads/social`; training materials & EPI photos use the `public` disk (`storage/app/public`, served via `/storage/` symlink — `public/storage` is gitignored).
 
 ## Gotchas
 
-- **Many stale/misplaced PHP files exist. The canonical code is under `app/`.** Treat these as dead code, do not edit them:
-  - Repo root: `RankingController.php`, `RankingCriterion.php`, `RankingRule.php`, `RankingRuleResolverService.php`, `RankingSettingsController.php`, `2026_06_03_000009_create_engagement_ranks_table.php`, `check_ranking.php`, `verify_ranking_data.php`, `test_*.php`, `run_ss_epi_ddl_mysql.php`, `gen_hash.php`, `create_admin.php`, `create_super_admin.php`, `index.blade.php`.
-  - `database/seeders/`: `RankingController.php`, `RankingSettingsController.php`, `settings.blade.php`.
-  - `app/Services/`: `index.blade.php`, `2026_06_08_000000_add_total_raw_score_to_ranking_monthly_scores_table.php`.
-  - Root `index.php` is a real duplicate of `public/index.php` used for cPanel root hosting — update both if you ever touch the front controller.
+- **Código morto removido em 2026-09-16** (backup local em temp). Os arquivos antes listados como dead code (controllers de ranking/folgas na raiz, `test_*.php`, `create_admin.php`, `create_super_admin.php`, migrations fora de `database/migrations`, `*.blade.php` soltos, `composer.json.exemplo`, `camera-test.html`, `.venv`) foram excluídos. Não reintroduza arquivos na raiz do repo.
+- **Documentação** organizada em `docs/`: `SAAS_PLANO.md` + `SAAS_RUNBOOK_DEPLOY.md` na raiz de docs; `docs/operacao/` (instalação, deploy cPanel/ValueHost, logs, dependências, `SEGURANCA.md`, `AUDITORIA.md`, `VERSIONAMENTO.md`); `docs/modulos/` (manuais por módulo); `docs/arquivo/` (históricos — não refletem o estado atual). `README.md` é a porta de entrada.
+- Root `index.php` is a real duplicate of `public/index.php` used for cPanel root hosting — update both if you ever touch the front controller.
 - **`.env.example` and `.env.production.example` are gitignored and absent** from the repo (only `.env` exists locally). README/QUICKSTART/setup.bat reference them, but a fresh clone cannot `cp .env.example .env`.
 - EPI module (`routes/web.php` `epi` prefix) uses legacy `ss_` snake_case column names (e.g. `ss_c_tx_cpf`) — don't "modernize" them.
 - Dockerfile installs `php:8.2-cli` (no apache/nginx — serves via `artisan serve`); local docs say PHP 8.1+.

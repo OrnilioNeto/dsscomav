@@ -7,10 +7,24 @@
 ])
 
 @php
-    $logoPath = public_path('images/logo-comav-transportes.png');
-    $logoSource = file_exists($logoPath)
-        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
-        : asset('images/logo-comav-transportes.png');
+    $logoSource = null;
+
+    // 1. Logo do tenant (white-label), se existir no disco
+    $tenant = tenant();
+    if ($tenant) {
+        $logoPath = $tenant->logoFilePath('logo');
+        if ($logoPath) {
+            $logoSource = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+        }
+    }
+
+    // 2. Fallback legado (imagem fixa do repositório)
+    if (! $logoSource) {
+        $legacyPath = public_path('images/logo-comav-transportes.png');
+        $logoSource = file_exists($legacyPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($legacyPath))
+            : asset('images/logo-comav-transportes.png');
+    }
 
     $inlineStyle = trim($style);
 
@@ -25,4 +39,4 @@
     }
 @endphp
 
-<img src="{{ $logoSource }}" alt="{{ $alt }}" class="{{ trim(($class . ' max-w-full h-auto')) }}" style="{{ $inlineStyle }}"> 
+<img src="{{ $logoSource }}" alt="{{ $alt }}" class="{{ trim(($class . ' max-w-full h-auto')) }}" style="{{ $inlineStyle }}">

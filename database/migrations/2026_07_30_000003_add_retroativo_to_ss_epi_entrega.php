@@ -10,7 +10,9 @@ return new class extends Migration
     {
         if (Schema::hasTable('ss_epi_entrega') && !Schema::hasColumn('ss_epi_entrega', 'ss_e_tx_retroativo')) {
             Schema::table('ss_epi_entrega', function (Blueprint $table) {
-                $table->boolean('ss_e_tx_retroativo')->default(false)->after('ss_e_tx_grupo_assinatura');
+                // ss_e_tx_grupo_assinatura pode ainda não existir (antes da migration
+                // 2026_09_16_000002_add_grupo_assinatura_to_ss_epi_entrega); sem after() é seguro.
+                $table->boolean('ss_e_tx_retroativo')->default(false);
             });
         }
     }
