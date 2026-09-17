@@ -1,7 +1,8 @@
 <?php
 
-use App\Http\Controllers\Admin\FolgasController;
+use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\FolgaRelatorioController;
+use App\Http\Controllers\Admin\FolgasController;
 use App\Http\Controllers\Admin\PlataformaTenantController;
 use App\Http\Controllers\Admin\RankingController;
 use App\Http\Controllers\Admin\RankingSettingsController;
@@ -11,8 +12,6 @@ use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CertificateManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeFichaController;
-use App\Http\Controllers\TrainingRewatchController;
-use App\Http\Controllers\TrainingVacationExemptionController;
 use App\Http\Controllers\EpiController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfilePhotoController;
@@ -21,6 +20,8 @@ use App\Http\Controllers\SocialController;
 use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\TrainingMaterialController;
 use App\Http\Controllers\TrainingPlayerController;
+use App\Http\Controllers\TrainingRewatchController;
+use App\Http\Controllers\TrainingVacationExemptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\CheckRole;
 use Illuminate\Support\Facades\Route;
@@ -37,14 +38,14 @@ Route::get('/teste-video', function () {
 
 // Rotas de autenticação
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login')->middleware('guest');
-Route::post('/login', [AuthController::class, 'login'])->middleware('guest');
+Route::post('/login', [AuthController::class, 'login'])->middleware(['guest', 'throttle:login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 // Validação pública de certificado
-Route::get('/validar/{codigo}', [CertificateController::class, 'validateCertificate'])->name('validar.certificado');
+Route::get('/validar/{codigo}', [CertificateController::class, 'validateCertificate'])->name('validar.certificado')->middleware('throttle:60,1');
 
 // Ficha pública do colaborador (via QR Code)
-Route::get('/ficha/{token}', [EmployeeFichaController::class, 'showPublic'])->name('ficha.publica');
+Route::get('/ficha/{token}', [EmployeeFichaController::class, 'showPublic'])->name('ficha.publica')->middleware('throttle:60,1');
 
 // Rotas protegidas por autenticação
 Route::middleware('auth')->group(function () {
@@ -103,7 +104,7 @@ Route::middleware('auth')->group(function () {
     // Visualizar e completar treinamentos
     Route::get('/treinamentos/{id}/player', [TrainingPlayerController::class, 'show'])->name('treinamentos.player');
     Route::post('/treinamentos/{id}/atualizar-progresso', [TrainingPlayerController::class, 'updateProgress'])->name('treinamentos.atualizar-progresso');
-    Route::post('/treinamentos/{id}/avaliacao/iniciar', [TrainingPlayerController::class, 'iniciarAvaliacao'])->name('treinamentos.avaliacao.iniciar');
+    Route::post('/treinamentos/{id}/avaliacao/iniciar', [TrainingPlayerController::class, 'iniciarAvaliacao'])->name('treinamentos.avaliacao.iniciar')->middleware('throttle:10,1');
     Route::post('/treinamentos/{id}/avaliacao', [TrainingPlayerController::class, 'submitAssessment'])->name('treinamentos.avaliacao');
     Route::post('/treinamentos/{id}/completar', [TrainingPlayerController::class, 'complete'])->name('treinamentos.completar');
 
@@ -189,6 +190,12 @@ Route::middleware('auth')->group(function () {
             Route::get('/relatorios', [FolgaRelatorioController::class, 'index'])->name('admin.folgas.relatorios');
             Route::get('/relatorios/csv', [FolgaRelatorioController::class, 'exportCsv'])->name('admin.folgas.relatorios.csv');
             Route::get('/relatorios/pdf', [FolgaRelatorioController::class, 'exportPdf'])->name('admin.folgas.relatorios.pdf');
+        });
+
+        // Auditoria (trilha de ações — permissão:auditoria)
+        Route::prefix('admin/auditoria')->middleware('permission:auditoria,view')->group(function () {
+            Route::get('/', [AuditoriaController::class, 'index'])->name('auditoria.index');
+            Route::get('/exportar', [AuditoriaController::class, 'export'])->name('auditoria.export');
         });
 
         // Isenções de treinamento por férias (módulo:trainings)

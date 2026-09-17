@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
-
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ProjetoPedagogico extends Model
 {
+    use Auditable;
     use BelongsToTenant;
     use HasFactory;
 
@@ -68,7 +69,7 @@ class ProjetoPedagogico extends Model
     {
         $ids = $this->trainings()->pluck('trainings.id')->all();
 
-        if ($this->training_id && !in_array((int) $this->training_id, $ids)) {
+        if ($this->training_id && ! in_array((int) $this->training_id, $ids)) {
             $ids[] = (int) $this->training_id;
         }
 
@@ -95,7 +96,7 @@ class ProjetoPedagogico extends Model
      */
     public function getStatusRevisaoAttribute(): string
     {
-        if (!$this->data_proxima_revisao) {
+        if (! $this->data_proxima_revisao) {
             return 'sem_revisao';
         }
 
@@ -124,7 +125,7 @@ class ProjetoPedagogico extends Model
 
         $preenchidos = 0;
         foreach ($campos as $campo) {
-            if (!empty(trim((string) $this->{$campo}))) {
+            if (! empty(trim((string) $this->{$campo}))) {
                 $preenchidos++;
             }
         }

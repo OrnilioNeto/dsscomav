@@ -3,30 +3,32 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
-use App\Models\RolePermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class PermissionController extends Controller
 {
-    private const MODULES = [
-        'users' => 'Usuários (Cadastro e Consulta)',
-        'trainings' => 'Treinamentos e DSS',
-        'certificates' => 'Consulta de Certificados',
-        'rankings' => 'Ranking & Engajamento',
-        'splash' => 'Mensagens Splash',
-        'social' => 'Rede Social (Feed, Postagens, Seguidores)',
-        'epi' => 'Saúde e Segurança (EPIs, Estoque, Entregas)',
-        'projeto_pedagogico' => 'Projetos Pedagógicos (NR-01 Anexo II)',
-        'folgas' => 'Folgas (Banco de Folgas e Escalas)',
-        'rewatch' => 'Liberar Conteúdo para Reassistir',
-        'permissions' => 'Gerenciar Permissões'
-    ];
+    /**
+     * Módulos exibidos na matriz de permissões.
+     * Fonte única: config/modules.php (mesmo catálogo do gate por tenant).
+     *
+     * @return array<string, string>
+     */
+    private function modules(): array
+    {
+        $modules = [];
+
+        foreach (config('modules', []) as $slug => $meta) {
+            $modules[$slug] = $meta['label'] ?? $slug;
+        }
+
+        return $modules;
+    }
 
     public function index()
     {
         // Apenas super_admin pode acessar o gerenciamento de permissões globais
-        if (!auth()->user()->isSuperAdmin()) {
+        if (! auth()->user()->isSuperAdmin()) {
             abort(403, 'Acesso negado. Apenas super_admin pode gerenciar as permissões globais.');
         }
 
@@ -35,14 +37,14 @@ class PermissionController extends Controller
             ->orderBy('nome')
             ->get();
 
-        $modules = self::MODULES;
+        $modules = $this->modules();
 
         return view('permissoes.index', compact('roles', 'modules'));
     }
 
     public function storeRole(Request $request)
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (! auth()->user()->isSuperAdmin()) {
             abort(403);
         }
 
@@ -69,7 +71,7 @@ class PermissionController extends Controller
         ]);
 
         // Inicializar permissões vazias para todos os módulos do novo perfil
-        foreach (self::MODULES as $module => $label) {
+        foreach ($this->modules() as $module => $label) {
             $role->permissions()->create([
                 'module' => $module,
                 'can_view' => false,
@@ -82,7 +84,7 @@ class PermissionController extends Controller
 
     public function destroyRole($id)
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (! auth()->user()->isSuperAdmin()) {
             abort(403);
         }
 
@@ -105,7 +107,7 @@ class PermissionController extends Controller
 
     public function updatePermissions(Request $request)
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (! auth()->user()->isSuperAdmin()) {
             abort(403);
         }
 
@@ -113,7 +115,7 @@ class PermissionController extends Controller
         $roles = Role::where('nome', '!=', 'super_admin')->get();
 
         foreach ($roles as $role) {
-            foreach (self::MODULES as $module => $label) {
+            foreach ($this->modules() as $module => $label) {
                 $canView = isset($permissionsData[$role->id][$module]['view']);
                 $canEdit = isset($permissionsData[$role->id][$module]['edit']);
 
@@ -126,7 +128,7 @@ class PermissionController extends Controller
                     ['module' => $module],
                     [
                         'can_view' => $canView,
-                        'can_edit' => $canEdit
+                        'can_edit' => $canEdit,
                     ]
                 );
             }

@@ -2,11 +2,16 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
 use App\Models\Certificate;
 use App\Observers\CertificateObserver;
+use App\Services\AuditLogger;
 use App\Support\TenantManager;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,7 +42,32 @@ class AppServiceProvider extends ServiceProvider
                 Certificate::observe(CertificateObserver::class);
             }
         } catch (\Throwable $e) {
-            logger()->warning('Falha ao registrar CertificateObserver: ' . $e->getMessage());
+            logger()->warning('Falha ao registrar CertificateObserver: '.$e->getMessage());
         }
+
+        // Auditoria de autenticação (login, falha e logout)
+        Event::listen(Login::class, function (Login $event) {
+            app(AuditLogger::class)->log('login', [
+                'user_id' => $event->user?->getAuthIdentifier(),
+                'module' => 'auth',
+                'description' => 'Login realizado: '.($event->user->nome ?? ''),
+            ]);
+        });
+
+        Event::listen(Failed::class, function (Failed $event) {
+            app(AuditLogger::class)->log('login_failed', [
+                'user_id' => $event->user?->getAuthIdentifier(),
+                'module' => 'auth',
+                'description' => 'Falha de autenticação',
+            ]);
+        });
+
+        Event::listen(Logout::class, function (Logout $event) {
+            app(AuditLogger::class)->log('logout', [
+                'user_id' => $event->user?->getAuthIdentifier(),
+                'module' => 'auth',
+                'description' => 'Logout realizado: '.($event->user->nome ?? ''),
+            ]);
+        });
     }
 }

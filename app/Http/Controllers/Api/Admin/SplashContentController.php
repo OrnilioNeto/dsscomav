@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SplashContent;
+use App\Support\SafeUpload;
 use Illuminate\Http\Request;
 
 class SplashContentController extends Controller
 {
+    private const MATERIAL_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf'];
+
     private function serialize(SplashContent $c): array
     {
         return [
@@ -23,9 +26,7 @@ class SplashContentController extends Controller
         ];
     }
 
-    public function __construct()
-    {
-    }
+    public function __construct() {}
 
     public function index()
     {
@@ -60,10 +61,19 @@ class SplashContentController extends Controller
 
         if ($request->hasFile('material')) {
             $file = $request->file('material');
-            $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
+            $extensao = SafeUpload::extensionFromUploadedFile($file, self::MATERIAL_EXTENSIONS);
+
+            if ($extensao === null) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tipo de arquivo não permitido. Envie JPG, PNG ou PDF.',
+                ], 422);
+            }
+
+            $filename = time().'_'.uniqid().'.'.$extensao;
             $file->move(public_path(tenant_upload_dir('splash')), $filename);
-            $data['material_path'] = tenant_upload_dir('splash') . '/' . $filename;
-            $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
+            $data['material_path'] = tenant_upload_dir('splash').'/'.$filename;
+            $data['material_tipo'] = $extensao === 'pdf' ? 'pdf' : 'imagem';
         }
 
         $content = SplashContent::create($data);
@@ -83,6 +93,7 @@ class SplashContentController extends Controller
             'titulo' => 'required|max:255',
             'data_inicio' => 'required|date',
             'data_fim' => 'required|date|after_or_equal:data_inicio',
+            'material' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
         if ($validator->fails()) {
@@ -100,10 +111,19 @@ class SplashContentController extends Controller
             }
 
             $file = $request->file('material');
-            $filename = time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
+            $extensao = SafeUpload::extensionFromUploadedFile($file, self::MATERIAL_EXTENSIONS);
+
+            if ($extensao === null) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tipo de arquivo não permitido. Envie JPG, PNG ou PDF.',
+                ], 422);
+            }
+
+            $filename = time().'_'.uniqid().'.'.$extensao;
             $file->move(public_path(tenant_upload_dir('splash')), $filename);
-            $data['material_path'] = tenant_upload_dir('splash') . '/' . $filename;
-            $data['material_tipo'] = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagem';
+            $data['material_path'] = tenant_upload_dir('splash').'/'.$filename;
+            $data['material_tipo'] = $extensao === 'pdf' ? 'pdf' : 'imagem';
         }
 
         $content->update($data);

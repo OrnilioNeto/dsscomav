@@ -9,6 +9,10 @@ return [
     | Fonte única dos módulos do sistema: usado na liberação por tenant
     | (tenant_modules), na RBAC (role_permissions) e na UI de configuração.
     |
+    | Módulos novos (app/Modules/<Nome>, ver docs/modulos/GUIA_MODULOS.md)
+    | devem adicionar uma entrada aqui para aparecerem na matriz de permissões
+    | e no painel da plataforma.
+    |
     */
 
     'users' => [
@@ -50,6 +54,10 @@ return [
     'rewatch' => [
         'label' => 'Reassistir Treinamentos',
         'description' => 'Liberação de conteúdo para reassistir',
+    ],
+    'auditoria' => [
+        'label' => 'Auditoria',
+        'description' => 'Trilha de ações, acessos e alterações do sistema',
     ],
     'permissions' => [
         'label' => 'Perfis e Permissões',

@@ -11,14 +11,18 @@ use App\Models\EpiKit;
 use App\Models\EpiKitItem;
 use App\Models\EpiVariacao;
 use App\Models\User;
+use App\Support\SafeUpload;
 use App\Support\TenantManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class EpiController extends Controller
 {
+    private const FOTO_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+
     private static $tablesEnsured = false;
 
     /**
@@ -68,7 +72,7 @@ class EpiController extends Controller
             } else {
                 DB::table('ss_colaborador')->insert(array_merge($dados, [
                     'ss_c_tx_cpf' => $u->cpf,
-                    'ss_c_tx_matricula' => 'MAT-' . str_pad($u->id, 5, '0', STR_PAD_LEFT),
+                    'ss_c_tx_matricula' => 'MAT-'.str_pad($u->id, 5, '0', STR_PAD_LEFT),
                     'ss_c_nb_empresa_id' => 0,
                     'tenant_id' => app(TenantManager::class)->id(),
                 ]));
@@ -90,7 +94,7 @@ class EpiController extends Controller
 
         // 1. Estatísticas Rápidas
         $totalCatalogo = Epi::where('ss_e_tx_status', 'ativo')->count();
-        
+
         $totalEntradasEstoque = DB::table('ss_epi_estoque')->whereTenant('ss_epi_estoque')->whereIn('ss_e_tx_tipo', ['entrada', 'devolucao'])->sum('ss_e_nb_quantidade');
         $totalSaidasEstoque = DB::table('ss_epi_estoque')->whereTenant('ss_epi_estoque')->whereIn('ss_e_tx_tipo', ['saida', 'substituicao'])->sum('ss_e_nb_quantidade');
         $saldoEstoqueTotal = max(0, $totalEntradasEstoque - $totalSaidasEstoque);
@@ -121,9 +125,9 @@ class EpiController extends Controller
             ->get();
 
         $vidaUtilStats = [
-            'total_ativo'     => (int) $totalCatalogo,
+            'total_ativo' => (int) $totalCatalogo,
             'nao_configurada' => $episVidaUtilProblema->count(),
-            'com_valor'       => max(0, (int) $totalCatalogo - $episVidaUtilProblema->count()),
+            'com_valor' => max(0, (int) $totalCatalogo - $episVidaUtilProblema->count()),
         ];
 
         // 1.3 Monitoramento de validade: entregas ativas vencidas ou vencendo em 30 dias
@@ -164,19 +168,19 @@ class EpiController extends Controller
 
         // 2. Consulta do Catálogo de EPIs
         $queryCatalogo = Epi::query();
-        if (!empty($buscaCatalogo)) {
+        if (! empty($buscaCatalogo)) {
             $queryCatalogo->where(function ($q) use ($buscaCatalogo) {
                 $q->where('ss_e_tx_item', 'LIKE', "%{$buscaCatalogo}%")
-                  ->orWhere('ss_e_tx_grupo', 'LIKE', "%{$buscaCatalogo}%")
-                  ->orWhere('ss_e_tx_subgrupo', 'LIKE', "%{$buscaCatalogo}%")
-                  ->orWhere('ss_e_tx_ca', 'LIKE', "%{$buscaCatalogo}%")
-                  ->orWhere('ss_e_tx_fabricante', 'LIKE', "%{$buscaCatalogo}%");
+                    ->orWhere('ss_e_tx_grupo', 'LIKE', "%{$buscaCatalogo}%")
+                    ->orWhere('ss_e_tx_subgrupo', 'LIKE', "%{$buscaCatalogo}%")
+                    ->orWhere('ss_e_tx_ca', 'LIKE', "%{$buscaCatalogo}%")
+                    ->orWhere('ss_e_tx_fabricante', 'LIKE', "%{$buscaCatalogo}%");
             });
         }
-        if (!empty($grupoCatalogo)) {
+        if (! empty($grupoCatalogo)) {
             $queryCatalogo->where('ss_e_tx_grupo', $grupoCatalogo);
         }
-        if (!empty($statusCatalogo)) {
+        if (! empty($statusCatalogo)) {
             $queryCatalogo->where('ss_e_tx_status', $statusCatalogo);
         }
         $episCatalogo = $queryCatalogo->with('variacoes')->orderBy('ss_e_tx_grupo')->orderBy('ss_e_tx_item')->get();
@@ -262,12 +266,12 @@ class EpiController extends Controller
                         ->orWhere('ss_e_tx_subgrupo', 'LIKE', '%fardamento%')
                         ->orWhere('ss_e_tx_subgrupo', 'LIKE', '%uniforme%');
                 })
-                ->orWhere(function ($r) {
-                    $r->where('ss_e_tx_item', 'LIKE', '%camisa%')
-                        ->orWhere('ss_e_tx_item', 'LIKE', '%calça%')
-                        ->orWhere('ss_e_tx_item', 'LIKE', '%calca%')
-                        ->orWhere('ss_e_tx_item', 'LIKE', '%bota%');
-                });
+                    ->orWhere(function ($r) {
+                        $r->where('ss_e_tx_item', 'LIKE', '%camisa%')
+                            ->orWhere('ss_e_tx_item', 'LIKE', '%calça%')
+                            ->orWhere('ss_e_tx_item', 'LIKE', '%calca%')
+                            ->orWhere('ss_e_tx_item', 'LIKE', '%bota%');
+                    });
             })
             ->with(['variacoes' => function ($q) {
                 $q->where('ss_ev_tx_status', 'ativo');
@@ -387,7 +391,7 @@ class EpiController extends Controller
      */
     private function detectarTipoFardamento(Epi $epi): ?string
     {
-        $texto = mb_strtolower(trim(($epi->ss_e_tx_grupo ?? '') . ' ' . ($epi->ss_e_tx_subgrupo ?? '') . ' ' . ($epi->ss_e_tx_item ?? '')));
+        $texto = mb_strtolower(trim(($epi->ss_e_tx_grupo ?? '').' '.($epi->ss_e_tx_subgrupo ?? '').' '.($epi->ss_e_tx_item ?? '')));
 
         if (str_contains($texto, 'camisa')) {
             return 'camisa';
@@ -437,7 +441,7 @@ class EpiController extends Controller
                     continue;
                 }
                 $totalComMedida++;
-                if (!isset($grupos[$tamanho])) {
+                if (! isset($grupos[$tamanho])) {
                     $grupos[$tamanho] = ['qtd' => 0, 'funcionarios' => []];
                 }
                 $grupos[$tamanho]['qtd']++;
@@ -456,6 +460,7 @@ class EpiController extends Controller
                 if ($numericA !== '' && $numericB !== '' && $numericA !== $numericB) {
                     return (int) $numericA <=> (int) $numericB;
                 }
+
                 return strnatcmp((string) $a, (string) $b);
             });
 
@@ -490,7 +495,7 @@ class EpiController extends Controller
         $this->ensureTablesExist();
 
         $filiais = [
-            0 => 'Matriz / Sede Principal'
+            0 => 'Matriz / Sede Principal',
         ];
 
         if (Schema::hasTable('ss_filial')) {
@@ -501,7 +506,7 @@ class EpiController extends Controller
                 ->get();
 
             foreach ($registros as $f) {
-                $filiais[$f->ss_f_nb_id] = $f->ss_f_tx_nome . ($f->ss_f_tx_cidade ? " ({$f->ss_f_tx_cidade})" : "");
+                $filiais[$f->ss_f_nb_id] = $f->ss_f_tx_nome.($f->ss_f_tx_cidade ? " ({$f->ss_f_tx_cidade})" : '');
             }
         }
 
@@ -541,7 +546,7 @@ class EpiController extends Controller
 
             $saldosOutrasFiliais = [];
             foreach ($filiais as $fId => $fNome) {
-                if ((int)$fId !== (int)$filialAtual) {
+                if ((int) $fId !== (int) $filialAtual) {
                     $s = $epi->getSaldoPorFilial($fId);
                     if ($s > 0) {
                         $saldosOutrasFiliais[] = [
@@ -611,6 +616,7 @@ class EpiController extends Controller
             'ss_e_tx_grupo' => 'required|string|max:255',
             'ss_e_tx_item' => 'required|string|max:255',
             'ss_e_nb_vida_util_dias' => 'nullable|integer|min:0',
+            'ss_e_tx_foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         $id = $request->input('ss_e_nb_id');
@@ -622,18 +628,24 @@ class EpiController extends Controller
             'ss_e_tx_fabricante' => $request->input('ss_e_tx_fabricante'),
             'ss_e_tx_ca' => $request->input('ss_e_tx_ca'),
             'ss_e_tx_validade_ca' => $request->input('ss_e_tx_validade_ca'),
-            'ss_e_nb_vida_util_dias' => (int)$request->input('ss_e_nb_vida_util_dias', 0),
+            'ss_e_nb_vida_util_dias' => (int) $request->input('ss_e_nb_vida_util_dias', 0),
             'ss_e_tx_status' => $request->input('ss_e_tx_status', 'ativo'),
             'ss_e_tx_modelo' => $request->input('ss_e_tx_modelo'),
         ];
 
         // Upload de foto se fornecida
         if ($request->hasFile('ss_e_tx_foto')) {
-            $path = $request->file('ss_e_tx_foto')->store(tenant_public_storage_dir('epis_fotos'), 'public');
-            $dados['ss_e_tx_foto'] = '/storage/' . $path;
+            $filename = SafeUpload::filenameForUploadedFile($request->file('ss_e_tx_foto'), self::FOTO_EXTENSIONS);
+
+            if ($filename === null) {
+                return redirect()->back()->withErrors(['ss_e_tx_foto' => 'Envie uma imagem JPG, PNG ou WEBP de até 5 MB.']);
+            }
+
+            $path = $request->file('ss_e_tx_foto')->storeAs(tenant_public_storage_dir('epis_fotos'), $filename, 'public');
+            $dados['ss_e_tx_foto'] = '/storage/'.$path;
         }
 
-        if (!empty($id)) {
+        if (! empty($id)) {
             Epi::where('ss_e_nb_id', $id)->update($dados);
             $msg = 'EPI atualizado com sucesso!';
         } else {
@@ -651,7 +663,9 @@ class EpiController extends Controller
             $idsManter = [];
             foreach ($nomesVariacoes as $nome) {
                 $nome = trim($nome);
-                if (empty($nome)) continue;
+                if (empty($nome)) {
+                    continue;
+                }
                 $existente = EpiVariacao::where('ss_ev_nb_epi_id', $id)
                     ->where('ss_ev_tx_nome', $nome)
                     ->first();
@@ -701,12 +715,13 @@ class EpiController extends Controller
             'ss_e_tx_tipo' => 'required|in:entrada,saida,substituicao',
             'ss_e_tx_data_recebimento' => 'nullable|date',
             'ss_e_tx_validade' => 'nullable|date',
+            'ss_e_tx_foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         $epiId = $request->input('ss_e_nb_epi_id');
         $tipo = $request->input('ss_e_tx_tipo');
         $empresaId = $request->input('ss_e_nb_empresa_id', 0);
-        $valorUnitario = $request->filled('ss_e_db_valor_unitario') ? (float)$request->input('ss_e_db_valor_unitario') : null;
+        $valorUnitario = $request->filled('ss_e_db_valor_unitario') ? (float) $request->input('ss_e_db_valor_unitario') : null;
         $chaveNf = $request->input('ss_e_tx_chave_nf');
         $fornecedor = $request->input('ss_e_tx_fornecedor');
         $motivo = $request->input('ss_e_tx_motivo');
@@ -715,28 +730,36 @@ class EpiController extends Controller
 
         $fotoCaminho = null;
         if ($request->hasFile('ss_e_tx_foto')) {
-            $path = $request->file('ss_e_tx_foto')->store(tenant_public_storage_dir('estoque_comprovantes'), 'public');
-            $fotoCaminho = '/storage/' . $path;
+            $filename = SafeUpload::filenameForUploadedFile($request->file('ss_e_tx_foto'), self::FOTO_EXTENSIONS);
+
+            if ($filename === null) {
+                return response()->json(['status' => 'error', 'message' => 'Envie uma imagem JPG, PNG ou WEBP de até 5 MB.'], 422);
+            }
+
+            $path = $request->file('ss_e_tx_foto')->storeAs(tenant_public_storage_dir('estoque_comprovantes'), $filename, 'public');
+            $fotoCaminho = '/storage/'.$path;
         }
 
         $variacoesData = $request->input('variacoes');
         $totalGeral = 0;
 
         // Modo 1: Lançamento com múltiplas variações
-        if (!empty($variacoesData) && is_array($variacoesData)) {
+        if (! empty($variacoesData) && is_array($variacoesData)) {
             $temQtd = false;
             $entries = [];
             foreach ($variacoesData as $varId => $varData) {
-                $qtd = isset($varData['qtd']) ? (int)$varData['qtd'] : 0;
-                if ($qtd <= 0) continue;
+                $qtd = isset($varData['qtd']) ? (int) $varData['qtd'] : 0;
+                if ($qtd <= 0) {
+                    continue;
+                }
                 $temQtd = true;
                 $entries[] = [
-                    'variacao_id' => (int)$varId,
+                    'variacao_id' => (int) $varId,
                     'quantidade' => $qtd,
                 ];
             }
 
-            if (!$temQtd) {
+            if (! $temQtd) {
                 return redirect()->back()->with('error', 'Informe a quantidade para pelo menos uma variação!');
             }
 
@@ -766,7 +789,8 @@ class EpiController extends Controller
                 }
             });
 
-            $msg = "Movimentação de estoque registrada com sucesso! Total de {$totalGeral} itens em " . count($entries) . " variação(ões).";
+            $msg = "Movimentação de estoque registrada com sucesso! Total de {$totalGeral} itens em ".count($entries).' variação(ões).';
+
             return redirect()->back()->with('success', $msg);
         }
 
@@ -775,7 +799,7 @@ class EpiController extends Controller
             'ss_e_nb_quantidade' => 'required|integer|min:1',
         ]);
 
-        $quantidade = (int)$request->input('ss_e_nb_quantidade');
+        $quantidade = (int) $request->input('ss_e_nb_quantidade');
         $valorTotal = $valorUnitario !== null ? ($valorUnitario * $quantidade) : null;
 
         $dados = [
@@ -825,7 +849,7 @@ class EpiController extends Controller
                 EpiKitItem::create([
                     'ss_ki_nb_kit_id' => $kit->ss_k_nb_id,
                     'ss_ki_nb_epi_id' => $item['epi_id'],
-                    'ss_ki_nb_quantidade' => (int)$item['quantidade'],
+                    'ss_ki_nb_quantidade' => (int) $item['quantidade'],
                 ]);
             }
         });
@@ -866,15 +890,17 @@ class EpiController extends Controller
 
             // Validação estrita de saldo de estoque para cada item do lote
             // (ignorada quando a entrega é retroativa)
-            if (!$retroativo) {
+            if (! $retroativo) {
                 foreach ($entregasLote as $entData) {
                     $empId = $entData['ss_e_nb_empresa_id'] ?? $request->input('ss_e_nb_empresa_id', 0);
                     foreach ($entData['itens'] ?? [] as $itemData) {
                         $epi = Epi::find($itemData['epi_id']);
-                        if (!$epi) continue;
-                        $qtd = (int)$itemData['quantidade'];
-                        $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empId;
-                        $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
+                        if (! $epi) {
+                            continue;
+                        }
+                        $qtd = (int) $itemData['quantidade'];
+                        $filialOrigem = isset($itemData['empresa_origem_id']) ? (int) $itemData['empresa_origem_id'] : (int) $empId;
+                        $variacaoId = isset($itemData['variacao_id']) ? (int) $itemData['variacao_id'] : null;
                         $saldoLocal = $epi->getSaldoPorFilial($filialOrigem, $variacaoId);
 
                         $infoVariacao = '';
@@ -886,7 +912,7 @@ class EpiController extends Controller
                         if ($saldoLocal < $qtd) {
                             return response()->json([
                                 'status' => 'error',
-                                'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
+                                'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})",
                             ], 422);
                         }
                     }
@@ -894,7 +920,7 @@ class EpiController extends Controller
             }
 
             DB::transaction(function () use ($entregasLote, $request, $retroativo, &$totalProcessados) {
-                $grupoAssinatura = (string) \Illuminate\Support\Str::uuid();
+                $grupoAssinatura = (string) Str::uuid();
                 foreach ($entregasLote as $entData) {
                     $colabId = $entData['ss_e_nb_colaborador_id'] ?? null;
                     $dtEntrega = $entData['ss_e_tx_data_entrega'] ?? date('Y-m-d');
@@ -903,15 +929,19 @@ class EpiController extends Controller
                     $obs = $entData['ss_e_tx_observacao'] ?? null;
                     $itensList = $entData['itens'] ?? [];
 
-                    if (!$colabId || empty($itensList)) continue;
+                    if (! $colabId || empty($itensList)) {
+                        continue;
+                    }
 
                     foreach ($itensList as $itemData) {
                         $epi = Epi::find($itemData['epi_id']);
-                        if (!$epi) continue;
+                        if (! $epi) {
+                            continue;
+                        }
 
-                        $qtd = (int)$itemData['quantidade'];
-                        $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empId;
-                        $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
+                        $qtd = (int) $itemData['quantidade'];
+                        $filialOrigem = isset($itemData['empresa_origem_id']) ? (int) $itemData['empresa_origem_id'] : (int) $empId;
+                        $variacaoId = isset($itemData['variacao_id']) ? (int) $itemData['variacao_id'] : null;
 
                         $vencimento = $this->calcularVencimentoEntrega($epi->ss_e_nb_id, $variacaoId, $dtEntrega);
 
@@ -938,7 +968,7 @@ class EpiController extends Controller
                         ]);
 
                         // Entrega retroativa não gera baixa/saída de estoque
-                        if (!$retroativo) {
+                        if (! $retroativo) {
                             EpiEstoque::create([
                                 'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
                                 'ss_e_nb_variacao_id' => $variacaoId,
@@ -946,7 +976,7 @@ class EpiController extends Controller
                                 'ss_e_nb_quantidade' => $qtd,
                                 'ss_e_tx_tipo' => 'saida',
                                 'ss_e_tx_data' => now(),
-                                'ss_e_tx_motivo' => "Entrega em lote para Colaborador ID #{$colabId}" . ($filialOrigem != $empId ? " (Transferido da Filial #{$filialOrigem})" : ""),
+                                'ss_e_tx_motivo' => "Entrega em lote para Colaborador ID #{$colabId}".($filialOrigem != $empId ? " (Transferido da Filial #{$filialOrigem})" : ''),
                                 'ss_e_nb_userCadastro' => Auth::id(),
                             ]);
                         }
@@ -973,6 +1003,7 @@ class EpiController extends Controller
             'itens' => 'required|array|min:1',
             'itens.*.epi_id' => 'required|integer',
             'itens.*.quantidade' => 'required|integer|min:1',
+            'ss_e_tx_foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
 
         $colaboradorId = $request->input('ss_e_nb_colaborador_id');
@@ -983,13 +1014,15 @@ class EpiController extends Controller
 
         // Validação estrita de saldo de estoque individual
         // (ignorada quando a entrega é retroativa)
-        if (!$retroativo) {
+        if (! $retroativo) {
             foreach ($request->input('itens') as $itemData) {
                 $epi = Epi::find($itemData['epi_id']);
-                if (!$epi) continue;
-                $qtd = (int)$itemData['quantidade'];
-                $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empresaId;
-                $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
+                if (! $epi) {
+                    continue;
+                }
+                $qtd = (int) $itemData['quantidade'];
+                $filialOrigem = isset($itemData['empresa_origem_id']) ? (int) $itemData['empresa_origem_id'] : (int) $empresaId;
+                $variacaoId = isset($itemData['variacao_id']) ? (int) $itemData['variacao_id'] : null;
                 $saldoLocal = $epi->getSaldoPorFilial($filialOrigem, $variacaoId);
 
                 $infoVariacao = '';
@@ -1001,7 +1034,7 @@ class EpiController extends Controller
                 if ($saldoLocal < $qtd) {
                     return response()->json([
                         'status' => 'error',
-                        'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})"
+                        'message' => "O item '{$epi->ss_e_tx_item}{$infoVariacao}' não possui saldo suficiente em estoque para concluir a entrega! (Necessário: {$qtd}, Saldo na filial: {$saldoLocal})",
                     ], 422);
                 }
             }
@@ -1009,17 +1042,23 @@ class EpiController extends Controller
 
         $fotoCaminho = null;
         if ($request->hasFile('ss_e_tx_foto')) {
-            $path = $request->file('ss_e_tx_foto')->store(tenant_public_storage_dir('recibos_entregas'), 'public');
-            $fotoCaminho = '/storage/' . $path;
+            $filename = SafeUpload::filenameForUploadedFile($request->file('ss_e_tx_foto'), self::FOTO_EXTENSIONS);
+
+            if ($filename === null) {
+                return response()->json(['status' => 'error', 'message' => 'Envie uma imagem JPG, PNG ou WEBP de até 5 MB.'], 422);
+            }
+
+            $path = $request->file('ss_e_tx_foto')->storeAs(tenant_public_storage_dir('recibos_entregas'), $filename, 'public');
+            $fotoCaminho = '/storage/'.$path;
         }
 
         DB::transaction(function () use ($colaboradorId, $dataEntrega, $empresaId, $assinatura, $fotoCaminho, $observacao, $retroativo, $request) {
-            $grupoAssinatura = (string) \Illuminate\Support\Str::uuid();
+            $grupoAssinatura = (string) Str::uuid();
             foreach ($request->input('itens') as $itemData) {
                 $epi = Epi::findOrFail($itemData['epi_id']);
-                $qtd = (int)$itemData['quantidade'];
-                $filialOrigem = isset($itemData['empresa_origem_id']) ? (int)$itemData['empresa_origem_id'] : (int)$empresaId;
-                $variacaoId = isset($itemData['variacao_id']) ? (int)$itemData['variacao_id'] : null;
+                $qtd = (int) $itemData['quantidade'];
+                $filialOrigem = isset($itemData['empresa_origem_id']) ? (int) $itemData['empresa_origem_id'] : (int) $empresaId;
+                $variacaoId = isset($itemData['variacao_id']) ? (int) $itemData['variacao_id'] : null;
 
                 $vencimento = $this->calcularVencimentoEntrega($epi->ss_e_nb_id, $variacaoId, $dataEntrega);
 
@@ -1047,7 +1086,7 @@ class EpiController extends Controller
                 ]);
 
                 // Entrega retroativa não gera baixa/saída de estoque
-                if (!$retroativo) {
+                if (! $retroativo) {
                     EpiEstoque::create([
                         'ss_e_nb_epi_id' => $epi->ss_e_nb_id,
                         'ss_e_nb_variacao_id' => $variacaoId,
@@ -1055,7 +1094,7 @@ class EpiController extends Controller
                         'ss_e_nb_quantidade' => $qtd,
                         'ss_e_tx_tipo' => 'saida',
                         'ss_e_tx_data' => now(),
-                        'ss_e_tx_motivo' => "Entrega para Colaborador ID #{$colaboradorId}" . ($filialOrigem != $empresaId ? " (Transferido da Filial #{$filialOrigem})" : ""),
+                        'ss_e_tx_motivo' => "Entrega para Colaborador ID #{$colaboradorId}".($filialOrigem != $empresaId ? " (Transferido da Filial #{$filialOrigem})" : ''),
                         'ss_e_nb_userCadastro' => Auth::id(),
                     ]);
                 }
@@ -1096,7 +1135,7 @@ class EpiController extends Controller
 
             // 2. Se marcado checkbox, estornar item gerando movimentação de 'entrada'
             // (entregas retroativas nunca deram baixa, então não há estoque a estornar)
-            if ($estornarEstoque && !$entrega->ss_e_tx_retroativo) {
+            if ($estornarEstoque && ! $entrega->ss_e_tx_retroativo) {
                 EpiEstoque::create([
                     'ss_e_nb_epi_id' => $entrega->ss_e_nb_epi_id,
                     'ss_e_nb_variacao_id' => $entrega->ss_e_nb_variacao_id,
@@ -1258,7 +1297,7 @@ class EpiController extends Controller
         $quantidade = (int) $request->input('ss_ed_nb_quantidade');
 
         if ($quantidade > (int) $entrega->ss_e_nb_quantidade) {
-            return redirect()->back()->with('error', 'A quantidade devolvida não pode ser maior que a quantidade entregue (' . $entrega->ss_e_nb_quantidade . ')!');
+            return redirect()->back()->with('error', 'A quantidade devolvida não pode ser maior que a quantidade entregue ('.$entrega->ss_e_nb_quantidade.')!');
         }
 
         $motivo = $request->input('ss_ed_tx_motivo');
@@ -1302,7 +1341,7 @@ class EpiController extends Controller
                     'ss_e_nb_quantidade' => $quantidade,
                     'ss_e_tx_tipo' => 'devolucao',
                     'ss_e_tx_data' => now(),
-                    'ss_e_tx_motivo' => "Devolução #{$devolucaoId} - {$motivoLabel}: retorno ao estoque" . ($observacao ? " - {$observacao}" : ''),
+                    'ss_e_tx_motivo' => "Devolução #{$devolucaoId} - {$motivoLabel}: retorno ao estoque".($observacao ? " - {$observacao}" : ''),
                     'ss_e_nb_userCadastro' => Auth::id(),
                 ]);
             }
@@ -1311,7 +1350,7 @@ class EpiController extends Controller
             if ($quantidade >= (int) $entrega->ss_e_nb_quantidade) {
                 $entrega->update([
                     'ss_e_tx_status' => 'devolvido',
-                    'ss_e_tx_justificativa_exclusao' => "Devolução #{$devolucaoId} - {$motivoLabel}" . ($observacao ? " - {$observacao}" : ''),
+                    'ss_e_tx_justificativa_exclusao' => "Devolução #{$devolucaoId} - {$motivoLabel}".($observacao ? " - {$observacao}" : ''),
                 ]);
             }
         });
@@ -1375,7 +1414,7 @@ class EpiController extends Controller
         $this->ensureTablesExist();
 
         $colaborador = EpiColaborador::findOrFail($colaborador_id);
-        
+
         // Omitir registros inativos conforme regra.
         // Ordenado pela DATA DA ENTREGA do mais antigo para o mais novo:
         // as entregas mais recentes sempre vão para o fim do documento/ficha.
@@ -1399,10 +1438,11 @@ class EpiController extends Controller
         $user = Auth::user();
         $colaborador = EpiColaborador::where('ss_c_tx_cpf', $user->cpf)->first();
 
-        if (!$colaborador) {
+        if (! $colaborador) {
             if (request()->wantsJson()) {
                 return response()->json(['status' => 'success', 'data' => [], 'count' => 0]);
             }
+
             return view('epi.assinaturas', ['pendentes' => collect(), 'count' => 0, 'colaborador' => null]);
         }
 
@@ -1413,7 +1453,7 @@ class EpiController extends Controller
 
         // Agrupar por grupo_assinatura
         $grupos = $pendentes->groupBy(function ($item) {
-            return $item->ss_e_tx_grupo_assinatura ?: 'grupo_' . $item->ss_e_nb_id;
+            return $item->ss_e_tx_grupo_assinatura ?: 'grupo_'.$item->ss_e_nb_id;
         });
 
         $count = $grupos->count();
@@ -1435,7 +1475,7 @@ class EpiController extends Controller
         $user = Auth::user();
         $colaborador = EpiColaborador::where('ss_c_tx_cpf', $user->cpf)->first();
 
-        if (!$colaborador) {
+        if (! $colaborador) {
             return response()->json(['status' => 'error', 'message' => 'Colaborador não encontrado!'], 404);
         }
 
@@ -1480,7 +1520,7 @@ class EpiController extends Controller
         $user = Auth::user();
         $colaborador = EpiColaborador::where('ss_c_tx_cpf', $user->cpf)->first();
 
-        if (!$colaborador) {
+        if (! $colaborador) {
             return response()->json(['status' => 'error', 'message' => 'Colaborador não encontrado!'], 404);
         }
 
@@ -1599,7 +1639,7 @@ class EpiController extends Controller
             'ss_c_nb_empresa_id' => $request->input('ss_c_nb_empresa_id', 0),
         ];
 
-        if (!empty($id)) {
+        if (! empty($id)) {
             EpiColaborador::where('ss_c_nb_id', $id)->update($dados);
             $msg = 'Colaborador atualizado com sucesso!';
         } else {
@@ -1616,17 +1656,17 @@ class EpiController extends Controller
     public function modeloCsv()
     {
         $headers = [
-            "Content-Type" => "text/csv; charset=UTF-8",
-            "Content-Disposition" => "attachment; filename=modelo_importacao_epis.csv",
-            "Pragma" => "no-cache",
-            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
-            "Expires" => "0"
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename=modelo_importacao_epis.csv',
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
         ];
 
         $callback = function () {
             $file = fopen('php://output', 'w');
             // Escrever UTF-8 BOM (\xEF\xBB\xBF) para compatibilidade perfeita no Excel PT-BR
-            fputs($file, "\xEF\xBB\xBF");
+            fwrite($file, "\xEF\xBB\xBF");
 
             // Cabecalhos
             fputcsv($file, [
@@ -1638,7 +1678,7 @@ class EpiController extends Controller
                 'CA',
                 'ValidadeCA',
                 'VidaUtilDias',
-                'Modelo'
+                'Modelo',
             ], ';');
 
             // Exemplo 1
@@ -1651,7 +1691,7 @@ class EpiController extends Controller
                 '12345',
                 '2028-12-31',
                 '365',
-                'V-Gard'
+                'V-Gard',
             ], ';');
 
             // Exemplo 2
@@ -1664,7 +1704,7 @@ class EpiController extends Controller
                 '67890',
                 '2027-06-30',
                 '180',
-                'Virtua'
+                'Virtua',
             ], ';');
 
             fclose($file);
@@ -1683,13 +1723,13 @@ class EpiController extends Controller
         $epis = Epi::orderBy('ss_e_tx_grupo')->orderBy('ss_e_tx_item')->get();
 
         $headers = [
-            "Content-Type" => "text/csv; charset=UTF-8",
-            "Content-Disposition" => "attachment; filename=catalogo_epis_" . date('Y-m-d_H-i') . ".csv",
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename=catalogo_epis_'.date('Y-m-d_H-i').'.csv',
         ];
 
         $callback = function () use ($epis) {
             $file = fopen('php://output', 'w');
-            fputs($file, "\xEF\xBB\xBF");
+            fwrite($file, "\xEF\xBB\xBF");
 
             fputcsv($file, [
                 'ID',
@@ -1703,7 +1743,7 @@ class EpiController extends Controller
                 'VidaUtilDias',
                 'Status',
                 'TipoCadastro',
-                'Modelo'
+                'Modelo',
             ], ';');
 
             foreach ($epis as $epi) {
@@ -1743,7 +1783,7 @@ class EpiController extends Controller
         $file = $request->file('arquivo_csv');
         $handle = fopen($file->getRealPath(), 'r');
 
-        if (!$handle) {
+        if (! $handle) {
             return redirect()->back()->with('error', 'Não foi possível abrir o arquivo CSV.');
         }
 
@@ -1781,12 +1821,13 @@ class EpiController extends Controller
             $descricao = trim($data[3] ?? '');
             $fabricante = trim($data[4] ?? '');
             $ca = trim($data[5] ?? '');
-            $validadeCa = !empty($data[6]) ? trim($data[6]) : null;
-            $vidaUtil = isset($data[7]) ? (int)trim($data[7]) : 0;
+            $validadeCa = ! empty($data[6]) ? trim($data[6]) : null;
+            $vidaUtil = isset($data[7]) ? (int) trim($data[7]) : 0;
             $modelo = trim($data[8] ?? '');
 
             if (empty($grupo) || empty($item)) {
                 $erros++;
+
                 continue;
             }
 
@@ -1821,7 +1862,8 @@ class EpiController extends Controller
 
         fclose($handle);
 
-        $msg = "Importação CSV concluída! Inseridos: {$inseridos}, Atualizados: {$atualizados}" . ($erros > 0 ? ", Erros: {$erros}" : "");
+        $msg = "Importação CSV concluída! Inseridos: {$inseridos}, Atualizados: {$atualizados}".($erros > 0 ? ", Erros: {$erros}" : '');
+
         return redirect()->back()->with('success', $msg);
     }
 
@@ -1844,7 +1886,7 @@ class EpiController extends Controller
             'ss_f_tx_status' => $request->input('ss_f_tx_status', 'ativo'),
         ];
 
-        if (!empty($id)) {
+        if (! empty($id)) {
             DB::table('ss_filial')->whereTenant('ss_filial')->where('ss_f_nb_id', $id)->update($dados);
             $msg = 'Filial atualizada com sucesso!';
         } else {

@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, BelongsToTenant;
+    use Auditable, BelongsToTenant, HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
         'nome',
@@ -62,7 +64,7 @@ class User extends Authenticatable
     {
         static::creating(function ($user) {
             if (empty($user->qrcode_token)) {
-                $user->qrcode_token = \Illuminate\Support\Str::random(32);
+                $user->qrcode_token = Str::random(32);
             }
         });
     }
@@ -115,7 +117,7 @@ class User extends Authenticatable
 
     public function getFichaQrCodeUrlAttribute(): string
     {
-        return 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($this->ficha_url);
+        return 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data='.urlencode($this->ficha_url);
     }
 
     // Métodos auxiliares
@@ -130,7 +132,7 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!$this->role) {
+        if (! $this->role) {
             return false;
         }
 
@@ -143,12 +145,12 @@ class User extends Authenticatable
             return true;
         }
 
-        if (!$this->role) {
+        if (! $this->role) {
             return false;
         }
 
         $permission = $this->role->permissions()->where('module', $module)->first();
-        if (!$permission) {
+        if (! $permission) {
             return false;
         }
 
@@ -186,8 +188,8 @@ class User extends Authenticatable
             return true;
         }
 
-        $permitidos = is_array($training->tipo_usuario_permitido) 
-            ? $training->tipo_usuario_permitido 
+        $permitidos = is_array($training->tipo_usuario_permitido)
+            ? $training->tipo_usuario_permitido
             : json_decode($training->tipo_usuario_permitido, true) ?? [];
 
         return in_array($this->tipo_usuario, $permitidos);
@@ -195,7 +197,7 @@ class User extends Authenticatable
 
     public function getTrainingCutoffDate(): ?Carbon
     {
-        if (!$this->created_at) {
+        if (! $this->created_at) {
             return null;
         }
 
@@ -208,7 +210,7 @@ class User extends Authenticatable
             ?? $training->data_publicacao
             ?? $training->created_at;
 
-        if (!$trainingDate) {
+        if (! $trainingDate) {
             return $query;
         }
 
@@ -350,7 +352,7 @@ class User extends Authenticatable
         $initials = $this->getInitials();
         $color = $this->getAvatarColor();
 
-        return "https://ui-avatars.com/api/?name=" . urlencode($initials) . "&background=" . ltrim($color, '#') . "&color=fff&size=200&bold=true&font-size=0.4";
+        return 'https://ui-avatars.com/api/?name='.urlencode($initials).'&background='.ltrim($color, '#').'&color=fff&size=200&bold=true&font-size=0.4';
     }
 
     /**
@@ -361,13 +363,14 @@ class User extends Authenticatable
         $parts = explode(' ', trim($this->nome));
         $initials = '';
         foreach ($parts as $part) {
-            if (!empty($part)) {
+            if (! empty($part)) {
                 $initials .= strtoupper($part[0]);
                 if (strlen($initials) >= 2) {
                     break;
                 }
             }
         }
+
         return $initials ?: 'U';
     }
 
@@ -377,6 +380,7 @@ class User extends Authenticatable
     public function getAvatarColor(): string
     {
         $colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
+
         return $colors[$this->id % count($colors)];
     }
 
@@ -411,4 +415,3 @@ class User extends Authenticatable
         return $this->following()->count();
     }
 }
-

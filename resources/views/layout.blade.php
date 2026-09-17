@@ -182,6 +182,16 @@
                                             <i class="fas fa-calendar-day w-5 mr-2 text-emerald-600"></i> Folgas
                                         </a>
                                     @endif
+                                    @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('auditoria', 'view'))
+                                        <a href="{{ route('auditoria.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-clipboard-list w-5 mr-2 text-slate-600"></i> Auditoria
+                                        </a>
+                                    @endif
+                                    @foreach(app(\App\Support\Modules\ModuleRegistry::class)->all() as $moduloMenu)
+                                        <a href="{{ route($moduloMenu['route']) }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900 border-t border-gray-100">
+                                            <i class="{{ $moduloMenu['icon'] }} w-5 mr-2 text-emerald-700"></i> {{ $moduloMenu['label'] }}
+                                        </a>
+                                    @endforeach
                                     @if(Auth::user()->isSuperAdmin())
                                         <a href="{{ route('admin.permissoes.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900 border-t border-gray-100">
                                             <i class="fas fa-user-shield w-5 mr-2 text-purple-600"></i> Permissões
@@ -335,6 +345,16 @@
                                         <i class="fas fa-calendar-day mr-2"></i> Folgas
                                     </a>
                                 @endif
+                                @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('auditoria', 'view'))
+                                    <a href="{{ route('auditoria.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-clipboard-list mr-2"></i> Auditoria
+                                    </a>
+                                @endif
+                                @foreach(app(\App\Support\Modules\ModuleRegistry::class)->all() as $moduloMenu)
+                                    <a href="{{ route($moduloMenu['route']) }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="{{ $moduloMenu['icon'] }} mr-2"></i> {{ $moduloMenu['label'] }}
+                                    </a>
+                                @endforeach
                                 @if(Auth::user()->isSuperAdmin())
                                     <a href="{{ route('admin.permissoes.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
                                         <i class="fas fa-user-shield mr-2"></i> Permissões
@@ -637,8 +657,10 @@
         </script>
     @endif
 
+    <footer class="site-footer mt-10 py-6">
         <div class="max-w-7xl mx-auto px-4 text-center">
             <p>&copy; 2026 64 Bits Soluções. Todos os direitos reservados.</p>
+            <p class="text-xs opacity-75 mt-1">{{ app_version() }} — atualizado em {{ app_version_date() }}</p>
         </div>
     </footer>
 

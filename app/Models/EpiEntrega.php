@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
-
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 
 class EpiEntrega extends Model
 {
+    use Auditable;
     use BelongsToTenant;
+
     protected $table = 'ss_epi_entrega';
+
     protected $primaryKey = 'ss_e_nb_id';
+
     public $timestamps = false;
 
     protected $fillable = [

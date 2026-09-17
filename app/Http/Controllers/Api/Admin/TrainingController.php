@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Training;
 use App\Models\TrainingMaterial;
+use App\Support\SafeUpload;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class TrainingController extends Controller
 {
+    private const MATERIAL_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'zip', 'rar', 'txt'];
+
+    private const MATERIAL_MIMES = 'pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,zip,rar,txt';
+
     private function serialize(Training $training): array
     {
         $training->loadMissing('materials');
@@ -55,7 +61,7 @@ class TrainingController extends Controller
         $query = Training::with('materials');
 
         if ($search) {
-            $query->where('titulo', 'like', '%' . $search . '%');
+            $query->where('titulo', 'like', '%'.$search.'%');
         }
 
         if ($tipo && in_array($tipo, ['dss', 'treinamento'], true)) {
@@ -128,7 +134,7 @@ class TrainingController extends Controller
 
         if ($request->has('data_liberacao') && $request->filled('data_liberacao')) {
             try {
-                $data['data_liberacao'] = \Carbon\Carbon::createFromFormat(
+                $data['data_liberacao'] = Carbon::createFromFormat(
                     'Y-m-d\TH:i',
                     $request->input('data_liberacao'),
                     'America/Sao_Paulo'
@@ -196,7 +202,7 @@ class TrainingController extends Controller
 
         if ($request->has('data_liberacao') && $request->filled('data_liberacao')) {
             try {
-                $data['data_liberacao'] = \Carbon\Carbon::createFromFormat(
+                $data['data_liberacao'] = Carbon::createFromFormat(
                     'Y-m-d\TH:i',
                     $request->input('data_liberacao'),
                     'America/Sao_Paulo'
@@ -256,7 +262,7 @@ class TrainingController extends Controller
         $training = Training::findOrFail($trainingId);
 
         $validator = Validator::make($request->all(), [
-            'arquivo' => 'required|file|max:256000',
+            'arquivo' => 'required|file|max:256000|mimes:'.self::MATERIAL_MIMES,
             'nome' => 'nullable|string|max:255',
             'descricao' => 'nullable|string|max:255',
         ]);
@@ -269,14 +275,27 @@ class TrainingController extends Controller
         }
 
         $file = $request->file('arquivo');
-        $path = $file->store(tenant_public_storage_dir("materiais-apoio/training-{$training->id}"), 'public');
+        $safeFileName = SafeUpload::filenameForUploadedFile($file, self::MATERIAL_EXTENSIONS);
+
+        if ($safeFileName === null) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Tipo de arquivo não permitido.',
+            ], 422);
+        }
+
+        $path = $file->storeAs(
+            tenant_public_storage_dir("materiais-apoio/training-{$training->id}"),
+            $safeFileName,
+            'public'
+        );
 
         $material = TrainingMaterial::create([
             'training_id' => $training->id,
             'nome' => $request->input('nome', $file->getClientOriginalName()),
             'descricao' => $request->input('descricao'),
             'arquivo' => $path,
-            'tipo_arquivo' => strtolower($file->getClientOriginalExtension() ?: 'arquivo'),
+            'tipo_arquivo' => pathinfo($safeFileName, PATHINFO_EXTENSION),
             'tamanho' => $file->getSize(),
             'ordem' => TrainingMaterial::where('training_id', $training->id)->count() + 1,
         ]);

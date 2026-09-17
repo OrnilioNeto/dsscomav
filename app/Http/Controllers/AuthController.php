@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Scopes\TenantScope;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +28,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect('login')->withErrors($validator)->withInput();
+            return redirect('login')->withErrors($validator)->withInput($request->except('password'));
         }
 
         // Remove máscara do CPF
@@ -38,7 +40,7 @@ class AuthController extends Controller
             // Usuário da plataforma (super_admin) pode logar em qualquer host,
             // mesmo quando há um tenant resolvido (ele não pertence a nenhum tenant).
             if (! $user) {
-                $candidato = User::withoutGlobalScope(\App\Models\Scopes\TenantScope::class)
+                $candidato = User::withoutGlobalScope(TenantScope::class)
                     ->where('cpf', $cpf)
                     ->first();
 
@@ -48,12 +50,26 @@ class AuthController extends Controller
             }
 
             if (! $user || ! Hash::check($request->password, $user->password)) {
-                return back()->withInput()->with('error', 'CPF ou senha inválidos');
+                app(AuditLogger::class)->log('login_failed', [
+                    'user_id' => $user?->id,
+                    'module' => 'auth',
+                    'description' => 'CPF ou senha inválidos',
+                    'new_values' => ['cpf' => mask_cpf($cpf)],
+                ]);
+
+                return back()->withInput($request->except('password'))->with('error', 'CPF ou senha inválidos');
             }
 
             // Bloqueia usuários inativos (status = inativo)
             if ($user->status !== 'ativo') {
-                return back()->withInput()->with('error', 'Acesso bloqueado: usuário inativo. Contate o administrador.');
+                app(AuditLogger::class)->log('login_blocked', [
+                    'user_id' => $user->id,
+                    'module' => 'auth',
+                    'description' => 'Login bloqueado: usuário inativo',
+                    'new_values' => ['cpf' => mask_cpf($cpf)],
+                ]);
+
+                return back()->withInput($request->except('password'))->with('error', 'Acesso bloqueado: usuário inativo. Contate o administrador.');
             }
 
             Auth::login($user);
@@ -64,7 +80,7 @@ class AuthController extends Controller
             report($e);
 
             return back()
-                ->withInput()
+                ->withInput($request->except('password'))
                 ->with('error', 'Não foi possível processar o login agora. Verifique o log do servidor.');
         }
     }
@@ -74,6 +90,7 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect('/');
     }
 }

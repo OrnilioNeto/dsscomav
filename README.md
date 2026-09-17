@@ -8,6 +8,9 @@ Sistema web de treinamentos corporativos e DSS (Diálogo Semanal de Segurança) 
 - RBAC customizada (roles + permissões por módulo)
 - Treinamentos em vídeo (YouTube/Vimeo/upload), progresso, avaliação e certificados TCPDF com QR Code
 - Módulos: EPI, banco de folgas, ranking/gamificação, rede social, splash, projeto pedagógico (NR-01), relatórios
+- **Segurança**: uploads com allowlist/UUID, rate limit no login, headers de segurança, mascaramento de PII (LGPD)
+- **Auditoria**: trilha de logins, CRUD e downloads em `audit_logs` + tela `/admin/auditoria` com filtros e CSV
+- **Modular**: novos módulos autocontidos em `app/Modules/<Nome>` (descoberta automática, rotas/views/migrations próprias) — `docs/modulos/GUIA_MODULOS.md`
 - **Multi-tenant**: banco único + `tenant_id`, subdomínio por cliente, módulos liberados por cliente (`tenant_modules`), white-label (logo, cores, nome, instrutor)
 - Painel da plataforma (`/plataforma`, super admin): clientes, módulos, admin inicial, branding
 
@@ -60,15 +63,20 @@ A documentação vive em `docs/`:
 docs/
 ├── SAAS_PLANO.md              # Plano mestre da transformação em SaaS (decisões, fases, riscos)
 ├── SAAS_RUNBOOK_DEPLOY.md     # Runbook operacional (deploy, backup, staging, rollback)
-├── operacao/                  # Instalação, quickstart, deploy cPanel/ValueHost, logs, dependências
-├── modulos/                   # Manuais por módulo (EPI, splash, social, projeto pedagógico, etc.)
+├── operacao/                  # Instalação, quickstart, deploy cPanel/ValueHost, logs, dependências,
+│                              # SEGURANCA.md, AUDITORIA.md, VERSIONAMENTO.md
+├── modulos/                   # Manuais por módulo + GUIA_MODULOS.md (como criar um módulo)
 └── arquivo/                   # Documentos históricos/one-off (não refletem o estado atual)
 ```
+
+Versão atual exibida no rodapé: `config/version.php` + `CHANGELOG.md`
+(regras em `docs/operacao/VERSIONAMENTO.md`).
 
 ## Estrutura do projeto
 
 ```
 ├── app/                # Models, Controllers, Middleware, Services, Commands, Support (TenantManager)
+│                       # + Modules/ (módulos novos autocontidos — GUIA_MODULOS.md)
 ├── bootstrap/
 ├── config/             # config/saas.php (multi-tenancy), config/modules.php (catálogo de módulos)
 ├── database/

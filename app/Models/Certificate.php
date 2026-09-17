@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
-
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 
 class Certificate extends Model
 {
+    use Auditable;
     use BelongsToTenant;
     use HasFactory;
 
@@ -55,14 +55,14 @@ class Certificate extends Model
 
     public function getQrCodeUrlAttribute(): string
     {
-        return 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' . urlencode($this->validation_url);
+        return 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='.urlencode($this->validation_url);
     }
 
     // Metodos auxiliares
     public function generateCodigoUnico()
     {
         return strtoupper(
-            substr(md5($this->user_id . $this->training_id . time()), 0, 12)
+            substr(md5($this->user_id.$this->training_id.time()), 0, 12)
         );
     }
 
@@ -72,7 +72,7 @@ class Certificate extends Model
      */
     public function getDataValidadeAttribute()
     {
-        if (!$this->training || !$this->training->dias_validade || !$this->data_emissao) {
+        if (! $this->training || ! $this->training->dias_validade || ! $this->data_emissao) {
             return null;
         }
 
@@ -82,7 +82,7 @@ class Certificate extends Model
     public function getStatusValidadeAttribute(): string
     {
         $dataValidade = $this->data_validade;
-        if (!$dataValidade) {
+        if (! $dataValidade) {
             return 'sem_validade';
         }
 
@@ -104,7 +104,7 @@ class Certificate extends Model
     public static function contarValidadesCriticas(int $dias = 30): int
     {
         try {
-            if (!Schema::hasTable('certificates')) {
+            if (! Schema::hasTable('certificates')) {
                 return 0;
             }
 
@@ -127,7 +127,7 @@ class Certificate extends Model
 
             foreach ($certificados as $certificado) {
                 $training = $treinamentosPorId->get($certificado->training_id);
-                if (!$training || !$certificado->data_emissao) {
+                if (! $training || ! $certificado->data_emissao) {
                     continue;
                 }
 

@@ -14,7 +14,7 @@ class AiSummarizer
      */
     public function summarize(array $metrics, ?string $trainingTitle = null): array
     {
-        $apiKey = env('GEMINI_API_KEY');
+        $apiKey = config('services.gemini.key');
         if (empty($apiKey)) {
             return [
                 'source' => 'fallback',
@@ -23,7 +23,7 @@ class AiSummarizer
             ];
         }
 
-        $model = env('GEMINI_MODEL', 'gemini-2.5-flash');
+        $model = config('services.gemini.model', 'gemini-2.5-flash');
 
         $prompt = $this->buildExecutivePrompt($metrics, $trainingTitle);
 

@@ -3,18 +3,30 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Role;
-use App\Models\UserVacation;
 use App\Models\EmployeeTraining;
-use Carbon\Carbon;
+use App\Models\Role;
+use App\Models\User;
+use App\Models\UserVacation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
     private const TIPOS_USUARIO_VALIDOS = ['motorista', 'funcionario', 'terceirizado'];
+
+    private function roleExistsRule(): array
+    {
+        $rule = Rule::exists('roles', 'id');
+
+        if (! request()->user()?->isSuperAdmin()) {
+            $rule->where(fn ($query) => $query->where('nome', '!=', 'super_admin'));
+        }
+
+        return ['required', 'integer', $rule];
+    }
 
     public function index(Request $request)
     {
@@ -25,7 +37,7 @@ class UserController extends Controller
         $query = User::with('role');
 
         if ($nome !== '') {
-            $query->where('nome', 'like', '%' . $nome . '%');
+            $query->where('nome', 'like', '%'.$nome.'%');
         }
 
         if ($tipo && in_array($tipo, self::TIPOS_USUARIO_VALIDOS, true)) {
@@ -100,7 +112,7 @@ class UserController extends Controller
             'ferias_fim' => 'nullable|date|required_with:ferias_inicio|after_or_equal:ferias_inicio',
             'usuario_teste' => 'nullable|boolean',
             'participa_treinamentos' => 'nullable|boolean',
-            'role_id' => 'required|exists:roles,id',
+            'role_id' => $this->roleExistsRule(),
         ]);
 
         if ($validator->fails()) {
@@ -111,7 +123,25 @@ class UserController extends Controller
             ], 422);
         }
 
-        $data = $request->all();
+        // Whitelist de campos (nunca usar $request->all())
+        $data = $request->only([
+            'nome',
+            'cpf',
+            'email',
+            'password',
+            'telefone',
+            'tipo_usuario',
+            'empresa',
+            'cargo',
+            'setor',
+            'camisa_tamanho',
+            'calca_tamanho',
+            'bota_numero',
+            'cnh',
+            'categoria_cnh',
+            'validade_cnh',
+            'role_id',
+        ]);
         $data['cpf'] = preg_replace('/\D/', '', $data['cpf']);
         $data['password'] = Hash::make($data['password']);
         $data['ferias_inicio'] = $request->filled('ferias_inicio') ? $request->input('ferias_inicio') : null;
@@ -150,9 +180,16 @@ class UserController extends Controller
     {
         $usuario = User::findOrFail($id);
 
+        if (! request()->user()->isSuperAdmin() && $usuario->isSuperAdmin()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Apenas super_admin pode alterar um super_admin.',
+            ], 403);
+        }
+
         $rules = [
             'nome' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $id,
+            'email' => 'required|email|unique:users,email,'.$id,
             'telefone' => 'nullable|string',
             'tipo_usuario' => 'required|in:motorista,funcionario,terceirizado',
             'empresa' => 'nullable|string|max:255',
@@ -170,8 +207,8 @@ class UserController extends Controller
             'usuario_teste' => 'nullable|boolean',
         ];
 
-        if (!$usuario->isSuperAdmin()) {
-            $rules['role_id'] = 'required|exists:roles,id';
+        if (! $usuario->isSuperAdmin()) {
+            $rules['role_id'] = $this->roleExistsRule();
         }
 
         if (request()->user()->isSuperAdmin()) {
@@ -188,7 +225,24 @@ class UserController extends Controller
             ], 422);
         }
 
-        $data = $request->all();
+        // Whitelist de campos (nunca usar $request->all())
+        $data = $request->only([
+            'nome',
+            'email',
+            'telefone',
+            'tipo_usuario',
+            'empresa',
+            'cargo',
+            'setor',
+            'camisa_tamanho',
+            'calca_tamanho',
+            'bota_numero',
+            'cnh',
+            'categoria_cnh',
+            'validade_cnh',
+            'status',
+            'role_id',
+        ]);
         $data['ferias_inicio'] = $request->filled('ferias_inicio') ? $request->input('ferias_inicio') : null;
         $data['ferias_fim'] = $request->filled('ferias_fim') ? $request->input('ferias_fim') : null;
         $data['usuario_teste'] = $request->boolean('usuario_teste');
@@ -213,7 +267,7 @@ class UserController extends Controller
             $novaInicio = $request->input('ferias_inicio');
             $novaFim = $request->input('ferias_fim');
             $ultimoHistorico = $usuario->vacations()->latest()->first();
-            if (!$ultimoHistorico || $ultimoHistorico->data_inicio->format('Y-m-d') !== $novaInicio || $ultimoHistorico->data_fim->format('Y-m-d') !== $novaFim) {
+            if (! $ultimoHistorico || $ultimoHistorico->data_inicio->format('Y-m-d') !== $novaInicio || $ultimoHistorico->data_fim->format('Y-m-d') !== $novaFim) {
                 UserVacation::create([
                     'user_id' => $usuario->id,
                     'data_inicio' => $novaInicio,
@@ -232,6 +286,21 @@ class UserController extends Controller
     public function destroy($id)
     {
         $usuario = User::findOrFail($id);
+
+        if ($usuario->id === request()->user()->id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Não é possível excluir a própria conta.',
+            ], 403);
+        }
+
+        if (! request()->user()->isSuperAdmin() && $usuario->isSuperAdmin()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Apenas super_admin pode excluir um super_admin.',
+            ], 403);
+        }
+
         $usuario->delete();
 
         return response()->json([
@@ -297,7 +366,7 @@ class UserController extends Controller
     public function regenerateToken($id)
     {
         $user = User::findOrFail($id);
-        $user->update(['qrcode_token' => \Illuminate\Support\Str::random(32)]);
+        $user->update(['qrcode_token' => Str::random(32)]);
 
         return response()->json([
             'status' => 'success',

@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tenant extends Model
 {
+    use Auditable;
     use SoftDeletes;
 
     protected $fillable = [
@@ -106,7 +108,7 @@ class Tenant extends Model
         $contador = 2;
 
         while (static::where('slug', $slug)->exists()) {
-            $slug = $base . '-' . $contador++;
+            $slug = $base.'-'.$contador++;
         }
 
         return $slug;

@@ -13,6 +13,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('ranking:recalculate')->daily();
+        $schedule->command('audit:prune')->dailyAt('03:15');
     }
 
     /**

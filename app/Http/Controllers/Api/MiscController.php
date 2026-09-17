@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\SplashContent;
-use App\Models\EmployeeTraining;
 use App\Models\Certificate;
-use App\Models\EpiEntrega;
+use App\Models\EmployeeTraining;
 use App\Models\EpiColaborador;
+use App\Models\EpiEntrega;
+use App\Models\SplashContent;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class MiscController extends Controller
 {
@@ -49,7 +51,7 @@ class MiscController extends Controller
     {
         $user = $request->user();
 
-        \Illuminate\Support\Facades\Log::info('APP-DEBUG ' . json_encode([
+        Log::info('APP-DEBUG '.json_encode([
             'user_id' => $user?->id,
             'training_id' => $request->input('training_id'),
             'event' => $request->input('event'),
@@ -63,9 +65,9 @@ class MiscController extends Controller
 
     public function fichaPublica($token)
     {
-        $user = \App\Models\User::where('qrcode_token', $token)->first();
+        $user = User::where('qrcode_token', $token)->first();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Ficha não encontrada.',
@@ -104,7 +106,7 @@ class MiscController extends Controller
             'data' => [
                 'colaborador' => [
                     'nome' => $user->nome,
-                    'cpf' => $user->getCpfFormatted(),
+                    'cpf' => mask_cpf($user->cpf),
                     'cargo' => $user->cargo,
                     'empresa' => $user->empresa,
                     'avatar_url' => $user->getFotoPerfilUrl(),

@@ -4,13 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Training;
 use App\Models\TrainingMaterial;
+use App\Models\TrainingQuestion;
+use App\Models\User;
+use App\Support\SafeUpload;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Storage;
-use Carbon\Carbon;
 
 class TrainingController extends Controller
 {
+    private const MATERIAL_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'zip', 'rar', 'txt'];
+
+    private const MATERIAL_MIMES = 'pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,zip,rar,txt';
+
     public function __construct()
     {
         // Middleware de permissões
@@ -21,6 +27,7 @@ class TrainingController extends Controller
     public function index()
     {
         $treinamentos = Training::paginate(15);
+
         return view('treinamentos.index', compact('treinamentos'));
     }
 
@@ -76,8 +83,8 @@ class TrainingController extends Controller
 
         // Para treinamento é obrigatório haver avaliação: banco de questões OU pergunta única legada.
         if ($request->input('tipo') === 'treinamento') {
-            $temLegado = !empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
-            if (empty($questoesBanco) && !$temLegado) {
+            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
+            if (empty($questoesBanco) && ! $temLegado) {
                 return redirect()->back()
                     ->withErrors(['questoes' => 'Cadastre pelo menos uma questão no banco de questões (ou preencha a pergunta única).'])
                     ->withInput();
@@ -86,10 +93,10 @@ class TrainingController extends Controller
 
         // Para DSS é obrigatório o formato de pergunta única (legado).
         if ($request->input('tipo') === 'dss') {
-            $temLegado = !empty(trim((string) $request->avaliacao_pergunta))
+            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta))
                 && count($assessments) >= 2
                 && $request->filled('avaliacao_resposta_correta');
-            if (!$temLegado) {
+            if (! $temLegado) {
                 return redirect()->back()
                     ->withErrors(['avaliacao_pergunta' => 'Para DSS é obrigatório preencher a pergunta, ao menos 2 opções e a resposta correta.'])
                     ->withInput();
@@ -110,9 +117,9 @@ class TrainingController extends Controller
             'obrigatorio' => $request->boolean('obrigatorio'),
             'data_publicacao' => now(),
             'status' => 'ativo',
-            'avaliacao_pergunta' => !empty($questoesBanco) ? null : $request->avaliacao_pergunta,
-            'avaliacao_opcoes' => !empty($questoesBanco) ? null : $assessments,
-            'avaliacao_resposta_correta' => !empty($questoesBanco) ? null : (int) $request->avaliacao_resposta_correta,
+            'avaliacao_pergunta' => ! empty($questoesBanco) ? null : $request->avaliacao_pergunta,
+            'avaliacao_opcoes' => ! empty($questoesBanco) ? null : $assessments,
+            'avaliacao_resposta_correta' => ! empty($questoesBanco) ? null : (int) $request->avaliacao_resposta_correta,
             'quantidade_questoes_prova' => $request->filled('quantidade_questoes_prova') ? (int) $request->quantidade_questoes_prova : null,
             'nota_minima_aprovacao' => $request->filled('nota_minima_aprovacao') ? (int) $request->nota_minima_aprovacao : 70,
         ];
@@ -144,7 +151,7 @@ class TrainingController extends Controller
         // Importante: quando nome/descrição são opcionais, pode não existir
         // payload em input('materiais'), mas os arquivos ainda chegam em file('materiais').
         $materiaisArquivos = $request->file('materiais', []);
-        if (is_array($materiaisArquivos) && !empty($materiaisArquivos)) {
+        if (is_array($materiaisArquivos) && ! empty($materiaisArquivos)) {
             $ordem = 0;
 
             \Log::info('Create training: materiais recebidos', [
@@ -156,24 +163,30 @@ class TrainingController extends Controller
             foreach ($materiaisArquivos as $index => $materialArquivoData) {
                 $file = is_array($materialArquivoData) ? ($materialArquivoData['arquivo'] ?? null) : null;
 
-                if (!$file) {
+                if (! $file) {
                     continue;
                 }
 
                 // Validar o arquivo
                 $fileValidator = Validator::make(
                     ['arquivo' => $file],
-                    ['arquivo' => 'required|file|max:102400'] // 100MB max
+                    ['arquivo' => 'required|file|max:102400|mimes:'.self::MATERIAL_MIMES] // 100MB max
                 );
 
                 if ($fileValidator->fails()) {
                     continue; // Pular este arquivo se não passar na validação
                 }
 
+                // Nome gerado no servidor (nunca usa nome/extensão do cliente)
+                $safeFileName = SafeUpload::filenameForUploadedFile($file, self::MATERIAL_EXTENSIONS);
+                if ($safeFileName === null) {
+                    continue;
+                }
+
                 // Armazenar o arquivo (isolado por tenant)
                 $storagePath = tenant_public_storage_dir("materiais-apoio/training-{$training->id}");
                 $fileName = $file->getClientOriginalName();
-                $filePath = $file->storeAs($storagePath, $fileName, 'public');
+                $filePath = $file->storeAs($storagePath, $safeFileName, 'public');
 
                 // Obter informações do arquivo e metadados opcionais
                 $fileSize = $file->getSize();
@@ -210,6 +223,7 @@ class TrainingController extends Controller
     public function show($id)
     {
         $training = Training::with('materials', 'assignedUsers')->findOrFail($id);
+
         return view('treinamentos.show', compact('training'));
     }
 
@@ -266,8 +280,8 @@ class TrainingController extends Controller
 
         // Para treinamento é obrigatório haver avaliação: banco de questões OU pergunta única legada.
         if ($request->input('tipo') === 'treinamento') {
-            $temLegado = !empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
-            if (empty($questoesBanco) && !$temLegado) {
+            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
+            if (empty($questoesBanco) && ! $temLegado) {
                 return redirect()->back()
                     ->withErrors(['questoes' => 'Cadastre pelo menos uma questão no banco de questões (ou preencha a pergunta única).'])
                     ->withInput();
@@ -276,10 +290,10 @@ class TrainingController extends Controller
 
         // Para DSS é obrigatório o formato de pergunta única (legado).
         if ($request->input('tipo') === 'dss') {
-            $temLegado = !empty(trim((string) $request->avaliacao_pergunta))
+            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta))
                 && count($assessments) >= 2
                 && $request->filled('avaliacao_resposta_correta');
-            if (!$temLegado) {
+            if (! $temLegado) {
                 return redirect()->back()
                     ->withErrors(['avaliacao_pergunta' => 'Para DSS é obrigatório preencher a pergunta, ao menos 2 opções e a resposta correta.'])
                     ->withInput();
@@ -297,9 +311,9 @@ class TrainingController extends Controller
             'dias_validade' => $request->filled('dias_validade') ? (int) $request->dias_validade : null,
             'status' => $request->status ?? $training->status,
             'obrigatorio' => $request->boolean('obrigatorio'),
-            'avaliacao_pergunta' => !empty($questoesBanco) ? null : $request->avaliacao_pergunta,
-            'avaliacao_opcoes' => !empty($questoesBanco) ? null : $assessments,
-            'avaliacao_resposta_correta' => !empty($questoesBanco) ? null : (int) $request->avaliacao_resposta_correta,
+            'avaliacao_pergunta' => ! empty($questoesBanco) ? null : $request->avaliacao_pergunta,
+            'avaliacao_opcoes' => ! empty($questoesBanco) ? null : $assessments,
+            'avaliacao_resposta_correta' => ! empty($questoesBanco) ? null : (int) $request->avaliacao_resposta_correta,
             'quantidade_questoes_prova' => $request->filled('quantidade_questoes_prova') ? (int) $request->quantidade_questoes_prova : null,
             'nota_minima_aprovacao' => $request->filled('nota_minima_aprovacao') ? (int) $request->nota_minima_aprovacao : 70,
         ];
@@ -345,13 +359,13 @@ class TrainingController extends Controller
     private function normalizeQuestions(Request $request): array
     {
         $questoes = $request->input('questoes', []);
-        if (!is_array($questoes)) {
+        if (! is_array($questoes)) {
             return [];
         }
 
         $normalizadas = [];
         foreach (array_values($questoes) as $q) {
-            if (!is_array($q)) {
+            if (! is_array($q)) {
                 continue;
             }
 
@@ -387,7 +401,7 @@ class TrainingController extends Controller
         $training->questions()->delete();
 
         foreach ($questoes as $i => $q) {
-            \App\Models\TrainingQuestion::create([
+            TrainingQuestion::create([
                 'training_id' => $training->id,
                 'pergunta' => $q['pergunta'],
                 'opcoes' => $q['opcoes'],
@@ -408,7 +422,7 @@ class TrainingController extends Controller
      */
     private function getAssignableUsers()
     {
-        return \App\Models\User::where('status', 'ativo')
+        return User::where('status', 'ativo')
             ->where(function ($query) {
                 $query->whereNull('role_id')
                     ->orWhereHas('role', function ($role) {

@@ -51,15 +51,15 @@
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm font-semibold">CPF</p>
-                            <p class="text-xl font-bold text-gray-800 font-mono">{{ $certificate->user->getCpfFormatted() }}</p>
+                            <p class="text-xl font-bold text-gray-800 font-mono">{{ mask_cpf($certificate->user->cpf) }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm font-semibold">E-mail</p>
-                            <p class="text-lg font-semibold text-gray-800">{{ $certificate->user->email }}</p>
+                            <p class="text-lg font-semibold text-gray-800">{{ mask_email($certificate->user->email) }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm font-semibold">Telefone</p>
-                            <p class="text-lg font-semibold text-gray-800">{{ $certificate->user->telefone ?? 'Não informado' }}</p>
+                            <p class="text-lg font-semibold text-gray-800">{{ mask_phone($certificate->user->telefone) }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm font-semibold">Empresa</p>

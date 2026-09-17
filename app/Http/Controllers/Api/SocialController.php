@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\SocialPost;
-use App\Models\SocialLike;
+use App\Models\RankingMonthlyScore;
 use App\Models\SocialComment;
 use App\Models\SocialFollow;
+use App\Models\SocialLike;
+use App\Models\SocialPost;
 use App\Models\User;
-use App\Models\RankingMonthlyScore;
-use App\Models\Training;
+use App\Support\SafeUpload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -119,12 +119,13 @@ class SocialController extends Controller
 
             if ($request->hasFile('photo')) {
                 $uploadDir = public_path(tenant_upload_dir('social'));
-                if (!is_dir($uploadDir)) {
+                if (! is_dir($uploadDir)) {
                     @mkdir($uploadDir, 0755, true);
                 }
 
                 $photo = $request->file('photo');
-                $filename = 'post_' . $user->id . '_' . time() . '.' . $photo->getClientOriginalExtension();
+                $extensao = SafeUpload::extensionFromUploadedFile($photo, ['jpg', 'jpeg', 'png', 'gif', 'webp']) ?? 'jpg';
+                $filename = 'post_'.$user->id.'_'.time().'.'.$extensao;
                 $tmpPath = $photo->getRealPath();
                 $saved = false;
 
@@ -164,7 +165,7 @@ class SocialController extends Controller
 
                                 imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
 
-                                $filePath = $uploadDir . '/' . $filename;
+                                $filePath = $uploadDir.'/'.$filename;
                                 $saved = imagejpeg($resized, $filePath, 80) === true;
 
                                 imagedestroy($image);
@@ -174,11 +175,11 @@ class SocialController extends Controller
                     }
                 }
 
-                if (!$saved) {
+                if (! $saved) {
                     $photo->move($uploadDir, $filename);
                 }
 
-                $photoPath = tenant_upload_dir('social') . '/' . $filename;
+                $photoPath = tenant_upload_dir('social').'/'.$filename;
             }
 
             $score = null;
@@ -186,7 +187,7 @@ class SocialController extends Controller
             if ($request->input('training_id')) {
                 $trainingId = (int) $request->input('training_id');
                 $progress = $user->progress()->where('training_id', $trainingId)->first();
-                if (!$progress || !$progress->concluido) {
+                if (! $progress || ! $progress->concluido) {
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Você só pode compartilhar conquistas de treinamentos concluídos.',
@@ -217,7 +218,7 @@ class SocialController extends Controller
                 'data' => $this->serializePost($post, $user->id),
             ], 201);
         } catch (\Throwable $e) {
-            Log::error('Erro ao salvar postagem via API: ' . $e->getMessage());
+            Log::error('Erro ao salvar postagem via API: '.$e->getMessage());
 
             return response()->json([
                 'status' => 'error',
@@ -231,7 +232,7 @@ class SocialController extends Controller
         $post = SocialPost::findOrFail($id);
         $user = request()->user();
 
-        if ($post->user_id !== $user->id && !$user->isAdmin()) {
+        if ($post->user_id !== $user->id && ! $user->isAdmin()) {
             return response()->json(['status' => 'error', 'message' => 'Acesso negado.'], 403);
         }
 
@@ -252,7 +253,7 @@ class SocialController extends Controller
                 'message' => 'Postagem removida do feed.',
             ]);
         } catch (\Throwable $e) {
-            Log::error('Erro ao deletar postagem: ' . $e->getMessage());
+            Log::error('Erro ao deletar postagem: '.$e->getMessage());
 
             return response()->json([
                 'status' => 'error',
@@ -286,7 +287,7 @@ class SocialController extends Controller
                 'likes_count' => $likesCount,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Erro ao curtir post: ' . $e->getMessage());
+            Log::error('Erro ao curtir post: '.$e->getMessage());
 
             return response()->json(['status' => 'error', 'message' => 'Erro ao curtir post.'], 500);
         }
@@ -326,7 +327,7 @@ class SocialController extends Controller
                 ],
             ], 201);
         } catch (\Throwable $e) {
-            Log::error('Erro ao salvar comentário: ' . $e->getMessage());
+            Log::error('Erro ao salvar comentário: '.$e->getMessage());
 
             return response()->json(['status' => 'error', 'message' => 'Erro ao salvar comentário.'], 500);
         }
@@ -365,7 +366,7 @@ class SocialController extends Controller
                 'followers_count' => $targetUser->followersCount(),
             ]);
         } catch (\Throwable $e) {
-            Log::error('Erro ao seguir colaborador: ' . $e->getMessage());
+            Log::error('Erro ao seguir colaborador: '.$e->getMessage());
 
             return response()->json(['status' => 'error', 'message' => 'Erro ao seguir colaborador.'], 500);
         }

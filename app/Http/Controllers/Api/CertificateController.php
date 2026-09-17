@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 
 class CertificateController extends Controller
 {
-    private function serializeCertificate(Certificate $certificate): array
+    private function serializeCertificate(Certificate $certificate, bool $public = false): array
     {
         $certificate->loadMissing(['user', 'training']);
 
@@ -33,15 +33,15 @@ class CertificateController extends Controller
             'user' => $certificate->user ? [
                 'id' => $certificate->user->id,
                 'nome' => $certificate->user->nome,
-                'cpf_formatado' => $certificate->user->getCpfFormatted(),
-                'email' => $certificate->user->email,
-                'telefone' => $certificate->user->telefone,
+                'cpf_formatado' => $public ? mask_cpf($certificate->user->cpf) : $certificate->user->getCpfFormatted(),
+                'email' => $public ? mask_email($certificate->user->email) : $certificate->user->email,
+                'telefone' => $public ? mask_phone($certificate->user->telefone) : $certificate->user->telefone,
                 'empresa' => $certificate->user->empresa,
                 'cargo' => $certificate->user->cargo,
             ] : null,
             'validation_url' => $certificate->validation_url,
             'qr_code_url' => $certificate->qr_code_url,
-            'download_url' => url('/api/v1/certificates/' . $certificate->id . '/download'),
+            'download_url' => url('/api/v1/certificates/'.$certificate->id.'/download'),
         ];
     }
 
@@ -66,7 +66,7 @@ class CertificateController extends Controller
         $user = request()->user();
         $certificate = Certificate::with(['user', 'training'])->findOrFail($id);
 
-        if ($certificate->user_id !== $user->id && !$user->isAdmin()) {
+        if ($certificate->user_id !== $user->id && ! $user->isAdmin()) {
             return response()->json(['status' => 'error', 'message' => 'Acesso negado.'], 403);
         }
 
@@ -82,7 +82,7 @@ class CertificateController extends Controller
             ->where('training_id', $training->id)
             ->firstOrFail();
 
-        if (!$progress->concluido || !$progress->avaliacao_aprovada) {
+        if (! $progress->concluido || ! $progress->avaliacao_aprovada) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'O certificado só fica disponível após assistir todo o conteúdo e responder corretamente a avaliação.',
@@ -100,7 +100,7 @@ class CertificateController extends Controller
             ->where('codigo_certificado', $codigo)
             ->first();
 
-        if (!$certificate) {
+        if (! $certificate) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Certificado não encontrado',
@@ -108,12 +108,12 @@ class CertificateController extends Controller
             ], 404);
         }
 
-        if (!$certificate->valido) {
+        if (! $certificate->valido) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Certificado inválido ou revogado',
                 'valido' => false,
-                'data' => $this->serializeCertificate($certificate),
+                'data' => $this->serializeCertificate($certificate, true),
             ], 200);
         }
 
@@ -121,7 +121,7 @@ class CertificateController extends Controller
             'status' => 'success',
             'message' => 'Certificado válido',
             'valido' => true,
-            'data' => $this->serializeCertificate($certificate),
+            'data' => $this->serializeCertificate($certificate, true),
         ]);
     }
 }

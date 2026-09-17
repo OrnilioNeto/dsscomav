@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantModule;
+use App\Models\User;
+use App\Support\SafeUpload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -94,9 +97,10 @@ class PlataformaTenantController extends Controller
             if ($request->hasFile($campo)) {
                 $dir = "uploads/{$tenant->id}/logos";
                 $file = $request->file($campo);
-                $filename = $subdir . '_' . time() . '.' . strtolower($file->getClientOriginalExtension());
+                $extensao = SafeUpload::extensionFromUploadedFile($file, ['png', 'jpg', 'jpeg', 'webp']) ?? 'png';
+                $filename = $subdir.'_'.time().'.'.$extensao;
                 $file->move(public_path($dir), $filename);
-                $tenant->update([$campo => $dir . '/' . $filename]);
+                $tenant->update([$campo => $dir.'/'.$filename]);
             }
         }
 
@@ -120,7 +124,7 @@ class PlataformaTenantController extends Controller
 
         return redirect()->route('plataforma.edit', $tenant)->with(
             'success',
-            "Módulo '{$module}' " . ($reg->enabled ? 'liberado' : 'bloqueado') . " para {$tenant->nome}."
+            "Módulo '{$module}' ".($reg->enabled ? 'liberado' : 'bloqueado')." para {$tenant->nome}."
         );
     }
 
@@ -141,15 +145,15 @@ class PlataformaTenantController extends Controller
             'senha' => 'required|string|min:6',
         ]);
 
-        $role = \App\Models\Role::firstOrCreate(
+        $role = Role::firstOrCreate(
             ['nome' => 'admin'],
             ['descricao' => 'Administrador do Cliente']
         );
 
-        $user = \App\Models\User::create([
+        $user = User::create([
             'nome' => $data['nome'],
             'cpf' => $data['cpf'],
-            'email' => $data['email'] ?? 'admin@' . $tenant->slug . '.com',
+            'email' => $data['email'] ?? 'admin@'.$tenant->slug.'.com',
             'password' => bcrypt($data['senha']),
             'tipo_usuario' => 'funcionario',
             'status' => 'ativo',
@@ -164,8 +168,8 @@ class PlataformaTenantController extends Controller
     {
         return $request->validate([
             'nome' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:60|alpha_dash|unique:tenants,slug,' . $ignoreId,
-            'dominio' => 'nullable|string|max:255|unique:tenants,dominio,' . $ignoreId,
+            'slug' => 'nullable|string|max:60|alpha_dash|unique:tenants,slug,'.$ignoreId,
+            'dominio' => 'nullable|string|max:255|unique:tenants,dominio,'.$ignoreId,
             'status' => 'required|in:ativo,trial,suspenso,cancelado',
             'plano' => 'nullable|string|max:60',
             'nome_exibicao' => 'nullable|string|max:255',

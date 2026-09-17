@@ -1,95 +1,67 @@
-# Sistema de Logs - Plataforma DSS
+# Sistema de Logs Técnicos - Plataforma DSS
+
+> Para a trilha de auditoria de negócio (quem criou/alterou/excluiu, logins,
+> downloads), veja **`AUDITORIA.md`**. Este documento cobre os logs técnicos de
+> requisições e exceções.
 
 ## Objetivo
-Este documento descreve o sistema de logs implementado para facilitar investigacao de falhas, rastreabilidade de requisoes e diagnostico rapido em producao.
+Facilitar investigação de falhas, rastreabilidade de requisições e diagnóstico rápido em produção.
 
-## O que foi implementado
-- Canal dedicado `system` em [config/logging.php](config/logging.php)
-- Middleware global de log para todas as requisicoes HTTP em [app/Http/Middleware/LogSystemRequests.php](app/Http/Middleware/LogSystemRequests.php)
-- Registro global de excecoes nao tratadas em [app/Exceptions/Handler.php](app/Exceptions/Handler.php)
+## O que está implementado
+- Canal dedicado `system` em `config/logging.php` (arquivo diário `storage/logs/system-AAAA-MM-DD.log`, retenção padrão 30 dias).
+- Middleware global `app/Http/Middleware/LogSystemRequests.php` para todas as requisições HTTP.
+- Exceções não tratadas são registradas **apenas** pelo middleware (`request_exception`), evitando duplicidade.
 
-## Cobertura
-A cobertura inclui todas as funcionalidades acessadas por HTTP, porque o middleware foi registrado globalmente em [app/Http/Kernel.php](app/Http/Kernel.php).
+## Eventos registrados
+- `request_completed`: toda requisição com status, tempo, usuário e tenant.
+- `request_exception`: exceção durante o ciclo da requisição (com classe e mensagem).
+- `audit_log_failed`: falha ao gravar um registro de auditoria (não interrompe o fluxo).
 
-Eventos registrados:
-- `request_completed`: toda requisicao com status, tempo e usuario
-- `request_exception`: excecao durante o ciclo da requisicao
-- `unhandled_exception`: excecao nao tratada no Handler
+## Campos do log de requisição
+- `request_id` (validado: `[A-Za-z0-9._-]{1,64}`; caso contrário é gerado)
+- `method`, `path`, `full_url`
+- `ip` (capturado após o `TrustProxies`, respeitando `TRUSTED_PROXIES`)
+- `user_id`, `tenant_id` (capturados **após** a resolução da sessão/tenant)
+- `user_agent`
+- `status`, `duration_ms`, `route`
 
-## Arquivos de log
-- Log padrao Laravel: `storage/logs/laravel.log`
-- Log dedicado do sistema: `storage/logs/system-YYYY-MM-DD.log`
+## Mascaramento de dados sensíveis
+- Query strings com `token`, `codigo`, `password`, `api_key`, `secret`, etc. são gravadas como `***`.
+- Paths `/ficha/{token}` e `/validar/{codigo}` são gravados como `ficha/***` e `validar/***`.
+- Corpo da requisição e headers (exceto `X-Request-Id`/`User-Agent`) **não** são registrados.
 
-Observacao:
-- O canal `system` esta configurado como `daily` com retencao padrao de 30 dias.
-- Em ambiente Docker deste projeto, a pasta `storage/logs` esta espelhada com o host, entao os arquivos ficam visiveis diretamente no repositorio.
-
-## Configuracao via .env
-Use estas variaveis:
-
+## Configuração via .env
 - `LOG_CHANNEL=stack`
 - `LOG_LEVEL=debug`
 - `LOG_SYSTEM_LEVEL=debug`
 - `LOG_SYSTEM_DAYS=30`
-- `LOG_SYSTEM_PATH=`
+- `LOG_SYSTEM_PATH=` (vazio usa `storage/logs/system.log` com sufixo diário)
 
-Se `LOG_SYSTEM_PATH` ficar vazio, sera usado `storage/logs/system.log` (com sufixo diario).
-
-## Campos gravados no log de requisicao
-No evento `request_completed`:
-- `request_id`
-- `method`
-- `path`
-- `full_url`
-- `ip`
-- `user_id`
-- `user_agent`
-- `status`
-- `duration_ms`
-- `route`
+Em produção, use `LOG_SYSTEM_LEVEL=info` e eleve para `debug` apenas durante incidentes.
 
 ## Como investigar incidentes
 1. Filtrar erros 500:
 ```powershell
-Select-String -Path .\storage\logs\system-*.log -Pattern '"status":500|request_exception|unhandled_exception'
+Select-String -Path .\storage\logs\system-*.log -Pattern '"status":500|request_exception'
 ```
 
-2. Filtrar por usuario:
+2. Filtrar por usuário:
 ```powershell
 Select-String -Path .\storage\logs\system-*.log -Pattern '"user_id":123'
 ```
 
-3. Filtrar por rota especifica:
+3. Filtrar por rota específica:
 ```powershell
 Select-String -Path .\storage\logs\system-*.log -Pattern '"path":"treinamentos/4/avaliacao"'
 ```
 
-4. Acompanhar em tempo real (container):
-```powershell
-docker-compose exec -T app-dss sh -lc "tail -f storage/logs/system-$(date +%F).log"
-```
-
-5. Acompanhar em tempo real (host/repositorio):
+4. Acompanhar em tempo real (host/repositório):
 ```powershell
 Get-Content .\storage\logs\system-$(Get-Date -Format yyyy-MM-dd).log -Wait
 ```
 
-## Boas praticas
-- Nao gravar senha, token bruto ou payload sensivel no log.
-- Em producao, usar `LOG_SYSTEM_LEVEL=info` e elevar para `debug` apenas durante incidente.
-- Revisar periodicamente o volume de logs e retencao (`LOG_SYSTEM_DAYS`).
-
-## Checklist de ativacao em producao
-1. Publicar o codigo.
-2. Garantir `LOG_CHANNEL=stack` no `.env`.
-3. Ajustar variaveis `LOG_SYSTEM_*` se necessario.
-4. Limpar cache:
-```powershell
-docker-compose exec -T app-dss php artisan optimize:clear
-```
-5. Validar geracao de arquivo em `storage/logs`.
-
-## Observacoes tecnicas
-- O middleware de logs nao interrompe o fluxo da aplicacao.
-- Excecoes continuam sendo lancadas normalmente apos registro.
-- O sistema de log foi desenhado para funcionar mesmo quando ocorrer erro interno em controllers/servicos.
+## Boas práticas
+- Não gravar senha, token bruto ou payload sensível no log (novos campos devem seguir o mascaramento do middleware).
+- Revisar periodicamente o volume de logs e a retenção (`LOG_SYSTEM_DAYS`).
+- Incidentes de segurança (tentativas de login, alterações suspeitas) devem ser
+  investigados na tela de auditoria (`AUDITORIA.md`), que preserva o histórico em banco.
