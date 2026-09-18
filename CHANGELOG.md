@@ -6,6 +6,16 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.55] - 20226-09-19
+
+## Removido
+-app/Modules/Exemplo/ (provider, controller, model, rota, view, migration e README — 7 arquivos)
+-Os 2 testes que dependiam dele (test_modulo_de_exemplo... e test_rota_do_modulo...); no lugar, entrou um teste pequeno do provider base (slug)
+
+## Adicionado:
+-app/Modules/.gitkeep — mantém a pasta app/Modules versionada (vazia, pronta para o Agendamento)
+-database/migrations/2026_09_17_000400_drop_exemplo_registros_table.php — remove a tabela exemplo_registros se ela existir (no servidor, foi criada quando você rodou o migrate; em banco novo é no-op)
+
 ## [2.0.54] - 2026-09-18
 
 ## Alterado
@@ -19,7 +29,6 @@ dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`)
   commands próprios (`App\Support\Modules\ModuleServiceProvider`).
 - Registro de menu automático por módulo (`ModuleRegistry` + `registerMenu()`),
   filtrado por permissão do usuário — sem editar o layout a cada módulo.
-- Módulo de referência `app/Modules/Exemplo` (roteiro vivo do padrão, removível).
 - Guia `docs/modulos/GUIA_MODULOS.md` (como criar um módulo em 10 passos).
 - Testes da infraestrutura modular (`tests/Feature/Modules`).
 

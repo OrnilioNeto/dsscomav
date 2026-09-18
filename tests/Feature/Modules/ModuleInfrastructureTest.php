@@ -6,9 +6,8 @@ use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\User;
 use App\Support\Modules\ModuleRegistry;
+use App\Support\Modules\ModuleServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ModuleInfrastructureTest extends TestCase
@@ -44,27 +43,14 @@ class ModuleInfrastructureTest extends TestCase
         ]);
     }
 
-    public function test_modulo_de_exemplo_registra_rota_view_e_migration(): void
+    public function test_module_service_provider_expoe_o_slug(): void
     {
-        $this->assertTrue(Route::has('exemplo.index'), 'A rota do módulo não foi registrada.');
-        $this->assertTrue(Schema::hasTable('exemplo_registros'), 'A migration do módulo não foi carregada.');
+        $provider = new class($this->app) extends ModuleServiceProvider
+        {
+            protected string $slug = 'agendamento';
+        };
 
-        $super = $this->criarUsuario('99999999999', $this->criarRole('super_admin'));
-
-        $this->actingAs($super)
-            ->get(route('exemplo.index'))
-            ->assertOk()
-            ->assertSee('Módulo de Exemplo')
-            ->assertSee('Exemplo (referência)');
-    }
-
-    public function test_rota_do_modulo_exige_role_super_admin(): void
-    {
-        $this->get(route('exemplo.index'))->assertRedirect(route('login'));
-
-        $admin = $this->criarUsuario('88888888888', $this->criarRole('admin'));
-
-        $this->actingAs($admin)->get(route('exemplo.index'))->assertStatus(403);
+        $this->assertSame('agendamento', $provider->moduleSlug());
     }
 
     public function test_registry_de_menu_filtra_por_permissao_e_ordena(): void

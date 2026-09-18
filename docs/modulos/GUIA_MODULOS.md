@@ -203,8 +203,10 @@ auditoria gerada, validação de upload.
 - [ ] Testes em `tests/Feature/Modules/<Modulo>/`
 - [ ] `docs/modulos/<MODULO>.md` + CHANGELOG + versão
 
-## Referência viva
+## Referência
 
-O módulo `app/Modules/Exemplo` é o esqueleto mínimo funcionando (rota, view,
-migration, model e menu) e é usado pelos testes da infraestrutura. Pode ser
-apagado a qualquer momento — o menu some junto.
+Não há módulo de exemplo no repositório (o antigo `Exemplo` foi removido para não
+ir a produção). Use o checklist acima e a infraestrutura em
+`app/Support/Modules/` + `app/Providers/ModulesServiceProvider.php` como base.
+A cobertura de testes da infraestrutura está em
+`tests/Feature/Modules/ModuleInfrastructureTest.php`.
