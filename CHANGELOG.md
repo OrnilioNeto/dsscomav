@@ -6,6 +6,11 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.54] - 2026-09-18
+
+## Alterado
+- CHANGELOG.md e version.php com a versao correta em sincronia com o git hub
+
 ## [2.1.0] - 2026-09-17
 
 ### Adicionado
