@@ -6,19 +6,34 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
-## [2.0.55] - 20226-09-19
+## [2.0.56] - 2026-09-18
 
-## Removido
--app/Modules/Exemplo/ (provider, controller, model, rota, view, migration e README — 7 arquivos)
--Os 2 testes que dependiam dele (test_modulo_de_exemplo... e test_rota_do_modulo...); no lugar, entrou um teste pequeno do provider base (slug)
+### Corrigido
+- `tenant:backfill` agora identifica o tenant raiz pelo **slug** (nunca por
+  `Tenant::first()`), evitando atribuir os dados do cliente atual a outro cliente
+  já cadastrado (causa do vazamento entre tenants na ativação).
+- Diagnóstico de isolamento: alerta quando a flag multi-tenant está desligada com
+  vários clientes cadastrados.
 
-## Adicionado:
--app/Modules/.gitkeep — mantém a pasta app/Modules versionada (vazia, pronta para o Agendamento)
--database/migrations/2026_09_17_000400_drop_exemplo_registros_table.php — remove a tabela exemplo_registros se ela existir (no servidor, foi criada quando você rodou o migrate; em banco novo é no-op)
+### Adicionado
+- Comando `php artisan saas:doctor` — diagnóstico somente leitura (flag efetiva,
+  tenants, dados por tenant e riscos de isolamento).
+- Opção `--dry-run` no `tenant:backfill` (simula sem gravar).
+- Runbook `docs/operacao/ATIVAR_MULTITENANT.md`.
+
+## [2.0.55] - 2026-09-18
+
+### Removido
+- app/Modules/Exemplo/ (provider, controller, model, rota, view, migration e README — 7 arquivos)
+- Os 2 testes que dependiam dele (test_modulo_de_exemplo... e test_rota_do_modulo...); no lugar, entrou um teste pequeno do provider base (slug)
+
+### Adicionado
+- app/Modules/.gitkeep — mantém a pasta app/Modules versionada (vazia, pronta para o Agendamento)
+- database/migrations/2026_09_17_000400_drop_exemplo_registros_table.php — remove a tabela exemplo_registros se ela existir (no servidor, foi criada quando você rodou o migrate; em banco novo é no-op)
 
 ## [2.0.54] - 2026-09-18
 
-## Alterado
+### Alterado
 - CHANGELOG.md e version.php com a versao correta em sincronia com o git hub
 
 ## [2.1.0] - 2026-09-17
