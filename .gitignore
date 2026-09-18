@@ -25,6 +25,9 @@ storage/framework/testing/
 # Public storage
 public/storage
 public/uploads
+storage/app/public/*
+!storage/app/public/.gitkeep
+storage/app/tmp/*
 
 # Arquivos de configuração locais
 .user.ini
