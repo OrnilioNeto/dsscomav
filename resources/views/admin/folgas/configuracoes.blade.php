@@ -139,11 +139,10 @@
         <h3 class="font-bold text-gray-800 flex items-center">
             <i class="fas fa-info-circle text-indigo-600 mr-2"></i>Regras do Sistema
         </h3>
-        <p>• A cada <strong>{{ $settings->dias_para_folga }} dias trabalhados consecutivos</strong>, o motorista ganha 1 folga (crédito no banco).</p>
-        <p>• Folga, atestado e licença <strong>interrompem</strong> a sequência de dias contínuos.</p>
-        <p>• Feriados contam como dias trabalhados (não interrompem a sequência).</p>
-        <p>• Saldo positivo acumula pro mês seguinte (folgas pendentes para tirar).</p>
-        <p>• A coluna <strong>Prévistas</strong> é a previsão do mês (regra dos 6 dias); a coluna <strong>Saldo</strong> é o saldo real — só entram créditos já ganhos, acumulando mês a mês.</p>
+        <p>• A cada <strong>{{ $settings->dias_para_folga }} dias trabalhados</strong>, o motorista ganha 1 folga (crédito no banco).</p>
+        <p>• Folga, atestado, licença e <strong>férias</strong> zeram a sequência e ela recomeça no dia seguinte; a contagem atravessa meses.</p>
+        <p>• A <strong>Previsão do mês</strong> (card/relatórios) usa o ciclo 6x1: 6 dias trabalhados + 1 folga que não conta para o próximo crédito. É a mesma para todos e não considera lançamentos.</p>
+        <p>• A coluna <strong>Saldo</strong> é o saldo real — só créditos efetivos (conforme os lançamentos), acumulando mês a mês.</p>
         <p>• Se o motorista tirar mais folgas do que tem, o banco <strong>zera e recomeça</strong> — não fica devendo folgas.</p>
         <p>• Dias sem lançamento são considerados como <strong>trabalho presumido</strong>.</p>
         <p>• Antes da data de início do controle, nada é contabilizado; o saldo inicial informado vale como saldo de partida.</p>

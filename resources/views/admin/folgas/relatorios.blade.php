@@ -56,6 +56,11 @@
         </div>
     </form>
 
+    <div class="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800">
+        <i class="fas fa-calendar-check mr-1"></i>
+        Previsão do mês (6x1): <strong>{{ $previsaoMes }}</strong> folga(s) por motorista — a cada 6 dias trabalhados ganha 1 folga e a folga não conta para o próximo crédito.
+    </div>
+
     {{-- Tabela --}}
     <div class="bg-white rounded-xl shadow-lg overflow-hidden">
         <div class="p-4 border-b bg-gray-50">
@@ -67,7 +72,6 @@
                     <tr>
                         <th class="p-3 text-left">Motorista</th>
                         <th class="p-3 text-center">CPF</th>
-                        <th class="p-3 text-center">Prévistas</th>
                         <th class="p-3 text-center">Tiradas</th>
                         <th class="p-3 text-center">Atestado</th>
                         <th class="p-3 text-center">Licença</th>
@@ -87,10 +91,6 @@
                         <tr class="hover:bg-gray-50">
                             <td class="p-3 font-semibold">{{ $motorista->nome }}</td>
                             <td class="p-3 text-center text-gray-500">{{ $motorista->cpf }}</td>
-                            <td class="p-3 text-center">
-                                <span class="font-bold text-blue-600">{{ $s['previstas_mes'] }}</span>
-                                <div class="text-[10px] text-blue-400">já ganho: {{ $s['previstas_ganhas'] }}</div>
-                            </td>
                             <td class="p-3 text-center font-bold text-green-600">{{ $s['tiradas_mes'] }}</td>
                             <td class="p-3 text-center font-bold text-yellow-600">{{ $s['atestados_mes'] }}</td>
                             <td class="p-3 text-center font-bold text-purple-600">{{ $s['licencas_mes'] }}</td>
@@ -113,7 +113,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="14" class="p-8 text-center text-gray-400">Nenhum registro encontrado.</td>
+                            <td colspan="13" class="p-8 text-center text-gray-400">Nenhum registro encontrado.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -11,10 +11,12 @@ use App\Models\FolgaProgramacao;
 use App\Models\FolgaSaldoMensal;
 use App\Models\FolgaSetting;
 use App\Models\User;
+use App\Models\UserVacation;
 use App\Services\FolgaBankService;
 use App\Services\FolgaRulesService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class FolgasController extends Controller
 {
@@ -130,6 +132,11 @@ class FolgasController extends Controller
             fn ($p) => $p->data_inicio->lte($limiteProximas) && $p->data_fim->gte($hoje)
         )->count();
 
+        // Férias (atuais/próximas) por motorista — selo na tabela e alerta no lançamento
+        $feriasPorMotorista = $this->feriasPorMotorista($motoristas, $hoje);
+
+        $previsaoMes = $this->rules->previsaoMes($mes, $ano);
+
         $totalMotoristas = $motoristas->count();
         $totalPrevistasMes = collect($dados)->sum('previstas_mes');
         $totalPrevistas = collect($dados)->sum('previstas');
@@ -142,8 +149,50 @@ class FolgasController extends Controller
         return view('admin.folgas.index', compact(
             'motoristas', 'dados', 'mes', 'ano', 'busca', 'settings',
             'totalMotoristas', 'totalPrevistasMes', 'totalPrevistas', 'totalPrevistasGanhas', 'totalTiradasMes', 'totalSaldo', 'totalAjustes', 'totalDomingoPendente',
-            'programacoes', 'programacoesPorMotorista', 'totalProgramacoesProximas'
+            'programacoes', 'programacoesPorMotorista', 'totalProgramacoesProximas',
+            'feriasPorMotorista', 'previsaoMes'
         ));
+    }
+
+    /**
+     * Férias vigentes/futuras por motorista (para selo na tabela e alerta de lançamento).
+     *
+     * @param  Collection<int, User>  $motoristas
+     * @return array<int, array<int, array{inicio: string, fim: string}>>
+     */
+    private function feriasPorMotorista($motoristas, Carbon $hoje): array
+    {
+        $ferias = UserVacation::whereIn('user_id', $motoristas->pluck('id'))->get();
+        $hojeStr = $hoje->format('Y-m-d');
+        $resultado = [];
+
+        foreach ($motoristas as $motorista) {
+            $periodos = [];
+
+            if ($motorista->ferias_inicio && $motorista->ferias_fim && $motorista->ferias_fim->format('Y-m-d') >= $hojeStr) {
+                $periodos[] = [
+                    'inicio' => $motorista->ferias_inicio->format('Y-m-d'),
+                    'fim' => $motorista->ferias_fim->format('Y-m-d'),
+                ];
+            }
+
+            foreach ($ferias->where('user_id', $motorista->id) as $periodo) {
+                if ($periodo->data_fim->format('Y-m-d') >= $hojeStr) {
+                    $periodos[] = [
+                        'inicio' => $periodo->data_inicio->format('Y-m-d'),
+                        'fim' => $periodo->data_fim->format('Y-m-d'),
+                    ];
+                }
+            }
+
+            $resultado[$motorista->id] = collect($periodos)
+                ->unique(fn ($p) => $p['inicio'].$p['fim'])
+                ->sortBy('inicio')
+                ->values()
+                ->all();
+        }
+
+        return $resultado;
     }
 
     public function motoristaDados(Request $request)
@@ -176,11 +225,19 @@ class FolgasController extends Controller
             ->orderBy('data_inicio')
             ->get(['id', 'data_inicio', 'data_fim', 'tipo', 'motivo']);
 
+        $ferias = collect($this->rules->periodosFerias($user))
+            ->map(fn ($periodo) => [
+                'inicio' => $periodo[0]->format('Y-m-d'),
+                'fim' => $periodo[1]->format('Y-m-d'),
+            ])
+            ->values();
+
         return response()->json([
             'snapshot' => $snapshot,
             'dias' => $dias->values(),
             'movimentos' => $movimentos,
             'programacoes' => $programacoes,
+            'ferias' => $ferias,
             'ultima_folga_data' => $user->ultima_folga_data?->format('Y-m-d'),
         ]);
     }

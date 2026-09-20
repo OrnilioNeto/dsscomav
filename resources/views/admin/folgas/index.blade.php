@@ -90,10 +90,11 @@
             <div class="text-xs text-gray-500 font-semibold">Motoristas</div>
             <div class="text-2xl font-bold text-gray-800">{{ $totalMotoristas }}</div>
         </div>
-        <div class="bg-white rounded-xl shadow p-4 border-t-4 border-blue-600">
-            <div class="text-xs text-gray-500 font-semibold">Prévistas (mês)</div>
-            <div class="text-2xl font-bold text-blue-600">{{ $totalPrevistasMes }}</div>
-            <div class="text-xs text-gray-400">já ganho: {{ $totalPrevistasGanhas }}</div>
+        <div class="bg-white rounded-xl shadow p-4 border-t-4 border-blue-600"
+             title="Ciclo 6x1: a cada 6 dias trabalhados ganha 1 folga; a folga não conta para o próximo crédito. Previsão igual para todos os motoristas.">
+            <div class="text-xs text-gray-500 font-semibold">Previsão do mês</div>
+            <div class="text-2xl font-bold text-blue-600">{{ $previsaoMes }} <span class="text-xs font-normal text-gray-400">/motorista</span></div>
+            <div class="text-xs text-gray-400">já ganho (equipe): {{ $totalPrevistasGanhas }}</div>
         </div>
         <div class="bg-white rounded-xl shadow p-4 border-t-4 border-green-600">
             <div class="text-xs text-gray-500 font-semibold">Tiradas (mês)</div>
@@ -135,7 +136,6 @@
                 <thead class="bg-gray-100 border-b">
                     <tr>
                         <th class="p-3 text-left font-bold text-gray-700">Motorista</th>
-                        <th class="p-3 text-center font-bold text-gray-700" title="Previsão do mês pela regra dos 6 dias trabalhados">Prévistas</th>
                         <th class="p-3 text-center font-bold text-gray-700">Tiradas</th>
                         <th class="p-3 text-center font-bold text-gray-700">Atestado</th>
                         <th class="p-3 text-center font-bold text-gray-700">Licença</th>
@@ -155,10 +155,22 @@
                             <td class="p-3">
                                 <div class="font-semibold text-gray-800">{{ $motorista->nome }}</div>
                                 <div class="text-xs text-gray-400">CPF: {{ $motorista->cpf }}</div>
-                            </td>
-                            <td class="p-3 text-center">
-                                <span class="font-bold text-blue-600">{{ $s['previstas_mes'] }}</span>
-                                <div class="text-[10px] text-blue-400">já ganho: {{ $s['previstas_ganhas'] }}</div>
+                                @php
+                                    $feriasMotorista = collect($feriasPorMotorista[$motorista->id] ?? []);
+                                    $feriasAtual = $feriasMotorista->first(fn ($f) => $f['inicio'] <= now()->format('Y-m-d') && $f['fim'] >= now()->format('Y-m-d'));
+                                    $feriasProxima = $feriasAtual ? null : $feriasMotorista->first(fn ($f) => $f['inicio'] > now()->format('Y-m-d'));
+                                @endphp
+                                @if($feriasAtual)
+                                    <span class="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700"
+                                          title="Férias de {{ \Carbon\Carbon::parse($feriasAtual['inicio'])->format('d/m/Y') }} a {{ \Carbon\Carbon::parse($feriasAtual['fim'])->format('d/m/Y') }}">
+                                        <i class="fas fa-umbrella-beach mr-1"></i>Em férias
+                                    </span>
+                                @elseif($feriasProxima)
+                                    <span class="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200"
+                                          title="Férias programadas de {{ \Carbon\Carbon::parse($feriasProxima['inicio'])->format('d/m/Y') }} a {{ \Carbon\Carbon::parse($feriasProxima['fim'])->format('d/m/Y') }}">
+                                        <i class="fas fa-umbrella-beach mr-1"></i>Férias {{ \Carbon\Carbon::parse($feriasProxima['inicio'])->format('d/m') }}–{{ \Carbon\Carbon::parse($feriasProxima['fim'])->format('d/m') }}
+                                    </span>
+                                @endif
                             </td>
                             <td class="p-3 text-center font-bold text-green-600">{{ $s['tiradas_mes'] }}</td>
                             <td class="p-3 text-center font-bold text-yellow-600">{{ $s['atestados_mes'] }}</td>
@@ -244,7 +256,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="12" class="p-8 text-center text-gray-400">
+                            <td colspan="11" class="p-8 text-center text-gray-400">
                                 <i class="fas fa-calendar-times text-3xl mb-2"></i><br>
                                 Nenhum motorista encontrado para este período.
                             </td>
@@ -342,6 +354,7 @@
                 <span><span class="inline-block w-3 h-3 rounded bg-purple-500 mr-1"></span>Licença</span>
                 <span><span class="inline-block w-3 h-3 rounded bg-blue-400 mr-1"></span>Trabalho (registrado)</span>
                 <span><span class="inline-block w-3 h-3 rounded border-2 border-dashed border-amber-400 bg-amber-50 mr-1"></span>Programado (débito na data)</span>
+                <span><span class="inline-block w-3 h-3 rounded border-2 border-dashed border-blue-400 bg-blue-50 mr-1"></span>Férias (interrompe a sequência)</span>
                 <span><span class="inline-block w-3 h-3 rounded border-2 border-red-500 mr-1"></span>Domingo</span>
             </div>
 
@@ -375,7 +388,7 @@
             <h3 class="text-lg font-bold text-gray-800" id="diaModalTitle">Lançar Dia</h3>
             <button onclick="fecharDiaModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
         </div>
-        <form id="diaForm" method="POST" class="p-4 space-y-4">
+        <form id="diaForm" method="POST" class="p-4 space-y-4" onsubmit="return confirmarFeriasDia()">
             @csrf
             <input type="hidden" name="user_id" id="diaUserId">
             <input type="hidden" name="data" id="diaData">
@@ -386,7 +399,6 @@
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Tipo</label>
                 <select name="tipo" id="diaTipo" class="w-full border-gray-300 rounded-lg text-sm" required>
-                    <option value="trabalho">Trabalho</option>
                     <option value="folga">Folga</option>
                     <option value="atestado">Atestado</option>
                     <option value="licenca">Licença</option>
@@ -457,7 +469,6 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Tipo</label>
                 <select name="tipo" id="periodoTipo" class="w-full border-gray-300 rounded-lg text-sm" required>
                     <option value="folga" selected>Folga</option>
-                    <option value="trabalho">Trabalho</option>
                     <option value="atestado">Atestado</option>
                     <option value="licenca">Licença</option>
                 </select>
@@ -478,7 +489,7 @@
                         class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 text-sm">
                     <i class="fas fa-undo mr-1"></i>Desfazer no Período
                 </button>
-                <button type="submit" class="bg-emerald-700 text-white px-4 py-2 rounded-lg hover:bg-emerald-800 text-sm">
+                <button type="submit" onclick="return confirmarFeriasPeriodo()" class="bg-emerald-700 text-white px-4 py-2 rounded-lg hover:bg-emerald-800 text-sm">
                     <i class="fas fa-save mr-1"></i>Lançar Período
                 </button>
             </div>
@@ -535,7 +546,7 @@
                     </div>
                 </div>
                 <div class="flex justify-end">
-                    <button type="submit" class="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 text-sm font-bold">
+                    <button type="submit" onclick="return confirmarFeriasProgramacao(this)" class="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 text-sm font-bold">
                         <i class="fas fa-calendar-plus mr-1"></i>Programar
                     </button>
                 </div>
@@ -671,7 +682,7 @@
             <div class="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 space-y-1">
                 <p class="font-bold">Formato esperado (cabeçalho):</p>
                 <code>cpf;data;tipo;motivo;observacao</code>
-                <p>Tipo: <code>trabalho</code>, <code>folga</code>, <code>atestado</code>, <code>licenca</code></p>
+                <p>Tipo: <code>folga</code>, <code>atestado</code>, <code>licenca</code></p>
                 <p>Data: <code>YYYY-MM-DD</code></p>
             </div>
             <div>
@@ -700,6 +711,43 @@ const DIAS_SEG = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 let currentUserId = null;
 let currentMonth = {{ $mes }};
 let currentYear = {{ $ano }};
+let currentFerias = [];
+const FERIAS_MOTORISTAS = @json($feriasPorMotorista);
+
+// ── Férias: aviso antes de lançar ──
+function periodosFeriasNoIntervalo(periodos, inicio, fim) {
+    return (periodos || []).filter(p => p.inicio <= fim && p.fim >= inicio);
+}
+
+function avisoFerias(periodos) {
+    if (!periodos.length) return true;
+    const lista = periodos
+        .map(p => `${p.inicio.split('-').reverse().join('/')} a ${p.fim.split('-').reverse().join('/')}`)
+        .join(', ');
+    return confirm(`Atenção: este motorista está em período de férias (${lista}). Deseja seguir com o lançamento mesmo assim?`);
+}
+
+function confirmarFeriasDia() {
+    const data = document.getElementById('diaData').value;
+    return avisoFerias(periodosFeriasNoIntervalo(currentFerias, data, data));
+}
+
+function confirmarFeriasPeriodo() {
+    const userId = document.getElementById('periodoUserId').value;
+    const inicio = document.getElementById('periodoInicio').value;
+    const fim = document.getElementById('periodoFim').value;
+    if (!userId || !inicio || !fim) return true;
+    return avisoFerias(periodosFeriasNoIntervalo(FERIAS_MOTORISTAS[userId] || [], inicio, fim));
+}
+
+function confirmarFeriasProgramacao(botao) {
+    const form = botao.closest('form');
+    const userId = form.querySelector('[name="user_id"]').value;
+    const inicio = form.querySelector('[name="data_inicio"]').value;
+    const fim = form.querySelector('[name="data_fim"]').value;
+    if (!userId || !inicio || !fim) return true;
+    return avisoFerias(periodosFeriasNoIntervalo(FERIAS_MOTORISTAS[userId] || [], inicio, fim));
+}
 
 // ── Calendário ──
 function abrirCalendario(userId, nome, cpf) {
@@ -722,8 +770,9 @@ function carregarDadosMotorista() {
     fetch(`{{ route('admin.folgas.motorista-dados') }}?user_id=${currentUserId}&month=${currentMonth}&year=${currentYear}`)
         .then(r => r.json())
         .then(data => {
+            currentFerias = data.ferias || [];
             renderizarSnapshot(data.snapshot);
-            renderizarCalendario(data.dias, data.programacoes || []);
+            renderizarCalendario(data.dias, data.programacoes || [], currentFerias);
             const ultimaFolgaEl = document.getElementById('calUltimaFolga');
             if (ultimaFolgaEl) ultimaFolgaEl.value = data.ultima_folga_data || '';
         });
@@ -762,7 +811,7 @@ function renderizarSnapshot(s) {
     saldoEl.className = s.saldo_acumulado >= 0 ? 'text-xl font-bold text-emerald-700' : 'text-xl font-bold text-red-700';
 }
 
-function renderizarCalendario(dias, programacoes) {
+function renderizarCalendario(dias, programacoes, ferias) {
     const grid = document.getElementById('calGrid');
     grid.innerHTML = '';
     const diasMes = new Date(currentYear, currentMonth, 0).getDate();
@@ -799,12 +848,16 @@ function renderizarCalendario(dias, programacoes) {
         }
     });
 
+    // Mapa de dias de férias
+    const emFerias = (dataStr) => (ferias || []).some(f => f.inicio <= dataStr && f.fim >= dataStr);
+
     for (let d = 1; d <= diasMes; d++) {
         const dataStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const diaSemana = new Date(currentYear, currentMonth - 1, d).getDay();
         const isDomingo = diaSemana === 0;
         const rec = diasMap[dataStr];
         const prog = progMap[dataStr];
+        const feriasDia = !rec && !prog && emFerias(dataStr);
 
         const el = document.createElement('div');
         el.className = 'relative rounded-lg p-2 text-center text-xs cursor-pointer hover:ring-2 hover:ring-emerald-400 transition min-h-[44px] flex flex-col items-center justify-center';
@@ -827,6 +880,9 @@ function renderizarCalendario(dias, programacoes) {
         } else if (prog) {
             el.className += ' bg-amber-50 text-amber-700 border-2 border-dashed border-amber-400';
             el.title = `Programado (${prog.tipo}): ${prog.data_inicio.substring(0, 10)} a ${prog.data_fim.substring(0, 10)} — débito automático na data`;
+        } else if (feriasDia) {
+            el.className += ' bg-blue-50 text-blue-700 border-2 border-dashed border-blue-400';
+            el.title = 'Período de férias — não conta como trabalho nem debita folga';
         } else {
             el.className += ' bg-emerald-50 text-emerald-700 border border-emerald-200';
         }
@@ -837,6 +893,7 @@ function renderizarCalendario(dias, programacoes) {
 
         el.innerHTML = `<span class="font-bold">${d}</span>`;
         if (prog && !rec) el.innerHTML += `<span class="text-[8px] text-amber-600 font-bold">PROG</span>`;
+        if (feriasDia) el.innerHTML += `<span class="text-[8px] text-blue-600 font-bold">FÉR</span>`;
         if (isDomingo) el.innerHTML += `<span class="text-[8px] text-red-500 font-bold">DOM</span>`;
 
         el.onclick = () => abrirDiaModal(dataStr, rec);
@@ -853,7 +910,17 @@ function abrirDiaModal(dataStr, rec) {
     document.getElementById('diaDataDisplay').value = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} (${DIAS_SEG[d.getDay()]})`;
 
     if (rec) {
-        document.getElementById('diaTipo').value = rec.tipo;
+        const tipoSelect = document.getElementById('diaTipo');
+
+        // Registro antigo de "trabalho": mostra a opção só para exibição
+        const legado = tipoSelect.querySelector('option[value="trabalho"]');
+        if (rec.tipo === 'trabalho' && !legado) {
+            tipoSelect.insertAdjacentHTML('beforeend', '<option value="trabalho">Trabalho (lançamento antigo)</option>');
+        } else if (rec.tipo !== 'trabalho' && legado) {
+            legado.remove();
+        }
+
+        tipoSelect.value = rec.tipo;
         document.getElementById('diaMotivo').value = rec.motivo_folga || '';
         document.getElementById('diaDomingoRef').value = rec.domingo_ref ? rec.domingo_ref.substring(0, 10) : '';
         document.getElementById('diaObs').value = rec.observacao || '';
@@ -863,7 +930,11 @@ function abrirDiaModal(dataStr, rec) {
         document.getElementById('diaDeleteBtn').classList.remove('hidden');
         document.getElementById('diaDeleteForm').action = `/admin/folgas/dia/${rec.id}`;
     } else {
-        document.getElementById('diaTipo').value = 'trabalho';
+        const tipoSelect = document.getElementById('diaTipo');
+        const legado = tipoSelect.querySelector('option[value="trabalho"]');
+        if (legado) legado.remove();
+
+        tipoSelect.value = 'folga';
         document.getElementById('diaMotivo').value = '';
         document.getElementById('diaDomingoRef').value = isDomingo ? dataStr : '';
         document.getElementById('diaObs').value = '';

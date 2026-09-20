@@ -98,7 +98,7 @@ class FolgaMarcoZeroTest extends TestCase
 
         $outubro = $rules->computeSnapshot($this->motorista->fresh(), 10, 2026);
         $this->assertSame(2, $outubro['saldo_anterior']);
-        $this->assertSame(5, $outubro['previstas_mes']); // previsão do mês
+        $this->assertSame(4, $outubro['previstas_mes']); // previsão do mês (ciclo 6x1)
         $this->assertSame(0, $outubro['previstas_ganhas']); // dias 1-5: nenhum bloco fechou
         $this->assertSame(2, $outubro['saldo_acumulado']); // saldo real = só o inicial
 
@@ -171,7 +171,7 @@ class FolgaMarcoZeroTest extends TestCase
         $outubro = app(FolgaRulesService::class)->computeSnapshot($this->motorista->fresh(), 10, 2026);
 
         $this->assertSame(2, $outubro['ajustes']); // só o ajuste de 02/10
-        $this->assertSame(5, $outubro['previstas_mes']);
+        $this->assertSame(4, $outubro['previstas_mes']); // previsão do mês (ciclo 6x1)
         $this->assertSame(0, $outubro['previstas_ganhas']);
         $this->assertSame(2, $outubro['saldo_acumulado']); // só o ajuste (créditos ainda não ganhos)
     }

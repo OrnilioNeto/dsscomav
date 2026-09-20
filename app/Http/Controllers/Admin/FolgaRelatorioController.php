@@ -44,7 +44,9 @@ class FolgaRelatorioController extends Controller
             ]);
         }
 
-        return view('admin.folgas.relatorios', compact('motoristas', 'relatorio', 'mes', 'ano', 'userId'));
+        $previsaoMes = $this->rules->previsaoMes($mes, $ano);
+
+        return view('admin.folgas.relatorios', compact('motoristas', 'relatorio', 'mes', 'ano', 'userId', 'previsaoMes'));
     }
 
     /**
@@ -82,7 +84,7 @@ class FolgaRelatorioController extends Controller
             ->orderBy('nome')
             ->get();
 
-        $csv = "CPF,Nome,Prévistas,Tiradas,Atestado,Licença,Ajustes,Saldo Anterior,Saldo Acumulado,Domingo Cumprido,Dias Trabalhados\n";
+        $csv = "CPF,Nome,Tiradas,Atestado,Licença,Ajustes,Saldo Anterior,Saldo Acumulado,Domingo Cumprido,Dias Trabalhados\n";
 
         foreach ($motoristas as $motorista) {
             $s = $this->rules->computeSnapshot($motorista, $mes, $ano);
@@ -91,7 +93,6 @@ class FolgaRelatorioController extends Controller
             $csv .= implode(',', [
                 $motorista->cpf,
                 '"'.str_replace('"', '""', $motorista->nome).'"',
-                $s['previstas'],
                 $contagens['tiradas'],
                 $contagens['atestados'],
                 $contagens['licencas'],
@@ -150,9 +151,9 @@ class FolgaRelatorioController extends Controller
             .footer { margin-top: 20px; font-size: 9px; color: #999; text-align: center; }
         </style></head><body>';
         $html .= "<h1>{$titulo}</h1>";
-        $html .= '<p>Gerado em: '.now()->format('d/m/Y H:i').'</p>';
+        $html .= '<p>Gerado em: '.now()->format('d/m/Y H:i').' — Previsão do mês (6x1): '.$this->rules->previsaoMes($mes, $ano).' folga(s) por motorista</p>';
         $html .= '<table><thead><tr>';
-        $html .= '<th>CPF</th><th>Nome</th><th>Prévistas</th><th>Tiradas</th><th>Atestado</th><th>Licença</th><th>Ajustes</th>';
+        $html .= '<th>CPF</th><th>Nome</th><th>Tiradas</th><th>Atestado</th><th>Licença</th><th>Ajustes</th>';
         $html .= '<th>Saldo Anterior</th><th>Saldo Acumulado</th><th>Domingo</th><th>Dias Trab.</th>';
         $html .= '</tr></thead><tbody>';
 
@@ -163,7 +164,6 @@ class FolgaRelatorioController extends Controller
             $html .= '<tr>';
             $html .= "<td>{$u->cpf}</td>";
             $html .= "<td>{$u->nome}</td>";
-            $html .= "<td>{$s['previstas']}</td>";
             $html .= "<td>{$s['tiradas_mes']}</td>";
             $html .= "<td>{$s['atestados_mes']}</td>";
             $html .= "<td>{$s['licencas_mes']}</td>";

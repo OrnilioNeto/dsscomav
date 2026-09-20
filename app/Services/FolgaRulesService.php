@@ -19,6 +19,9 @@ class FolgaRulesService
 
     private int $diasParaFolga;
 
+    /** @var array<int, array<int, array{0: Carbon, 1: Carbon}>> */
+    private array $feriasCache = [];
+
     public function __construct()
     {
         self::ensureTablesExist();
@@ -47,11 +50,150 @@ class FolgaRulesService
     }
 
     /**
-     * Calcula streak, créditos previstos/ganhos e contagens para um motorista no mês.
+     * Previsão mensal de folgas: ciclo 6 dias trabalhados + 1 folga (que não
+     * conta para o próximo crédito). É a mesma para todos os motoristas e não
+     * considera lançamentos. No mês do marco zero conta só a partir da data.
+     */
+    public function previsaoMes(int $mes, int $ano): int
+    {
+        $inicioMes = Carbon::createFromDate($ano, $mes, 1)->startOfDay();
+        $fimMes = $inicioMes->copy()->endOfMonth();
+
+        $inicioControle = $this->dataInicioControle();
+
+        if ($inicioControle && $fimMes->lt($inicioControle)) {
+            return 0;
+        }
+
+        $inicio = ($inicioControle && $inicioControle->gt($inicioMes))
+            ? $inicioControle->copy()
+            : $inicioMes->copy();
+
+        $dias = $inicio->diffInDays($fimMes) + 1;
+
+        return intdiv($dias + 1, 7);
+    }
+
+    /**
+     * Períodos de férias do motorista (histórico + período atual dos campos).
      *
-     * - "previstas": projeção do mês inteiro (regra dos 6 dias), inclui dias futuros.
-     * - "previstas_ganhas": créditos já efetivados (bloco completado até hoje).
-     *   Meses passados: igual à projeção. Mês atual: vai acumulando dia a dia.
+     * @return array<int, array{0: Carbon, 1: Carbon}>
+     */
+    public function periodosFerias(User $user): array
+    {
+        if (isset($this->feriasCache[$user->id])) {
+            return $this->feriasCache[$user->id];
+        }
+
+        $periodos = [];
+
+        if ($user->ferias_inicio && $user->ferias_fim) {
+            $periodos[] = [
+                $user->ferias_inicio->copy()->startOfDay(),
+                $user->ferias_fim->copy()->startOfDay(),
+            ];
+        }
+
+        foreach ($user->vacations()->get() as $ferias) {
+            $periodos[] = [
+                $ferias->data_inicio->copy()->startOfDay(),
+                $ferias->data_fim->copy()->startOfDay(),
+            ];
+        }
+
+        return $this->feriasCache[$user->id] = $periodos;
+    }
+
+    /**
+     * O dia informado cai em algum período de férias?
+     *
+     * @param  array<int, array{0: Carbon, 1: Carbon}>  $periodos
+     */
+    private function dataEmFerias(array $periodos, string $data): bool
+    {
+        $dia = Carbon::parse($data)->startOfDay();
+
+        foreach ($periodos as [$inicio, $fim]) {
+            if ($dia->betweenIncluded($inicio, $fim)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Quantos dias já foram contados no bloco atual de 6 (0 a 5) no primeiro
+     * dia do mês. A contagem é contínua e baseada no marco zero; sem ele,
+     * reinicia em cada mês.
+     */
+    private function sequenciaEfetivaInicial(User $user, int $mes, int $ano): int
+    {
+        $inicioControle = $this->dataInicioControle();
+
+        if (! $inicioControle) {
+            return 0;
+        }
+
+        $inicioMes = Carbon::createFromDate($ano, $mes, 1)->startOfDay();
+
+        if (! $inicioMes->gt($inicioControle)) {
+            return 0;
+        }
+
+        // Último evento que zerou o ciclo antes do mês
+        $candidatos = [$inicioControle->copy()->subDay()];
+
+        $ultimoLancamento = FolgaDia::where('user_id', $user->id)
+            ->where('tipo', '!=', 'trabalho')
+            ->whereDate('data', '<', $inicioMes->format('Y-m-d'))
+            ->orderByDesc('data')
+            ->value('data');
+        if ($ultimoLancamento) {
+            $candidatos[] = Carbon::parse($ultimoLancamento)->startOfDay();
+        }
+
+        if ($user->ultima_folga_data && $user->ultima_folga_data->lt($inicioMes)) {
+            $candidatos[] = $user->ultima_folga_data->copy()->startOfDay();
+        }
+
+        foreach ($this->periodosFerias($user) as [$inicio, $fim]) {
+            if ($fim->lt($inicioMes)) {
+                $candidatos[] = $fim->copy();
+            }
+        }
+
+        $programacoes = FolgaProgramacao::where('user_id', $user->id)
+            ->whereDate('data_inicio', '<', $inicioMes->format('Y-m-d'))
+            ->get();
+        foreach ($programacoes as $programacao) {
+            $fim = $programacao->dataFimEfetiva()->startOfDay();
+            if ($fim->lt($inicioMes)) {
+                $candidatos[] = $fim;
+            }
+        }
+
+        $reset = collect($candidatos)
+            ->sortByDesc(fn (Carbon $data) => $data->timestamp)
+            ->first();
+
+        if (! $reset || $reset->gte($inicioMes)) {
+            return 0;
+        }
+
+        $diasContados = $reset->diffInDays($inicioMes) - 1;
+
+        return $diasContados > 0 ? $diasContados % $this->diasParaFolga : 0;
+    }
+
+    /**
+     * Calcula créditos e contagens para um motorista no mês.
+     *
+     * - "previstas": previsão mensal (ciclo 6 trabalhados + 1 folga que não
+     *   conta), igual para todos e sem considerar lançamentos.
+     * - "previstas_ganhas": créditos efetivos — contagem contínua entre meses,
+     *   baseada só em lançamentos; folga/atestado/licença/férias zeram o ciclo
+     *   e ele recomeça no dia seguinte. Sem marco zero, reinicia no mês.
      */
     public function computeMonthData(User $user, int $mes, int $ano): array
     {
@@ -62,8 +204,7 @@ class FolgaRulesService
             ->keyBy(fn ($r) => $r->data->format('Y-m-d'));
 
         $diasMes = Carbon::createFromDate($ano, $mes, 1)->daysInMonth;
-        $streak = 0;
-        $previstas = 0;
+        $streak = $this->sequenciaEfetivaInicial($user, $mes, $ano);
         $previstasGanhas = 0;
         $diasTrabalhados = 0;
         $diasAtestado = 0;
@@ -93,6 +234,17 @@ class FolgaRulesService
             );
         }
 
+        $ferias = $this->periodosFerias($user);
+
+        if ($ferias) {
+            // Programações dentro de férias não debitam
+            $programados = array_filter(
+                $programados,
+                fn ($chave) => ! $this->dataEmFerias($ferias, $chave),
+                ARRAY_FILTER_USE_KEY
+            );
+        }
+
         $hoje = now()->startOfDay()->format('Y-m-d');
 
         for ($d = 1; $d <= $diasMes; $d++) {
@@ -103,7 +255,15 @@ class FolgaRulesService
             }
 
             $record = $records->get($data);
-            $tipo = $record?->tipo ?? $programados[$data] ?? 'trabalho';
+
+            if ($record) {
+                $tipo = $record->tipo;
+            } elseif ($this->dataEmFerias($ferias, $data)) {
+                $tipo = 'ferias';
+            } else {
+                $tipo = $programados[$data] ?? 'trabalho';
+            }
+
             $efetivado = $data <= $hoje;
 
             if ($tipo === 'trabalho') {
@@ -112,7 +272,6 @@ class FolgaRulesService
                 }
                 $streak++;
                 if ($streak >= $this->diasParaFolga) {
-                    $previstas++;
                     if ($efetivado) {
                         $previstasGanhas++;
                     }
@@ -130,6 +289,8 @@ class FolgaRulesService
                 $streak = 0;
             } elseif ($tipo === 'folga') {
                 $diasFolga++;
+                $streak = 0;
+            } elseif ($tipo === 'ferias') {
                 $streak = 0;
             }
         }
@@ -173,7 +334,7 @@ class FolgaRulesService
             ->count();
 
         return [
-            'previstas' => $previstas,
+            'previstas' => $this->previsaoMes($mes, $ano),
             'previstas_ganhas' => $previstasGanhas,
             'tiradas' => $diasFolgaMes,
             'dias_trabalhados' => $diasTrabalhados,
@@ -231,11 +392,13 @@ class FolgaRulesService
     }
 
     /**
-     * Conta dias trabalhados contínuos DESDE a última folga/atestado/licença
-     * até o mês selecionado (dinâmico por mês).
+     * Conta dias trabalhados contínuos desde a última folga/atestado/licença/
+     * férias até o mês selecionado (dinâmico por mês).
      * - Mês atual: conta até hoje.
      * - Mês futuro/passado: conta até o fim do mês selecionado.
-     * Dias sem registro contam como trabalho. Todo dia calendário conta (6x1).
+     * Dias sem registro contam como trabalho e a contagem atravessa meses
+     * (a partir do marco zero). Férias zeram e o contador reinicia no dia
+     * seguinte ao fim delas.
      */
     public function diasContinuos(User $user, int $mes, int $ano): int
     {
@@ -243,23 +406,6 @@ class FolgaRulesService
         $fimMes = $inicioMes->copy()->endOfMonth();
         $hoje = now()->startOfDay();
 
-        // Última interrupção (folga/atestado/licença) registrada até o fim do mês selecionado
-        $ultimaInterrupcao = FolgaDia::where('user_id', $user->id)
-            ->where('tipo', '!=', 'trabalho')
-            ->where('data', '<=', $fimMes->format('Y-m-d'))
-            ->orderByDesc('data')
-            ->value('data');
-
-        // Considerar também a última folga registrada manualmente (users.ultima_folga_data)
-        $ultimaFolgaUser = $user->ultima_folga_data;
-        if ($ultimaFolgaUser) {
-            $uf = Carbon::parse($ultimaFolgaUser);
-            if ($uf->lte($fimMes) && (! $ultimaInterrupcao || $uf->gt(Carbon::parse($ultimaInterrupcao)))) {
-                $ultimaInterrupcao = $uf;
-            }
-        }
-
-        // Marco zero do controle: nada antes da data de início conta
         $inicioControle = $this->dataInicioControle();
         if ($inicioControle && $inicioControle->gt($fimMes)) {
             return 0;
@@ -268,11 +414,45 @@ class FolgaRulesService
         // Mês atual: conta até hoje; outros meses: conta até o fim do mês
         $dataFim = ($mes === (int) $hoje->month && $ano === (int) $hoje->year) ? $hoje->copy() : $fimMes->copy();
 
+        $ferias = $this->periodosFerias($user);
+
+        // Em férias no fim do período consultado: sem dias contínuos
+        if ($this->dataEmFerias($ferias, $dataFim->format('Y-m-d'))) {
+            return 0;
+        }
+
+        $candidatos = [];
+
+        $ultimoLancamento = FolgaDia::where('user_id', $user->id)
+            ->where('tipo', '!=', 'trabalho')
+            ->where('data', '<=', $dataFim->format('Y-m-d'))
+            ->orderByDesc('data')
+            ->value('data');
+        if ($ultimoLancamento) {
+            $candidatos[] = Carbon::parse($ultimoLancamento)->startOfDay();
+        }
+
+        foreach ($ferias as [$inicio, $fim]) {
+            if ($fim->lte($dataFim)) {
+                $candidatos[] = $fim->copy();
+            }
+        }
+
+        if ($user->ultima_folga_data && $user->ultima_folga_data->lte($dataFim)) {
+            $candidatos[] = $user->ultima_folga_data->copy()->startOfDay();
+        }
+
+        if ($inicioControle) {
+            $candidatos[] = $inicioControle->copy()->subDay();
+        }
+
+        $ultimaInterrupcao = collect($candidatos)
+            ->sortByDesc(fn (Carbon $data) => $data->timestamp)
+            ->first();
+
         // Sem interrupção conhecida: contar do início do mês (ou do marco zero)
         if (! $ultimaInterrupcao) {
-            $inicioContagem = $inicioControle && $inicioControle->gt($inicioMes)
-                ? $inicioControle->copy()
-                : $inicioMes->copy();
+            $inicioContagem = $inicioMes->copy();
 
             if ($inicioContagem->gt($dataFim)) {
                 return 0;
@@ -282,7 +462,7 @@ class FolgaRulesService
         }
 
         // Começa a contar no dia seguinte à última interrupção (ou no marco zero)
-        $dataAtual = Carbon::parse($ultimaInterrupcao)->addDay();
+        $dataAtual = $ultimaInterrupcao->copy()->addDay();
         if ($inicioControle && $inicioControle->gte($dataAtual)) {
             $dataAtual = $inicioControle->copy();
         }
@@ -290,15 +470,19 @@ class FolgaRulesService
             return 0;
         }
 
+        $registros = FolgaDia::where('user_id', $user->id)
+            ->whereDate('data', '>=', $dataAtual->format('Y-m-d'))
+            ->whereDate('data', '<=', $dataFim->format('Y-m-d'))
+            ->get()
+            ->keyBy(fn ($r) => $r->data->format('Y-m-d'));
+
         $count = 0;
         while ($dataAtual->lte($dataFim)) {
-            $registro = FolgaDia::where('user_id', $user->id)
-                ->where('data', $dataAtual->format('Y-m-d'))
-                ->first();
+            $chave = $dataAtual->format('Y-m-d');
+            $tipo = $registros->get($chave)?->tipo ?? 'trabalho';
+            $emFerias = $this->dataEmFerias($ferias, $chave);
 
-            $tipo = $registro?->tipo ?? 'trabalho';
-
-            if ($tipo === 'trabalho') {
+            if ($tipo === 'trabalho' && ! $emFerias) {
                 $count++;
             } else {
                 $count = 0;
