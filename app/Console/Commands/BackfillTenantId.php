@@ -53,6 +53,7 @@ class BackfillTenantId extends Command
         'folga_saldos_mensais',
         'folga_domingo_saldos',
         'folga_logs',
+        'folga_programacoes',
         'social_posts',
         'social_likes',
         'social_comments',

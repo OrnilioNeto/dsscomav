@@ -7,11 +7,25 @@
 
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-        <h1 class="text-3xl font-bold text-gray-800">
-            <i class="fas fa-calendar-day text-emerald-700 mr-2"></i>Folgas
-        </h1>
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">
+                <i class="fas fa-calendar-day text-emerald-700 mr-2"></i>Folgas
+            </h1>
+            @if($settings->data_inicio_controle)
+                <p class="text-xs text-gray-500 mt-1">
+                    <i class="fas fa-flag-checkered mr-1 text-emerald-600"></i>
+                    Controle do banco a partir de {{ $settings->data_inicio_controle->format('d/m/Y') }}
+                </p>
+            @endif
+        </div>
         <div class="flex flex-wrap gap-2">
             @if(Auth::user()->hasPermission('folgas', 'edit'))
+            <button onclick="openPeriodoModal()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm">
+                <i class="fas fa-calendar-plus mr-1"></i>Lançar Período
+            </button>
+            <button onclick="openProgramacaoModal()" class="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 transition text-sm">
+                <i class="fas fa-calendar-check mr-1"></i>Programação
+            </button>
             <button onclick="openImportModal()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm">
                 <i class="fas fa-file-csv mr-1"></i>Importar CSV
             </button>
@@ -33,7 +47,7 @@
             <a href="{{ route('admin.folgas.auditoria') }}" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition text-sm">
                 <i class="fas fa-history mr-1"></i>Auditoria
             </a>
-            @if(Auth::user()->isSuperAdmin())
+            @if(Auth::user()->hasPermission('folgas', 'edit'))
             <a href="{{ route('admin.folgas.config') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm">
                 <i class="fas fa-cog mr-1"></i>Config
             </a>
@@ -71,15 +85,15 @@
     </form>
 
     {{-- KPI Cards --}}
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
         <div class="bg-white rounded-xl shadow p-4 border-t-4 border-emerald-600">
             <div class="text-xs text-gray-500 font-semibold">Motoristas</div>
             <div class="text-2xl font-bold text-gray-800">{{ $totalMotoristas }}</div>
         </div>
         <div class="bg-white rounded-xl shadow p-4 border-t-4 border-blue-600">
-            <div class="text-xs text-gray-500 font-semibold">Prévistas (disponível)</div>
-            <div class="text-2xl font-bold text-blue-600">{{ $totalPrevistas }}</div>
-            <div class="text-xs text-gray-400">mês: {{ $totalPrevistasMes }} @if($totalPrevistas - $totalPrevistasMes != 0) <span class="text-blue-500">+{{ $totalPrevistas - $totalPrevistasMes }} acúm.</span> @endif</div>
+            <div class="text-xs text-gray-500 font-semibold">Prévistas (mês)</div>
+            <div class="text-2xl font-bold text-blue-600">{{ $totalPrevistasMes }}</div>
+            <div class="text-xs text-gray-400">já ganho: {{ $totalPrevistasGanhas }}</div>
         </div>
         <div class="bg-white rounded-xl shadow p-4 border-t-4 border-green-600">
             <div class="text-xs text-gray-500 font-semibold">Tiradas (mês)</div>
@@ -96,6 +110,15 @@
             <div class="text-xs text-gray-500 font-semibold">Domingo Pendente</div>
             <div class="text-2xl font-bold {{ $totalDomingoPendente > 0 ? 'text-red-500' : 'text-green-500' }}">{{ $totalDomingoPendente }}</div>
         </div>
+        <button type="button" onclick="openProgramacaoModal()"
+                class="bg-white rounded-xl shadow p-4 border-t-4 {{ $totalProgramacoesProximas > 0 ? 'border-amber-500' : 'border-gray-300' }} text-left hover:shadow-md transition">
+            <div class="text-xs text-gray-500 font-semibold flex items-center justify-between">
+                <span>Programações (7 dias)</span>
+                <i class="fas fa-calendar-check {{ $totalProgramacoesProximas > 0 ? 'text-amber-500' : 'text-gray-300' }}"></i>
+            </div>
+            <div class="text-2xl font-bold {{ $totalProgramacoesProximas > 0 ? 'text-amber-600' : 'text-gray-400' }}">{{ $totalProgramacoesProximas }}</div>
+            <div class="text-[10px] text-gray-400">{{ $programacoes->count() }} ativa(s) no total</div>
+        </button>
     </div>
 
     {{-- Tabela de Motoristas --}}
@@ -112,15 +135,16 @@
                 <thead class="bg-gray-100 border-b">
                     <tr>
                         <th class="p-3 text-left font-bold text-gray-700">Motorista</th>
-                        <th class="p-3 text-center font-bold text-gray-700">Prévistas</th>
+                        <th class="p-3 text-center font-bold text-gray-700" title="Previsão do mês pela regra dos 6 dias trabalhados">Prévistas</th>
                         <th class="p-3 text-center font-bold text-gray-700">Tiradas</th>
                         <th class="p-3 text-center font-bold text-gray-700">Atestado</th>
                         <th class="p-3 text-center font-bold text-gray-700">Licença</th>
-                        <th class="p-3 text-center font-bold text-gray-700">Saldo</th>
+                        <th class="p-3 text-center font-bold text-gray-700" title="Saldo real acumulado (só créditos já ganhos, sem previsão)">Saldo</th>
                         <th class="p-3 text-center font-bold text-gray-700">Domingo</th>
                         <th class="p-3 text-center font-bold text-gray-700" title="Banco de folgas de domingo — saldo acumulado">Banco Dom.</th>
                         <th class="p-3 text-center font-bold text-gray-700">Dias Contínuos</th>
                         <th class="p-3 text-center font-bold text-gray-700">Últ. Folga</th>
+                        <th class="p-3 text-center font-bold text-gray-700">Programação</th>
                         <th class="p-3 text-center font-bold text-gray-700">Ações</th>
                     </tr>
                 </thead>
@@ -133,14 +157,8 @@
                                 <div class="text-xs text-gray-400">CPF: {{ $motorista->cpf }}</div>
                             </td>
                             <td class="p-3 text-center">
-                                <span class="font-bold text-blue-600">{{ $s['previstas'] }}</span>
-                                @if($s['saldo_anterior'] > 0 || $s['ajustes'] != 0)
-                                    <div class="text-[10px] text-blue-400">
-                                        mês {{ $s['previstas_mes'] }}
-                                        @if($s['saldo_anterior'] != 0) + ant. {{ $s['saldo_anterior'] }}@endif
-                                        @if($s['ajustes'] != 0) {{ $s['ajustes'] > 0 ? '+' : '' }}{{ $s['ajustes'] }} aj.@endif
-                                    </div>
-                                @endif
+                                <span class="font-bold text-blue-600">{{ $s['previstas_mes'] }}</span>
+                                <div class="text-[10px] text-blue-400">já ganho: {{ $s['previstas_ganhas'] }}</div>
                             </td>
                             <td class="p-3 text-center font-bold text-green-600">{{ $s['tiradas_mes'] }}</td>
                             <td class="p-3 text-center font-bold text-yellow-600">{{ $s['atestados_mes'] }}</td>
@@ -202,6 +220,23 @@
                                 @endif
                             </td>
                             <td class="p-3 text-center">
+                                @php $progs = $programacoesPorMotorista[$motorista->id] ?? collect(); @endphp
+                                @forelse($progs as $prog)
+                                    @php $emCurso = $prog->data_inicio->lte(now()) && $prog->data_fim->gte(now()->startOfDay()); @endphp
+                                    <div class="mb-1">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold {{ $emCurso ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-700' }}"
+                                              title="{{ ucfirst($prog->tipo) }} programada: {{ $prog->data_inicio->format('d/m/Y') }} a {{ $prog->data_fim->format('d/m/Y') }}">
+                                            <i class="fas fa-calendar-check mr-1"></i>{{ $prog->data_inicio->format('d/m') }}–{{ $prog->data_fim->format('d/m') }}
+                                        </span>
+                                        @if($emCurso)
+                                            <div class="text-[9px] text-amber-600 font-semibold">em curso</div>
+                                        @endif
+                                    </div>
+                                @empty
+                                    <span class="text-gray-300 text-xs">—</span>
+                                @endforelse
+                            </td>
+                            <td class="p-3 text-center">
                                 <button class="bg-emerald-600 text-white px-3 py-1 rounded-lg hover:bg-emerald-700 transition text-xs" onclick="event.stopPropagation(); abrirCalendario({{ $motorista->id }}, '{{ addslashes($motorista->nome) }}', '{{ $motorista->cpf }}')">
                                     <i class="fas fa-calendar-alt mr-1"></i>Abrir
                                 </button>
@@ -209,7 +244,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="p-8 text-center text-gray-400">
+                            <td colspan="12" class="p-8 text-center text-gray-400">
                                 <i class="fas fa-calendar-times text-3xl mb-2"></i><br>
                                 Nenhum motorista encontrado para este período.
                             </td>
@@ -306,12 +341,19 @@
                 <span><span class="inline-block w-3 h-3 rounded bg-yellow-400 mr-1"></span>Atestado</span>
                 <span><span class="inline-block w-3 h-3 rounded bg-purple-500 mr-1"></span>Licença</span>
                 <span><span class="inline-block w-3 h-3 rounded bg-blue-400 mr-1"></span>Trabalho (registrado)</span>
+                <span><span class="inline-block w-3 h-3 rounded border-2 border-dashed border-amber-400 bg-amber-50 mr-1"></span>Programado (débito na data)</span>
                 <span><span class="inline-block w-3 h-3 rounded border-2 border-red-500 mr-1"></span>Domingo</span>
             </div>
 
             {{-- Ações em massa --}}
             @if(Auth::user()->hasPermission('folgas', 'edit'))
             <div class="flex flex-wrap gap-2 mb-4">
+                <button type="button" onclick="openPeriodoModal(currentUserId)" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs hover:bg-emerald-700">
+                    <i class="fas fa-calendar-plus mr-1"></i>Lançar Período (ex: 10 a 15)
+                </button>
+                <button type="button" onclick="openProgramacaoModal(currentUserId)" class="bg-amber-500 text-white px-3 py-1 rounded text-xs hover:bg-amber-600">
+                    <i class="fas fa-calendar-check mr-1"></i>Programar Folga
+                </button>
                 <form action="{{ route('admin.folgas.recalcular') }}" method="POST" class="inline" onsubmit="return confirm('Recalcular este motorista no mês?')">
                     @csrf
                     <input type="hidden" name="month" value="{{ $mes }}">
@@ -367,12 +409,197 @@
             </div>
             <div id="diaStreakInfo" class="bg-gray-50 rounded-lg p-3 text-sm"></div>
             <div class="flex justify-end gap-2">
+                <button type="button" onclick="desfazerDia()" id="diaDeleteBtn" class="hidden mr-auto bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 text-sm">
+                    <i class="fas fa-trash-alt mr-1"></i>Desfazer
+                </button>
                 <button type="button" onclick="fecharDiaModal()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 text-sm">Cancelar</button>
                 <button type="submit" class="bg-emerald-700 text-white px-4 py-2 rounded-lg hover:bg-emerald-800 text-sm">
                     <i class="fas fa-save mr-1"></i>Salvar
                 </button>
             </div>
         </form>
+        <form id="diaDeleteForm" method="POST" class="hidden">
+            @csrf
+            @method('DELETE')
+        </form>
+    </div>
+</div>
+
+{{-- Modal: Lançar Período --}}
+<div id="periodoModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="border-b p-4 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-plus mr-2 text-emerald-700"></i>Lançar Período</h3>
+            <button onclick="fecharPeriodoModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+        </div>
+        <form action="{{ route('admin.folgas.periodo.store') }}" method="POST" class="p-4 space-y-4">
+            @csrf
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Motorista</label>
+                <select name="user_id" id="periodoUserId" class="w-full border-gray-300 rounded-lg text-sm" required>
+                    <option value="">Selecione...</option>
+                    @foreach($motoristas as $m)
+                        <option value="{{ $m->id }}">{{ $m->nome }} ({{ $m->cpf }})</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Data inicial</label>
+                    <input type="date" name="data_inicio" id="periodoInicio" class="w-full border-gray-300 rounded-lg text-sm" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Data final</label>
+                    <input type="date" name="data_fim" id="periodoFim" class="w-full border-gray-300 rounded-lg text-sm" required>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Tipo</label>
+                <select name="tipo" id="periodoTipo" class="w-full border-gray-300 rounded-lg text-sm" required>
+                    <option value="folga" selected>Folga</option>
+                    <option value="trabalho">Trabalho</option>
+                    <option value="atestado">Atestado</option>
+                    <option value="licenca">Licença</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Todos os dias do intervalo (inclusive) recebem este tipo.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Motivo</label>
+                <input type="text" name="motivo_folga" class="w-full border-gray-300 rounded-lg text-sm" placeholder="Ex: Férias, folga compensatória">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Observação</label>
+                <textarea name="observacao" class="w-full border-gray-300 rounded-lg text-sm" rows="2"></textarea>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="fecharPeriodoModal()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 text-sm">Cancelar</button>
+                <button type="submit" formaction="{{ route('admin.folgas.periodo.destroy') }}"
+                        onclick="return confirm('Desfazer TODOS os lançamentos do intervalo? Os registros serão removidos e os débitos estornados.')"
+                        class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 text-sm">
+                    <i class="fas fa-undo mr-1"></i>Desfazer no Período
+                </button>
+                <button type="submit" class="bg-emerald-700 text-white px-4 py-2 rounded-lg hover:bg-emerald-800 text-sm">
+                    <i class="fas fa-save mr-1"></i>Lançar Período
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- Modal: Programações --}}
+<div id="programacaoModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
+            <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-check mr-2 text-amber-500"></i>Programações de Folga</h3>
+            <button onclick="fecharProgramacaoModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="p-4 space-y-6">
+            @if(Auth::user()->hasPermission('folgas', 'edit'))
+            <form action="{{ route('admin.folgas.programacao.store') }}" method="POST" class="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+                @csrf
+                <h4 class="text-sm font-bold text-amber-800"><i class="fas fa-plus-circle mr-1"></i>Nova programação</h4>
+                <p class="text-xs text-amber-700">A folga é debitada automaticamente conforme a data chega (dia a dia).</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Motorista</label>
+                        <select name="user_id" id="programacaoUserId" class="w-full border-gray-300 rounded-lg text-sm" required>
+                            <option value="">Selecione...</option>
+                            @foreach($motoristas as $m)
+                                <option value="{{ $m->id }}">{{ $m->nome }} ({{ $m->cpf }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Tipo</label>
+                        <select name="tipo" class="w-full border-gray-300 rounded-lg text-sm" required>
+                            <option value="folga" selected>Folga</option>
+                            <option value="atestado">Atestado</option>
+                            <option value="licenca">Licença</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">De</label>
+                            <input type="date" name="data_inicio" class="w-full border-gray-300 rounded-lg text-sm" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Até</label>
+                            <input type="date" name="data_fim" class="w-full border-gray-300 rounded-lg text-sm" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Motivo</label>
+                        <input type="text" name="motivo" class="w-full border-gray-300 rounded-lg text-sm" placeholder="Ex: Férias, folga compensatória">
+                        <textarea name="observacao" rows="1" class="w-full border-gray-300 rounded-lg text-sm mt-2" placeholder="Observação (opcional)"></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600 text-sm font-bold">
+                        <i class="fas fa-calendar-plus mr-1"></i>Programar
+                    </button>
+                </div>
+            </form>
+            @endif
+
+            <div>
+                <h4 class="text-sm font-bold text-gray-800 mb-2"><i class="fas fa-list mr-1"></i>Programações ativas</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-2 text-left font-bold text-gray-600">Motorista</th>
+                                <th class="p-2 text-center font-bold text-gray-600">Período</th>
+                                <th class="p-2 text-center font-bold text-gray-600">Tipo</th>
+                                <th class="p-2 text-center font-bold text-gray-600">Situação</th>
+                                <th class="p-2 text-center font-bold text-gray-600">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($programacoes as $prog)
+                                @php
+                                    $hoje = now()->startOfDay();
+                                    $emCurso = $prog->data_inicio->lte($hoje) && $prog->data_fim->gte($hoje);
+                                    $futura = $prog->data_inicio->gt($hoje);
+                                @endphp
+                                <tr>
+                                    <td class="p-2">{{ $prog->user?->nome ?? '—' }}</td>
+                                    <td class="p-2 text-center font-mono text-xs">
+                                        {{ $prog->data_inicio->format('d/m/Y') }} a {{ $prog->data_fim->format('d/m/Y') }}
+                                    </td>
+                                    <td class="p-2 text-center text-xs">{{ ucfirst($prog->tipo) }}</td>
+                                    <td class="p-2 text-center">
+                                        @if($emCurso)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white">
+                                                <i class="fas fa-hourglass-half mr-1"></i>Em curso
+                                            </span>
+                                        @elseif($futura)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+                                                <i class="fas fa-clock mr-1"></i>Programada
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="p-2 text-center">
+                                        @if(Auth::user()->hasPermission('folgas', 'edit'))
+                                        <form action="{{ route('admin.folgas.programacao.cancelar', $prog->id) }}" method="POST" onsubmit="return confirm('Anular a programação de {{ $prog->user?->nome }}? Dias anteriores a hoje continuam debitados.')">
+                                            @csrf
+                                            <button type="submit" class="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-red-200">
+                                                <i class="fas fa-ban mr-1"></i>Anular
+                                            </button>
+                                        </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="p-4 text-center text-gray-400 text-xs">Nenhuma programação ativa.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -496,7 +723,7 @@ function carregarDadosMotorista() {
         .then(r => r.json())
         .then(data => {
             renderizarSnapshot(data.snapshot);
-            renderizarCalendario(data.dias);
+            renderizarCalendario(data.dias, data.programacoes || []);
             const ultimaFolgaEl = document.getElementById('calUltimaFolga');
             if (ultimaFolgaEl) ultimaFolgaEl.value = data.ultima_folga_data || '';
         });
@@ -513,18 +740,16 @@ function renderizarSnapshot(s) {
     // Detalhes competência vs acumulado
     const prevDet = document.getElementById('calPrevistasDet');
     if (prevDet) {
-        let det = `mês ${s.previstas_mes}`;
-        if (s.saldo_anterior != 0) det += ` + ant. ${s.saldo_anterior}`;
-        if (s.ajustes != 0) det += ` ${s.ajustes > 0 ? '+' : ''}${s.ajustes} aj.`;
-        prevDet.textContent = det;
+        prevDet.textContent = `previsão do mês ${s.previstas_mes} · já ganho: ${s.previstas_ganhas}`;
     }
 
     const saldoDet = document.getElementById('calSaldoDet');
     if (saldoDet) {
         let det = [];
         if (s.saldo_anterior != 0) det.push(`ant. ${s.saldo_anterior}`);
+        if (s.previstas_ganhas != 0) det.push(`ganho ${s.previstas_ganhas}`);
         if (s.ajustes != 0) det.push(`ajuste ${s.ajustes > 0 ? '+' : ''}${s.ajustes}`);
-        saldoDet.textContent = det.length ? det.join(' | ') : `mês: ${s.previstas_mes - s.tiradas_mes}`;
+        saldoDet.textContent = det.length ? det.join(' | ') : `ganho ${s.previstas_ganhas} - tiradas ${s.tiradas_mes}`;
     }
 
     const domDet = document.getElementById('calDomingoDet');
@@ -537,7 +762,7 @@ function renderizarSnapshot(s) {
     saldoEl.className = s.saldo_acumulado >= 0 ? 'text-xl font-bold text-emerald-700' : 'text-xl font-bold text-red-700';
 }
 
-function renderizarCalendario(dias) {
+function renderizarCalendario(dias, programacoes) {
     const grid = document.getElementById('calGrid');
     grid.innerHTML = '';
     const diasMes = new Date(currentYear, currentMonth, 0).getDate();
@@ -563,11 +788,23 @@ function renderizarCalendario(dias) {
         diasMap[d.data.substring(0, 10)] = d;
     });
 
+    // Mapa de dias programados (débito automático quando a data chega)
+    const progMap = {};
+    (programacoes || []).forEach(p => {
+        const ini = new Date(p.data_inicio.substring(0, 10) + 'T12:00:00');
+        const fim = new Date(p.data_fim.substring(0, 10) + 'T12:00:00');
+        for (let dt = new Date(ini); dt <= fim; dt.setDate(dt.getDate() + 1)) {
+            const chave = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            progMap[chave] = p;
+        }
+    });
+
     for (let d = 1; d <= diasMes; d++) {
         const dataStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const diaSemana = new Date(currentYear, currentMonth - 1, d).getDay();
         const isDomingo = diaSemana === 0;
         const rec = diasMap[dataStr];
+        const prog = progMap[dataStr];
 
         const el = document.createElement('div');
         el.className = 'relative rounded-lg p-2 text-center text-xs cursor-pointer hover:ring-2 hover:ring-emerald-400 transition min-h-[44px] flex flex-col items-center justify-center';
@@ -587,6 +824,9 @@ function renderizarCalendario(dias) {
                     el.className += ' bg-blue-100 text-blue-800 border border-blue-300';
                     break;
             }
+        } else if (prog) {
+            el.className += ' bg-amber-50 text-amber-700 border-2 border-dashed border-amber-400';
+            el.title = `Programado (${prog.tipo}): ${prog.data_inicio.substring(0, 10)} a ${prog.data_fim.substring(0, 10)} — débito automático na data`;
         } else {
             el.className += ' bg-emerald-50 text-emerald-700 border border-emerald-200';
         }
@@ -596,6 +836,7 @@ function renderizarCalendario(dias) {
         }
 
         el.innerHTML = `<span class="font-bold">${d}</span>`;
+        if (prog && !rec) el.innerHTML += `<span class="text-[8px] text-amber-600 font-bold">PROG</span>`;
         if (isDomingo) el.innerHTML += `<span class="text-[8px] text-red-500 font-bold">DOM</span>`;
 
         el.onclick = () => abrirDiaModal(dataStr, rec);
@@ -619,6 +860,8 @@ function abrirDiaModal(dataStr, rec) {
         document.getElementById('diaModalTitle').textContent = 'Editar Dia';
         document.getElementById('diaForm').action = `/admin/folgas/dia/${rec.id}`;
         document.getElementById('diaForm').innerHTML += '<input type="hidden" name="_method" value="PUT">';
+        document.getElementById('diaDeleteBtn').classList.remove('hidden');
+        document.getElementById('diaDeleteForm').action = `/admin/folgas/dia/${rec.id}`;
     } else {
         document.getElementById('diaTipo').value = 'trabalho';
         document.getElementById('diaMotivo').value = '';
@@ -628,6 +871,8 @@ function abrirDiaModal(dataStr, rec) {
         document.getElementById('diaForm').action = '{{ route("admin.folgas.dia.store") }}';
         const methodInput = document.querySelector('#diaForm input[name="_method"]');
         if (methodInput) methodInput.remove();
+        document.getElementById('diaDeleteBtn').classList.add('hidden');
+        document.getElementById('diaDeleteForm').action = '';
     }
 
     toggleDomingoRef();
@@ -654,6 +899,45 @@ document.addEventListener('DOMContentLoaded', function() {
 function fecharDiaModal() {
     document.getElementById('diaModal').classList.add('hidden');
     document.getElementById('diaModal').classList.remove('flex');
+}
+
+function desfazerDia() {
+    if (!confirm('Desfazer este lançamento? O registro será removido e o débito estornado.')) return;
+    document.getElementById('diaDeleteForm').submit();
+}
+
+// ── Modal Programação ──
+function openProgramacaoModal(userId) {
+    const select = document.getElementById('programacaoUserId');
+    if (userId) select.value = userId;
+    document.getElementById('programacaoModal').classList.remove('hidden');
+    document.getElementById('programacaoModal').classList.add('flex');
+}
+
+function fecharProgramacaoModal() {
+    document.getElementById('programacaoModal').classList.add('hidden');
+    document.getElementById('programacaoModal').classList.remove('flex');
+}
+
+// ── Modal Período ──
+function openPeriodoModal(userId) {
+    const select = document.getElementById('periodoUserId');
+    if (userId) select.value = userId;
+
+    // Padrão: primeiro dia do mês exibido no calendário
+    const inicio = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+    const inicioEl = document.getElementById('periodoInicio');
+    const fimEl = document.getElementById('periodoFim');
+    if (!inicioEl.value) inicioEl.value = inicio;
+    if (!fimEl.value) fimEl.value = inicioEl.value;
+
+    document.getElementById('periodoModal').classList.remove('hidden');
+    document.getElementById('periodoModal').classList.add('flex');
+}
+
+function fecharPeriodoModal() {
+    document.getElementById('periodoModal').classList.add('hidden');
+    document.getElementById('periodoModal').classList.remove('flex');
 }
 
 // ── Modais ──

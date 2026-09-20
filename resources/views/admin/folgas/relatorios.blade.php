@@ -88,14 +88,8 @@
                             <td class="p-3 font-semibold">{{ $motorista->nome }}</td>
                             <td class="p-3 text-center text-gray-500">{{ $motorista->cpf }}</td>
                             <td class="p-3 text-center">
-                                <span class="font-bold text-blue-600">{{ $s['previstas'] }}</span>
-                                @if(($s['saldo_anterior'] ?? 0) != 0 || ($s['ajustes'] ?? 0) != 0)
-                                    <div class="text-[10px] text-blue-400">
-                                        mês {{ $s['previstas_mes'] }}
-                                        @if(($s['saldo_anterior'] ?? 0) != 0) + ant. {{ $s['saldo_anterior'] }}@endif
-                                        @if(($s['ajustes'] ?? 0) != 0) {{ $s['ajustes'] > 0 ? '+' : '' }}{{ $s['ajustes'] }} aj.@endif
-                                    </div>
-                                @endif
+                                <span class="font-bold text-blue-600">{{ $s['previstas_mes'] }}</span>
+                                <div class="text-[10px] text-blue-400">já ganho: {{ $s['previstas_ganhas'] }}</div>
                             </td>
                             <td class="p-3 text-center font-bold text-green-600">{{ $s['tiradas_mes'] }}</td>
                             <td class="p-3 text-center font-bold text-yellow-600">{{ $s['atestados_mes'] }}</td>

@@ -178,6 +178,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [FolgasController::class, 'index'])->name('admin.folgas.index');
             Route::get('/motorista-dados', [FolgasController::class, 'motoristaDados'])->name('admin.folgas.motorista-dados');
             Route::post('/dia', [FolgasController::class, 'storeDia'])->name('admin.folgas.dia.store');
+            Route::post('/periodo', [FolgasController::class, 'storePeriodo'])->name('admin.folgas.periodo.store');
+            Route::post('/periodo/anular', [FolgasController::class, 'destroyPeriodo'])->name('admin.folgas.periodo.destroy');
+            Route::post('/programacao', [FolgasController::class, 'storeProgramacao'])->name('admin.folgas.programacao.store');
+            Route::post('/programacao/{id}/cancelar', [FolgasController::class, 'cancelarProgramacao'])->name('admin.folgas.programacao.cancelar');
             Route::put('/dia/{id}', [FolgasController::class, 'updateDia'])->name('admin.folgas.dia.update');
             Route::delete('/dia/{id}', [FolgasController::class, 'destroyDia'])->name('admin.folgas.dia.destroy');
             Route::post('/ajuste', [FolgasController::class, 'ajuste'])->name('admin.folgas.ajuste');
@@ -186,6 +190,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/importar', [FolgasController::class, 'importar'])->name('admin.folgas.importar');
             Route::get('/configuracoes', [FolgasController::class, 'configuracoes'])->name('admin.folgas.config');
             Route::put('/configuracoes', [FolgasController::class, 'updateConfiguracoes'])->name('admin.folgas.config.update');
+            Route::post('/configuracoes/saldos-iniciais', [FolgasController::class, 'updateSaldosIniciais'])->name('admin.folgas.config.saldos');
             Route::get('/auditoria', [FolgasController::class, 'auditoria'])->name('admin.folgas.auditoria');
             Route::get('/relatorios', [FolgaRelatorioController::class, 'index'])->name('admin.folgas.relatorios');
             Route::get('/relatorios/csv', [FolgaRelatorioController::class, 'exportCsv'])->name('admin.folgas.relatorios.csv');
