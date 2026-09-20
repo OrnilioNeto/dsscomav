@@ -35,25 +35,43 @@ class FolgaRelatorioController extends Controller
         $relatorio = [];
         foreach ($motoristas as $motorista) {
             $snapshot = $this->rules->computeSnapshot($motorista, $mes, $ano);
-
-            $tiradasMes = FolgaDia::where('user_id', $motorista->id)
-                ->whereMonth('data', $mes)->whereYear('data', $ano)
-                ->where('tipo', 'folga')->count();
-            $atestadosMes = FolgaDia::where('user_id', $motorista->id)
-                ->whereMonth('data', $mes)->whereYear('data', $ano)
-                ->where('tipo', 'atestado')->count();
-            $licencasMes = FolgaDia::where('user_id', $motorista->id)
-                ->whereMonth('data', $mes)->whereYear('data', $ano)
-                ->where('tipo', 'licenca')->count();
+            $contagens = $this->contagensMes($motorista->id, $mes, $ano);
 
             $relatorio[$motorista->id] = array_merge($snapshot, [
-                'tiradas_mes' => $tiradasMes,
-                'atestados_mes' => $atestadosMes,
-                'licencas_mes' => $licencasMes,
+                'tiradas_mes' => $contagens['tiradas'],
+                'atestados_mes' => $contagens['atestados'],
+                'licencas_mes' => $contagens['licencas'],
             ]);
         }
 
-        return view('admin.folgas.relatorios', compact('motoristas', 'relatorio', 'mes', 'ano', 'userId'));
+        $previsaoMes = $this->rules->previsaoMes($mes, $ano);
+
+        return view('admin.folgas.relatorios', compact('motoristas', 'relatorio', 'mes', 'ano', 'userId', 'previsaoMes'));
+    }
+
+    /**
+     * Contagens do mês para exibição, já respeitando o marco zero do controle.
+     *
+     * @return array{tiradas:int,atestados:int,licencas:int}
+     */
+    private function contagensMes(int $userId, int $mes, int $ano): array
+    {
+        $inicioControle = $this->rules->dataInicioControle();
+
+        $contar = function (string $tipo) use ($userId, $mes, $ano, $inicioControle) {
+            return FolgaDia::where('user_id', $userId)
+                ->whereMonth('data', $mes)
+                ->whereYear('data', $ano)
+                ->where('tipo', $tipo)
+                ->when($inicioControle, fn ($q) => $q->whereDate('data', '>=', $inicioControle->format('Y-m-d')))
+                ->count();
+        };
+
+        return [
+            'tiradas' => $contar('folga'),
+            'atestados' => $contar('atestado'),
+            'licencas' => $contar('licenca'),
+        ];
     }
 
     public function exportCsv(Request $request)
@@ -66,27 +84,18 @@ class FolgaRelatorioController extends Controller
             ->orderBy('nome')
             ->get();
 
-        $csv = "CPF,Nome,Prévistas,Tiradas,Atestado,Licença,Ajustes,Saldo Anterior,Saldo Acumulado,Domingo Cumprido,Dias Trabalhados\n";
+        $csv = "CPF,Nome,Tiradas,Atestado,Licença,Ajustes,Saldo Anterior,Saldo Acumulado,Domingo Cumprido,Dias Trabalhados\n";
 
         foreach ($motoristas as $motorista) {
             $s = $this->rules->computeSnapshot($motorista, $mes, $ano);
-            $tiradasMes = FolgaDia::where('user_id', $motorista->id)
-                ->whereMonth('data', $mes)->whereYear('data', $ano)
-                ->where('tipo', 'folga')->count();
-            $atestadosMes = FolgaDia::where('user_id', $motorista->id)
-                ->whereMonth('data', $mes)->whereYear('data', $ano)
-                ->where('tipo', 'atestado')->count();
-            $licencasMes = FolgaDia::where('user_id', $motorista->id)
-                ->whereMonth('data', $mes)->whereYear('data', $ano)
-                ->where('tipo', 'licenca')->count();
+            $contagens = $this->contagensMes($motorista->id, $mes, $ano);
 
             $csv .= implode(',', [
                 $motorista->cpf,
                 '"'.str_replace('"', '""', $motorista->nome).'"',
-                $s['previstas'],
-                $tiradasMes,
-                $atestadosMes,
-                $licencasMes,
+                $contagens['tiradas'],
+                $contagens['atestados'],
+                $contagens['licencas'],
                 $s['ajustes'],
                 $s['saldo_anterior'],
                 $s['saldo_acumulado'],
@@ -142,9 +151,9 @@ class FolgaRelatorioController extends Controller
             .footer { margin-top: 20px; font-size: 9px; color: #999; text-align: center; }
         </style></head><body>';
         $html .= "<h1>{$titulo}</h1>";
-        $html .= '<p>Gerado em: '.now()->format('d/m/Y H:i').'</p>';
+        $html .= '<p>Gerado em: '.now()->format('d/m/Y H:i').' — Previsão do mês (6x1): '.$this->rules->previsaoMes($mes, $ano).' folga(s) por motorista</p>';
         $html .= '<table><thead><tr>';
-        $html .= '<th>CPF</th><th>Nome</th><th>Prévistas</th><th>Tiradas</th><th>Atestado</th><th>Licença</th><th>Ajustes</th>';
+        $html .= '<th>CPF</th><th>Nome</th><th>Tiradas</th><th>Atestado</th><th>Licença</th><th>Ajustes</th>';
         $html .= '<th>Saldo Anterior</th><th>Saldo Acumulado</th><th>Domingo</th><th>Dias Trab.</th>';
         $html .= '</tr></thead><tbody>';
 
@@ -155,7 +164,6 @@ class FolgaRelatorioController extends Controller
             $html .= '<tr>';
             $html .= "<td>{$u->cpf}</td>";
             $html .= "<td>{$u->nome}</td>";
-            $html .= "<td>{$s['previstas']}</td>";
             $html .= "<td>{$s['tiradas_mes']}</td>";
             $html .= "<td>{$s['atestados_mes']}</td>";
             $html .= "<td>{$s['licencas_mes']}</td>";
@@ -168,7 +176,7 @@ class FolgaRelatorioController extends Controller
         }
 
         $html .= '</tbody></table>';
-        $html .= '<div class="footer">' . plataforma_nome() . ' — Relatório gerado automaticamente</div>';
+        $html .= '<div class="footer">'.plataforma_nome().' — Relatório gerado automaticamente</div>';
         $html .= '</body></html>';
 
         $pdf = new \TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);

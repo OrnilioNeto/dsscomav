@@ -6,6 +6,11 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.57] - 2026-09-17
+
+### Alterado
+-modificado o modulo de folgas agora contem, lancar periodo de folga, remover folgas, programar folga
+
 ## [2.0.56] - 2026-09-18
 
 ### Corrigido

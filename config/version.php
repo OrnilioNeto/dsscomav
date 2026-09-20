@@ -8,7 +8,7 @@ return [
     | Fonte única da versão exibida no rodapé. Atualize estes valores a cada
     | release/deploy (ver docs/operacao/VERSIONAMENTO.md e CHANGELOG.md).
     */
-    'version' => '2.0.56',
+    'version' => '2.0.57',
 
-    'released_at' => '2026-09-18',
+    'released_at' => '2026-09-20',
 ];

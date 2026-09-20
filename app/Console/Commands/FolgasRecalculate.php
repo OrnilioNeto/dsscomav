@@ -9,16 +9,17 @@ use Illuminate\Console\Command;
 
 class FolgasRecalculate extends Command
 {
-    protected $signature = 'folgas:recalculate {--month= : Mês (1-12). Padrão: mês atual} {--year= : Ano. Padrão: ano atual}';
+    protected $signature = 'folgas:recalculate {--month= : Mês (1-12). Padrão: mês atual} {--year= : Ano. Padrão: ano atual} {--all : Recalcula todo o histórico de cada motorista (do primeiro lançamento até hoje)}';
 
-    protected $description = 'Recalcula os saldos mensais de folgas para todos os motoristas ativos';
+    protected $description = 'Recalcula os saldos mensais de folgas para todos os motoristas ativos (em cascata para os meses seguintes)';
 
     public function handle(FolgaBankService $bank): int
     {
+        $all = (bool) $this->option('all');
         $mes = (int) ($this->option('month') ?? now()->month);
         $ano = (int) ($this->option('year') ?? now()->year);
 
-        if ($mes < 1 || $mes > 12) {
+        if (! $all && ($mes < 1 || $mes > 12)) {
             $this->error('Mês inválido. Use 1-12.');
 
             return 1;
@@ -26,11 +27,15 @@ class FolgasRecalculate extends Command
 
         $manager = app(TenantManager::class);
 
-        $this->info("Recalculando saldos de folgas para {$mes}/{$ano}...");
+        if ($all) {
+            $this->info('Recalculando todo o histórico de folgas (cascata por motorista)...');
+        } else {
+            $this->info("Recalculando saldos de folgas para {$mes}/{$ano} (e meses seguintes)...");
+        }
 
         $total = 0;
 
-        $manager->runForEachTenant(function ($tenant) use ($bank, $mes, $ano, &$total) {
+        $manager->runForEachTenant(function ($tenant) use ($bank, $all, $mes, $ano, &$total) {
             if ($tenant) {
                 $this->info("  -> Tenant: {$tenant->nome} (#{$tenant->id})");
             }
@@ -41,7 +46,11 @@ class FolgasRecalculate extends Command
                 ->get();
 
             foreach ($motoristas as $motorista) {
-                $bank->recalcularMes($motorista, $mes, $ano);
+                if ($all) {
+                    $bank->recalcularHistorico($motorista);
+                } else {
+                    $bank->recalcularMes($motorista, $mes, $ano);
+                }
                 $total++;
             }
         });

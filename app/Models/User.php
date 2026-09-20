@@ -25,6 +25,8 @@ class User extends Authenticatable
         'tipo_usuario',
         'status',
         'data_inativacao',
+        'ultima_folga_data',
+        'saldo_inicial_folgas',
         'role_id',
         'tenant_id',
         'participa_treinamentos',
@@ -57,6 +59,8 @@ class User extends Authenticatable
         'ferias_inicio' => 'date',
         'ferias_fim' => 'date',
         'data_inativacao' => 'datetime',
+        'ultima_folga_data' => 'date',
+        'saldo_inicial_folgas' => 'integer',
         'usuario_teste' => 'boolean',
     ];
 

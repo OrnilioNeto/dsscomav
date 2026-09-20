@@ -72,8 +72,8 @@ class FolgasCheck extends Command
                         $this->warn("  ⚠ {$motorista->nome}: saldo salvo={$salvo->saldo_acumulado}, calculado={$snapshot['saldo_acumulado']}");
                         $problemas++;
                     }
-                    if ($salvo->previstas !== $snapshot['previstas']) {
-                        $this->warn("  ⚠ {$motorista->nome}: previstas salvo={$salvo->previstas}, calculado={$snapshot['previstas']}");
+                    if ($salvo->previstas !== $snapshot['previstas_ganhas']) {
+                        $this->warn("  ⚠ {$motorista->nome}: previstas ganhas salvo={$salvo->previstas}, calculado={$snapshot['previstas_ganhas']}");
                         $problemas++;
                     }
                 }

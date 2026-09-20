@@ -32,6 +32,7 @@ class SaasDoctor extends Command
         'ss_colaborador',
         'ss_epi_entrega',
         'folga_dias',
+        'folga_programacoes',
     ];
 
     public function handle(): int

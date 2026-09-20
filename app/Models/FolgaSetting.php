@@ -11,11 +11,13 @@ class FolgaSetting extends Model
 
     protected $fillable = [
         'dias_para_folga',
+        'data_inicio_controle',
         'exige_domingo',
         'bloquear_sem_domingo',
     ];
 
     protected $casts = [
+        'data_inicio_controle' => 'date',
         'exige_domingo' => 'boolean',
         'bloquear_sem_domingo' => 'boolean',
     ];
