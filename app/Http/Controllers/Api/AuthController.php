@@ -135,11 +135,12 @@ class AuthController extends Controller
 
             $user->tokens()->delete();
 
-            $token = $user->createToken('app-dss', ['*'])->plainTextToken;
+            $newToken = $user->createToken('app-dss', ['*']);
+            $token = $newToken->plainTextToken;
 
             // Grava o tenant no token para auditoria/isolamento da API
-            if ($user->tenant_id && method_exists($user->currentAccessToken(), 'forceFill')) {
-                $user->currentAccessToken()->forceFill(['tenant_id' => $user->tenant_id])->save();
+            if ($user->tenant_id) {
+                $newToken->accessToken->forceFill(['tenant_id' => $user->tenant_id])->save();
             }
 
             app(AuditLogger::class)->log('login', [

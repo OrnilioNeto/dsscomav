@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Certificate;
+use App\Models\PersonalAccessToken;
 use App\Observers\CertificateObserver;
 use App\Services\AuditLogger;
 use App\Support\TenantManager;
@@ -12,6 +13,7 @@ use Illuminate\Auth\Events\Logout;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,6 +24,30 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Tokens de API: resolve o usuário sem o TenantScope (super_admin em
+        // qualquer host) e, com o multi-tenancy ativo, só autentica o token no
+        // tenant do próprio usuário.
+        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+
+        Sanctum::authenticateAccessTokensUsing(function ($accessToken, bool $isValid) {
+            if (! $isValid) {
+                return false;
+            }
+
+            $manager = app(TenantManager::class);
+            if (! $manager->isEnabled() || ! $manager->has()) {
+                return true;
+            }
+
+            $user = $accessToken->tokenable;
+            if (! $user) {
+                return false;
+            }
+
+            return $user->tenant_id === null
+                || (int) $user->tenant_id === (int) $manager->id();
+        });
+
         // Macro de escopo de tenant para queries raw (DB::table).
         // Global scopes Eloquent não cobrem DB::table; use ->whereTenant('tabela').
         Builder::macro('whereTenant', function (?string $table = null) {
