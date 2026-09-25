@@ -71,6 +71,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/colaborador/{id}/entregas', [EpiController::class, 'getEntregasColaborador'])->name('epi.colaborador.entregas');
         Route::get('/{epiId}/entregas', [EpiController::class, 'getEntregasPorEpi'])->name('epi.entregas-por-epi');
         Route::post('/devolucao', [EpiController::class, 'devolucaoStore'])->name('epi.devolucao.store');
+        Route::post('/devolucao/{id}/atualizar', [EpiController::class, 'devolucaoUpdate'])->name('epi.devolucao.update');
+        Route::delete('/devolucao/{id}', [EpiController::class, 'devolucaoDestroy'])->name('epi.devolucao.destroy');
         Route::post('/devolucao/{id}/decidir', [EpiController::class, 'inspecaoDecidir'])->name('epi.devolucao.decidir');
         Route::get('/ficha/{colaborador_id}', [EpiController::class, 'fichaColaborador'])->name('epi.ficha');
         Route::post('/colaborador', [EpiController::class, 'colaboradorStore'])->name('epi.colaborador.store');

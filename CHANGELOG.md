@@ -5,6 +5,20 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+## [2.0.60] - 2026-09-25
+
+### Adicionado
+- Gestão de EPI / Devoluções: botões **Alterar** e **Excluir** no histórico de
+  devoluções. Alterar reabre o lançamento para correção (quantidade, motivo,
+  destino e observação); Excluir remove o registro e reverte estoque e status
+  da entrega ao estado anterior ao lançamento.
+- Migration `ss_e_nb_devolucao_id` em `ss_epi_estoque` — vincula cada movimento
+  de devolução ao lançamento correspondente (com backfill dos registros antigos).
+
+### Alterado
+- Confirmação por senha antes da avaliação agora é exigida apenas para
+  treinamentos do tipo **Treinamento**; DSS inicia a avaliação direto.
+
 ## [2.0.58] - 2026-09-17
 
 ## [2.0.57] - 2026-09-17
