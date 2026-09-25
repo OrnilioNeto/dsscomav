@@ -1564,6 +1564,7 @@
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Registrado por</th>
                                         <th class="px-3 py-2 text-center font-bold text-gray-500">Decidido por</th>
                                         <th class="px-3 py-2 text-left font-bold text-gray-500">Observação</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
@@ -1600,6 +1601,32 @@
                                             <td class="px-3 py-2 text-center text-gray-600">{{ $dev->usuarioRegistro->nome ?? '-' }}</td>
                                             <td class="px-3 py-2 text-center text-gray-600">{{ $dev->usuarioDecisao->nome ?? '-' }}</td>
                                             <td class="px-3 py-2 text-gray-500 max-w-[200px]">{{ $dev->ss_ed_tx_observacao ?? '-' }}</td>
+                                            <td class="px-3 py-2 text-center space-x-1 whitespace-nowrap">
+                                                @php
+                                                    $dadosEdicaoDevolucao = [
+                                                        'id' => (int) $dev->ss_ed_nb_id,
+                                                        'entrega_id' => (int) ($dev->ss_ed_nb_entrega_id ?? 0),
+                                                        'colaborador_id' => (int) ($dev->ss_ed_nb_colaborador_id ?? 0),
+                                                        'quantidade' => (int) $dev->ss_ed_nb_quantidade,
+                                                        'quantidade_entrega' => (int) ($dev->entrega->ss_e_nb_quantidade ?? $dev->ss_ed_nb_quantidade),
+                                                        'motivo' => $dev->ss_ed_tx_motivo,
+                                                        'destino' => $dev->ss_ed_tx_destino,
+                                                        'observacao' => $dev->ss_ed_tx_observacao,
+                                                        'item' => $dev->epi->ss_e_tx_item ?? 'EPI N/D',
+                                                        'variacao' => $dev->variacao->ss_ev_tx_nome ?? null,
+                                                    ];
+                                                @endphp
+                                                <button type="button" onclick="abrirModalEditarDevolucao({{ Js::from($dadosEdicaoDevolucao) }})" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer" title="Reabrir o lançamento para corrigir">
+                                                    <i class="fas fa-pen mr-1"></i> Alterar
+                                                </button>
+                                                <form method="POST" action="{{ route('epi.devolucao.destroy', $dev->ss_ed_nb_id) }}" class="inline" onsubmit="return confirm('Excluir a devolução #{{ $dev->ss_ed_nb_id }}? O estoque e a entrega voltarão ao estado anterior a este lançamento.');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold cursor-pointer" title="Excluir o lançamento e reverter os efeitos">
+                                                        <i class="fas fa-trash mr-1"></i> Excluir
+                                                    </button>
+                                                </form>
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -1903,7 +1930,7 @@
 <!-- MODAL: REGISTRAR DEVOLUÇÃO / ENCERRAMENTO DE EPI -->
 <div id="modal-devolucao" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full p-6 max-h-[90vh] overflow-y-auto">
-        <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+        <h3 id="modal-devolucao-titulo" class="text-lg font-bold text-gray-900 mb-2 flex items-center">
             <i class="fas fa-undo-alt text-amber-600 mr-2"></i> Registrar Devolução de EPI
         </h3>
         <p id="desc-devolucao" class="text-xs text-gray-600 mb-4">Informe o colaborador, a entrega, o motivo e o destino do item.</p>
@@ -1962,7 +1989,7 @@
 
             <div class="mt-6 flex justify-end space-x-3">
                 <button type="button" onclick="fecharModalDevolucao()" class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg">Cancelar</button>
-                <button type="submit" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow">Registrar Devolução</button>
+                <button type="submit" id="btn-submit-devolucao" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow">Registrar Devolução</button>
             </div>
         </form>
     </div>
@@ -3161,24 +3188,73 @@
 
     // Devolução / encerramento de EPI
     let devolucaoPreEntrega = null;
+    let devolucaoEmEdicao = null;
 
     window.abrirModalDevolucao = function(entregaId, itemNome, colaboradorId) {
         var modal = document.getElementById('modal-devolucao');
         if (!modal) return;
+        devolucaoEmEdicao = null;
         var desc = document.getElementById('desc-devolucao');
         if (desc) desc.textContent = itemNome
             ? 'Encerrando o controle do item: "' + itemNome + '". Informe o motivo e o destino.'
             : 'Informe o colaborador e a entrega para registrar a devolução.';
+        document.getElementById('modal-devolucao-titulo').innerHTML = '<i class="fas fa-undo-alt text-amber-600 mr-2"></i> Registrar Devolução de EPI';
+        document.getElementById('btn-submit-devolucao').textContent = 'Registrar Devolução';
+        document.getElementById('form-devolucao').action = `{{ route('epi.devolucao.store') }}`;
         var input = document.getElementById('devolucao-entrega-id');
         if (input) input.value = '';
-        document.getElementById('devolucao-qtd').value = '1';
+        var qtdInput = document.getElementById('devolucao-qtd');
+        qtdInput.value = '1';
+        qtdInput.max = 9999;
+        var motivoSel = document.querySelector('#form-devolucao select[name="ss_ed_tx_motivo"]');
+        if (motivoSel) motivoSel.value = 'avaria';
+        var obsInput = document.querySelector('#form-devolucao textarea[name="ss_ed_tx_observacao"]');
+        if (obsInput) obsInput.value = '';
+        document.getElementById('devolucao-destino').value = 'estoque';
         document.getElementById('devolucao-entrega').innerHTML = '<option value="">-- Selecione a entrega --</option>';
         document.getElementById('devolucao-entrega-info').textContent = '';
         devolucaoPreEntrega = entregaId || null;
         var selColab = document.getElementById('devolucao-colaborador');
         if (selColab) {
+            selColab.disabled = false;
             selColab.value = colaboradorId || '';
             if (colaboradorId) carregarEntregasDevolucao(colaboradorId);
+        }
+        atualizarAvisoDestinoDevolucao();
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    // Reabre o lançamento existente para o gestor corrigir os dados
+    window.abrirModalEditarDevolucao = function(dados) {
+        var modal = document.getElementById('modal-devolucao');
+        if (!modal || !dados) return;
+        devolucaoEmEdicao = dados;
+        document.getElementById('modal-devolucao-titulo').innerHTML = '<i class="fas fa-pen text-blue-600 mr-2"></i> Alterar Devolução #' + dados.id;
+        document.getElementById('btn-submit-devolucao').textContent = 'Salvar Alterações';
+        document.getElementById('desc-devolucao').textContent = 'Corrija os dados do lançamento. O estoque e a entrega serão recalculados automaticamente.';
+        document.getElementById('form-devolucao').action = `{{ url('/epi/devolucao') }}/${dados.id}/atualizar`;
+        var selColab = document.getElementById('devolucao-colaborador');
+        if (selColab) {
+            selColab.value = String(dados.colaborador_id || '');
+            selColab.disabled = true;
+        }
+        var motivoSel = document.querySelector('#form-devolucao select[name="ss_ed_tx_motivo"]');
+        if (motivoSel) motivoSel.value = dados.motivo || 'avaria';
+        document.getElementById('devolucao-destino').value = dados.destino || 'estoque';
+        var obsInput = document.querySelector('#form-devolucao textarea[name="ss_ed_tx_observacao"]');
+        if (obsInput) obsInput.value = dados.observacao || '';
+        var qtdInput = document.getElementById('devolucao-qtd');
+        qtdInput.value = dados.quantidade;
+        qtdInput.max = 9999;
+        document.getElementById('devolucao-entrega-id').value = '';
+        document.getElementById('devolucao-entrega').innerHTML = '<option value="">Carregando...</option>';
+        document.getElementById('devolucao-entrega-info').textContent = '';
+        devolucaoPreEntrega = dados.entrega_id || null;
+        if (dados.colaborador_id) {
+            carregarEntregasDevolucao(dados.colaborador_id);
+        } else {
+            document.getElementById('devolucao-entrega').innerHTML = '<option value="">-- Selecione a entrega --</option>';
         }
         atualizarAvisoDestinoDevolucao();
         modal.classList.remove('hidden');
@@ -3199,7 +3275,7 @@
             .then(res => {
                 sel.innerHTML = '<option value="">-- Selecione a entrega --</option>';
                 var entregas = res.data || [];
-                if (!entregas.length) {
+                if (!entregas.length && !devolucaoEmEdicao) {
                     sel.innerHTML = '<option value="">Nenhuma entrega ativa para este colaborador</option>';
                     return;
                 }
@@ -3212,8 +3288,26 @@
                     sel.appendChild(opt);
                 });
                 if (devolucaoPreEntrega) {
-                    sel.value = String(devolucaoPreEntrega);
+                    var alvo = String(devolucaoPreEntrega);
+                    var existe = Array.prototype.some.call(sel.options, function(o) { return o.value === alvo; });
+                    if (!existe && devolucaoEmEdicao) {
+                        // Entrega já encerrada pela própria devolução: reinjeta para permitir a correção
+                        var optAtual = document.createElement('option');
+                        optAtual.value = alvo;
+                        optAtual.textContent = devolucaoEmEdicao.item
+                            + (devolucaoEmEdicao.variacao ? ' (' + devolucaoEmEdicao.variacao + ')' : '')
+                            + ' - Qtd: ' + devolucaoEmEdicao.quantidade_entrega
+                            + ' (entrega deste lançamento)';
+                        optAtual.dataset.quantidade = devolucaoEmEdicao.quantidade_entrega;
+                        optAtual.dataset.info = 'Entrega vinculada a este lançamento de devolução.';
+                        sel.appendChild(optAtual);
+                    }
+                    sel.value = alvo;
                     atualizarQtdMaxDevolucao();
+                    if (devolucaoEmEdicao) {
+                        document.getElementById('devolucao-qtd').value = devolucaoEmEdicao.quantidade;
+                        document.getElementById('devolucao-entrega-id').value = alvo;
+                    }
                     devolucaoPreEntrega = null;
                 }
             })

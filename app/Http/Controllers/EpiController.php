@@ -161,7 +161,7 @@ class EpiController extends Controller
 
         $devolucoesPendentesCount = $devolucoesPendentes->count();
 
-        $devolucoesHistorico = EpiDevolucao::with(['colaborador', 'epi', 'variacao', 'usuarioRegistro', 'usuarioDecisao'])
+        $devolucoesHistorico = EpiDevolucao::with(['colaborador', 'epi', 'variacao', 'entrega', 'usuarioRegistro', 'usuarioDecisao'])
             ->orderBy('ss_ed_tx_data_registro', 'desc')
             ->limit(150)
             ->get();
@@ -1275,44 +1275,24 @@ class EpiController extends Controller
     {
         $this->ensureTablesExist();
 
-        $request->validate([
-            'ss_ed_nb_entrega_id' => 'required|integer',
-            'ss_ed_nb_quantidade' => 'required|integer|min:1',
-            'ss_ed_tx_motivo' => 'required|in:avaria,perdido,extraviado,devolvido_empresa,vencido,outro',
-            'ss_ed_tx_destino' => 'required|in:estoque,descarte,inspecao',
-        ], [
-            'ss_ed_nb_entrega_id.required' => 'Selecione a entrega que será devolvida.',
-            'ss_ed_nb_quantidade.required' => 'Informe a quantidade devolvida.',
-            'ss_ed_nb_quantidade.min' => 'A quantidade devolvida deve ser maior que zero.',
-            'ss_ed_tx_motivo.required' => 'Selecione o motivo da devolução.',
-            'ss_ed_tx_destino.required' => 'Selecione o destino do item (estoque, descarte ou inspeção).',
-        ]);
+        $dados = $this->validarDadosDevolucao($request);
 
-        $entrega = EpiEntrega::findOrFail($request->input('ss_ed_nb_entrega_id'));
+        $entrega = EpiEntrega::findOrFail($dados['ss_ed_nb_entrega_id']);
 
         if (in_array($entrega->ss_e_tx_status, ['inativo', 'devolvido'])) {
             return redirect()->back()->with('error', 'Esta entrega já foi encerrada ou inativada!');
         }
 
-        $quantidade = (int) $request->input('ss_ed_nb_quantidade');
+        $quantidade = (int) $dados['ss_ed_nb_quantidade'];
 
         if ($quantidade > (int) $entrega->ss_e_nb_quantidade) {
             return redirect()->back()->with('error', 'A quantidade devolvida não pode ser maior que a quantidade entregue ('.$entrega->ss_e_nb_quantidade.')!');
         }
 
-        $motivo = $request->input('ss_ed_tx_motivo');
-        $destino = $request->input('ss_ed_tx_destino');
+        $motivo = $dados['ss_ed_tx_motivo'];
+        $destino = $dados['ss_ed_tx_destino'];
         $observacao = $request->input('ss_ed_tx_observacao');
-
-        $labelsMotivo = [
-            'avaria' => 'Avaria / Danificado',
-            'perdido' => 'Perdido',
-            'extraviado' => 'Extraviado',
-            'devolvido_empresa' => 'Devolvido à empresa',
-            'vencido' => 'Vencido',
-            'outro' => 'Outro',
-        ];
-        $motivoLabel = $labelsMotivo[$motivo] ?? $motivo;
+        $motivoLabel = $this->labelsMotivoDevolucao()[$motivo] ?? $motivo;
 
         DB::transaction(function () use ($entrega, $quantidade, $motivo, $motivoLabel, $destino, $observacao) {
             $devolucao = EpiDevolucao::create([
@@ -1343,6 +1323,7 @@ class EpiController extends Controller
                     'ss_e_tx_data' => now(),
                     'ss_e_tx_motivo' => "Devolução #{$devolucaoId} - {$motivoLabel}: retorno ao estoque".($observacao ? " - {$observacao}" : ''),
                     'ss_e_nb_userCadastro' => Auth::id(),
+                    'ss_e_nb_devolucao_id' => $devolucaoId,
                 ]);
             }
 
@@ -1397,6 +1378,7 @@ class EpiController extends Controller
                     'ss_e_tx_data' => now(),
                     'ss_e_tx_motivo' => "Aprovado na inspeção (devolução #{$devolucao->ss_ed_nb_id}): item estornado para o estoque",
                     'ss_e_nb_userCadastro' => Auth::id(),
+                    'ss_e_nb_devolucao_id' => $devolucao->ss_ed_nb_id,
                 ]);
             }
         });
@@ -1404,6 +1386,182 @@ class EpiController extends Controller
         return redirect()->back()->with('success', $action === 'estornar'
             ? "Item da devolução #{$devolucao->ss_ed_nb_id} estornado para o estoque com sucesso!"
             : "Item da devolução #{$devolucao->ss_ed_nb_id} confirmado como descarte!");
+    }
+
+    /**
+     * Altera um lançamento de devolução: desfaz os efeitos do registro original
+     * (movimentações de estoque e status da entrega) e reaplica com os novos dados.
+     */
+    public function devolucaoUpdate(Request $request, $id)
+    {
+        $this->ensureTablesExist();
+
+        $devolucao = EpiDevolucao::findOrFail($id);
+        $dados = $this->validarDadosDevolucao($request);
+
+        $entrega = EpiEntrega::findOrFail($dados['ss_ed_nb_entrega_id']);
+        $entregaAnterior = EpiEntrega::find($devolucao->ss_ed_nb_entrega_id);
+
+        $entregaAtualId = (int) $devolucao->ss_ed_nb_entrega_id;
+        $novaEntregaId = (int) $entrega->ss_e_nb_id;
+
+        // Só aceita trocar para uma entrega que não esteja encerrada/inativada
+        if ($novaEntregaId !== $entregaAtualId && in_array($entrega->ss_e_tx_status, ['inativo', 'devolvido'], true)) {
+            return redirect()->back()->with('error', 'Esta entrega já foi encerrada ou inativada!');
+        }
+
+        $quantidade = (int) $dados['ss_ed_nb_quantidade'];
+
+        if ($quantidade > (int) $entrega->ss_e_nb_quantidade) {
+            return redirect()->back()->with('error', 'A quantidade devolvida não pode ser maior que a quantidade entregue ('.$entrega->ss_e_nb_quantidade.')!');
+        }
+
+        $motivo = $dados['ss_ed_tx_motivo'];
+        $destino = $dados['ss_ed_tx_destino'];
+        $observacao = $request->input('ss_ed_tx_observacao');
+        $motivoLabel = $this->labelsMotivoDevolucao()[$motivo] ?? $motivo;
+        $decisaoAnterior = $devolucao->ss_ed_tx_resultado_inspecao;
+
+        DB::transaction(function () use ($devolucao, $entrega, $entregaAnterior, $quantidade, $motivo, $destino, $observacao, $motivoLabel, $decisaoAnterior) {
+            // 1. Desfaz os efeitos do lançamento original
+            $this->removerMovimentosEstoqueDevolucao($devolucao);
+
+            if ($entregaAnterior) {
+                $this->restaurarEntregaDevolvida($devolucao, $entregaAnterior);
+            }
+
+            // 2. Atualiza o registro da devolução
+            $updates = [
+                'ss_ed_nb_entrega_id' => $entrega->ss_e_nb_id,
+                'ss_ed_nb_epi_id' => $entrega->ss_e_nb_epi_id,
+                'ss_ed_nb_colaborador_id' => $entrega->ss_e_nb_colaborador_id,
+                'ss_ed_nb_empresa_id' => $entrega->ss_e_nb_empresa_id,
+                'ss_ed_nb_variacao_id' => $entrega->ss_e_nb_variacao_id,
+                'ss_ed_nb_quantidade' => $quantidade,
+                'ss_ed_tx_motivo' => $motivo,
+                'ss_ed_tx_destino' => $destino,
+                'ss_ed_tx_status' => ($destino === 'inspecao' && ! $decisaoAnterior) ? 'pendente' : 'concluida',
+                'ss_ed_tx_observacao' => $observacao,
+            ];
+
+            if ($destino !== 'inspecao') {
+                $updates['ss_ed_tx_resultado_inspecao'] = null;
+                $updates['ss_ed_nb_userDecisao'] = null;
+                $updates['ss_ed_tx_data_decisao'] = null;
+            }
+
+            $devolucao->update($updates);
+
+            // 3. Reaplica os efeitos no estoque e na entrega
+            $retornaEstoque = $destino === 'estoque'
+                || ($destino === 'inspecao' && $decisaoAnterior === 'estornado');
+
+            if ($retornaEstoque) {
+                EpiEstoque::create([
+                    'ss_e_nb_epi_id' => $entrega->ss_e_nb_epi_id,
+                    'ss_e_nb_empresa_id' => $entrega->ss_e_nb_empresa_id ?? 0,
+                    'ss_e_nb_variacao_id' => $entrega->ss_e_nb_variacao_id,
+                    'ss_e_nb_quantidade' => $quantidade,
+                    'ss_e_tx_tipo' => 'devolucao',
+                    'ss_e_tx_data' => now(),
+                    'ss_e_tx_motivo' => $destino === 'estoque'
+                        ? "Devolução #{$devolucao->ss_ed_nb_id} - {$motivoLabel}: retorno ao estoque".($observacao ? " - {$observacao}" : '')
+                        : "Aprovado na inspeção (devolução #{$devolucao->ss_ed_nb_id}): item estornado para o estoque",
+                    'ss_e_nb_userCadastro' => Auth::id(),
+                    'ss_e_nb_devolucao_id' => $devolucao->ss_ed_nb_id,
+                ]);
+            }
+
+            if ($quantidade >= (int) $entrega->ss_e_nb_quantidade) {
+                $entrega->update([
+                    'ss_e_tx_status' => 'devolvido',
+                    'ss_e_tx_justificativa_exclusao' => "Devolução #{$devolucao->ss_ed_nb_id} - {$motivoLabel}".($observacao ? " - {$observacao}" : ''),
+                ]);
+            }
+        });
+
+        return redirect()->back()->with('success', 'Devolução alterada com sucesso! O estoque e a entrega foram recalculados.');
+    }
+
+    /**
+     * Exclui um lançamento de devolução e reverte tudo que ele alterou:
+     * movimentações de estoque vinculadas e status da entrega (volta a ativa).
+     */
+    public function devolucaoDestroy($id)
+    {
+        $this->ensureTablesExist();
+
+        $devolucao = EpiDevolucao::findOrFail($id);
+        $entrega = EpiEntrega::find($devolucao->ss_ed_nb_entrega_id);
+
+        DB::transaction(function () use ($devolucao, $entrega) {
+            $this->removerMovimentosEstoqueDevolucao($devolucao);
+
+            if ($entrega) {
+                $this->restaurarEntregaDevolvida($devolucao, $entrega);
+            }
+
+            $devolucao->delete();
+        });
+
+        return redirect()->back()->with('success', 'Devolução excluída com sucesso! O estoque e a entrega voltaram ao estado anterior ao lançamento.');
+    }
+
+    private function removerMovimentosEstoqueDevolucao(EpiDevolucao $devolucao): void
+    {
+        EpiEstoque::where('ss_e_tx_tipo', 'devolucao')
+            ->where('ss_e_nb_devolucao_id', $devolucao->ss_ed_nb_id)
+            ->delete();
+    }
+
+    /**
+     * Reativa a entrega marcada como 'devolvido' por este lançamento
+     * (a justificativa guarda "Devolução #ID ..."), preservando encerramentos alheios.
+     */
+    private function restaurarEntregaDevolvida(EpiDevolucao $devolucao, EpiEntrega $entrega): void
+    {
+        if ($entrega->ss_e_tx_status !== 'devolvido') {
+            return;
+        }
+
+        $justificativa = (string) $entrega->ss_e_tx_justificativa_exclusao;
+
+        if (! preg_match('/^Devolu[çc][ãa]o\s*#'.$devolucao->ss_ed_nb_id.'(?![0-9])/iu', $justificativa)) {
+            return;
+        }
+
+        $entrega->update([
+            'ss_e_tx_status' => 'ativo',
+            'ss_e_tx_justificativa_exclusao' => null,
+        ]);
+    }
+
+    private function validarDadosDevolucao(Request $request): array
+    {
+        return $request->validate([
+            'ss_ed_nb_entrega_id' => 'required|integer',
+            'ss_ed_nb_quantidade' => 'required|integer|min:1',
+            'ss_ed_tx_motivo' => 'required|in:avaria,perdido,extraviado,devolvido_empresa,vencido,outro',
+            'ss_ed_tx_destino' => 'required|in:estoque,descarte,inspecao',
+        ], [
+            'ss_ed_nb_entrega_id.required' => 'Selecione a entrega que será devolvida.',
+            'ss_ed_nb_quantidade.required' => 'Informe a quantidade devolvida.',
+            'ss_ed_nb_quantidade.min' => 'A quantidade devolvida deve ser maior que zero.',
+            'ss_ed_tx_motivo.required' => 'Selecione o motivo da devolução.',
+            'ss_ed_tx_destino.required' => 'Selecione o destino do item (estoque, descarte ou inspeção).',
+        ]);
+    }
+
+    private function labelsMotivoDevolucao(): array
+    {
+        return [
+            'avaria' => 'Avaria / Danificado',
+            'perdido' => 'Perdido',
+            'extraviado' => 'Extraviado',
+            'devolvido_empresa' => 'Devolvido à empresa',
+            'vencido' => 'Vencido',
+            'outro' => 'Outro',
+        ];
     }
 
     /**

@@ -155,23 +155,36 @@ class TrainingPlayerController extends Controller
             return response()->json(['error' => 'Treinamento sem avaliação cadastrada'], 422);
         }
 
-        $validator = validator($request->all(), [
-            'password' => 'required|string',
-        ]);
+        // Re-identificação por senha: exigida apenas para o tipo "Treinamento"
+        // (NR-01 Anexo II 4.6.1/4.6.2). DSS dispensa a confirmação.
+        $requiresPassword = $training->tipo === 'treinamento';
 
-        if ($validator->fails()) {
-            return response()->json(['error' => 'Informe sua senha para iniciar a avaliação.'], 422);
-        }
+        if ($requiresPassword) {
+            $validator = validator($request->all(), [
+                'password' => 'required|string',
+            ]);
 
-        // Re-identificação individual: confere a senha do usuário autenticado (4.6.1)
-        if (! Hash::check($request->input('password'), $user->password)) {
-            TrainingLog::registrar($training->id, $user->id, 'avaliacao_senha_invalida', 'Tentativa de iniciar avaliação com senha incorreta.');
+            if ($validator->fails()) {
+                return response()->json(['error' => 'Informe sua senha para iniciar a avaliação.'], 422);
+            }
 
-            return response()->json(['error' => 'Senha incorreta. Verifique e tente novamente.'], 422);
+            // Re-identificação individual: confere a senha do usuário autenticado (4.6.1)
+            if (! Hash::check($request->input('password'), $user->password)) {
+                TrainingLog::registrar($training->id, $user->id, 'avaliacao_senha_invalida', 'Tentativa de iniciar avaliação com senha incorreta.');
+
+                return response()->json(['error' => 'Senha incorreta. Verifique e tente novamente.'], 422);
+            }
         }
 
         // Registra o início da prova (log de rastreabilidade)
-        TrainingLog::registrar($training->id, $user->id, 'avaliacao_iniciada', 'Avaliação iniciada com re-identificação por senha.');
+        TrainingLog::registrar(
+            $training->id,
+            $user->id,
+            'avaliacao_iniciada',
+            $requiresPassword
+                ? 'Avaliação iniciada com re-identificação por senha.'
+                : 'Avaliação iniciada sem re-identificação por senha (tipo DSS).'
+        );
 
         // Caso 1: banco de questões — sorteia questões e embaralha opções
         if ($training->hasQuestionBank()) {
@@ -241,7 +254,9 @@ class TrainingPlayerController extends Controller
             $mapa = session()->get("avaliacao_{$training->id}_map", []);
 
             if (empty($mapa)) {
-                return response()->json(['error' => 'Sessão da prova expirada ou não iniciada. Clique em "Realizar avaliação" e confirme sua senha novamente.'], 422);
+                return response()->json(['error' => $training->tipo === 'treinamento'
+                    ? 'Sessão da prova expirada ou não iniciada. Clique em "Realizar avaliação" e confirme sua senha novamente.'
+                    : 'Sessão da prova expirada ou não iniciada. Clique em "Realizar avaliação" novamente.'], 422);
             }
 
             $respostas = $request->input('respostas', []);

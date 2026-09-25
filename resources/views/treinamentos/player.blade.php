@@ -232,6 +232,8 @@
     const csrfToken = '{{ csrf_token() }}';
     const hasAssessment = {{ $training->hasAssessment() ? 'true' : 'false' }};
     const isTestUser = {{ auth()->user()->isTestUser() ? 'true' : 'false' }};
+    // Re-identificação por senha: somente para o tipo "Treinamento" (DSS dispensa)
+    const passwordRequired = {{ $training->tipo === 'treinamento' ? 'true' : 'false' }};
     const trainingType = '{{ $training->tipo_video }}';
     const registeredDurationSeconds = {{ (int) $training->carga_horaria * 60 }};
 
@@ -296,13 +298,24 @@
         assessmentOpened = true;
         document.getElementById('assessment-modal').classList.remove('hidden');
         document.getElementById('assessment-modal').classList.add('flex');
+        const msg = document.getElementById('assessment-message');
+        if (msg) { msg.textContent = ''; }
+
+        if (!passwordRequired) {
+            // DSS: sem etapa de senha, inicia a avaliação diretamente
+            document.getElementById('assessment-step-senha').style.display = 'none';
+            document.getElementById('assessment-step-questoes').style.display = 'block';
+            document.getElementById('assessment-questoes-container').innerHTML =
+                '<p class="text-gray-600">Carregando avaliação...</p>';
+            iniciarProva();
+            return;
+        }
+
         // Reinicia o fluxo: primeira etapa exige a re-identificação por senha
         document.getElementById('assessment-step-senha').style.display = 'block';
         document.getElementById('assessment-step-questoes').style.display = 'none';
         const msgSenha = document.getElementById('assessment-senha-message');
         if (msgSenha) { msgSenha.textContent = ''; }
-        const msg = document.getElementById('assessment-message');
-        if (msg) { msg.textContent = ''; }
     }
 
     function closeAssessment() {
@@ -344,14 +357,22 @@
         const msgEl = document.getElementById('assessment-senha-message');
         const senha = senhaInput ? senhaInput.value : '';
 
-        if (!senha) {
+        if (passwordRequired && !senha) {
             msgEl.textContent = 'Informe sua senha para iniciar a avaliação.';
             msgEl.className = 'text-sm font-medium text-red-600';
             return;
         }
 
-        msgEl.textContent = 'Verificando sua identificação...';
-        msgEl.className = 'text-sm font-medium text-gray-600';
+        const showError = (text) => {
+            const target = passwordRequired ? msgEl : document.getElementById('assessment-message');
+            target.textContent = text;
+            target.className = 'text-sm font-medium text-red-600';
+        };
+
+        if (passwordRequired) {
+            msgEl.textContent = 'Verificando sua identificação...';
+            msgEl.className = 'text-sm font-medium text-gray-600';
+        }
 
         try {
             const r = await fetch(assessmentInitUrl, {
@@ -363,14 +384,13 @@
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': csrfToken
                 },
-                body: JSON.stringify({ password: senha })
+                body: JSON.stringify(passwordRequired ? { password: senha } : {})
             });
 
             const data = await r.json();
 
             if (!r.ok) {
-                msgEl.textContent = data.error || data.message || 'Erro ao iniciar a avaliação.';
-                msgEl.className = 'text-sm font-medium text-red-600';
+                showError(data.error || data.message || 'Erro ao iniciar a avaliação.');
                 return;
             }
 
@@ -381,8 +401,7 @@
             document.getElementById('assessment-step-questoes').style.display = 'block';
         } catch (e) {
             console.error(e);
-            msgEl.textContent = 'Erro de conexão. Tente novamente.';
-            msgEl.className = 'text-sm font-medium text-red-600';
+            showError('Erro de conexão. Tente novamente.');
         }
     }
 

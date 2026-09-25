@@ -29,6 +29,7 @@ class EpiEstoque extends Model
         'ss_e_tx_foto',
         'ss_e_nb_userCadastro',
         'ss_e_nb_variacao_id',
+        'ss_e_nb_devolucao_id',
     ];
 
     public function epi()
