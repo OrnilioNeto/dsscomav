@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\FolgaRelatorioController;
 use App\Http\Controllers\Admin\FolgasController;
+use App\Http\Controllers\Admin\PlataformaSettingsController;
 use App\Http\Controllers\Admin\PlataformaTenantController;
 use App\Http\Controllers\Admin\RankingController;
 use App\Http\Controllers\Admin\RankingSettingsController;
@@ -240,6 +241,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [PlataformaTenantController::class, 'index'])->name('index');
             Route::get('/criar', [PlataformaTenantController::class, 'create'])->name('create');
             Route::post('/', [PlataformaTenantController::class, 'store'])->name('store');
+            // Antes de /{tenant} para não ser capturada como tenant.
+            Route::get('/configuracoes', [PlataformaSettingsController::class, 'edit'])->name('settings.edit');
+            Route::put('/configuracoes', [PlataformaSettingsController::class, 'update'])->name('settings.update');
             Route::get('/{tenant}', [PlataformaTenantController::class, 'edit'])->name('edit');
             Route::put('/{tenant}', [PlataformaTenantController::class, 'update'])->name('update');
             Route::post('/{tenant}/admin', [PlataformaTenantController::class, 'createAdmin'])->name('admins.store');

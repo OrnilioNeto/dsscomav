@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Certificate;
+use App\Models\PlatformSetting;
 use App\Models\Training;
 use App\Models\User;
 use App\Services\CertificatePdfService;
@@ -13,7 +14,7 @@ class CertificatePdfTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function criarCertificado(?int $templateVersion): Certificate
+    private function criarCertificado(?int $templateVersion, bool $reassistido = false): Certificate
     {
         $user = User::create([
             'nome' => 'João da Silva',
@@ -48,6 +49,7 @@ class CertificatePdfTest extends TestCase
             'tempo_assistido_segundos' => 1230,
             'porcentagem_assistida' => 100,
             'valido' => true,
+            'foi_reassistido' => $reassistido,
             'template_version' => $templateVersion,
         ]);
     }
@@ -70,5 +72,25 @@ class CertificatePdfTest extends TestCase
 
         $this->assertStringStartsWith('%PDF', $pdf);
         $this->assertGreaterThan(10000, strlen($pdf));
+    }
+
+    public function test_pdf_profissional_com_selo_reassistido(): void
+    {
+        $certificate = $this->criarCertificado(2, true);
+
+        $pdf = app(CertificatePdfService::class)->output($certificate);
+
+        $this->assertStringStartsWith('%PDF', $pdf);
+        $this->assertGreaterThan(10000, strlen($pdf));
+    }
+
+    public function test_fundo_global_da_plataforma_e_resolvido(): void
+    {
+        PlatformSetting::create(['fundo_certificado' => 'images/certificado-fundo.png']);
+
+        $this->assertSame(
+            public_path('images/certificado-fundo.png'),
+            PlatformSetting::fundoCertificadoGlobalPath()
+        );
     }
 }

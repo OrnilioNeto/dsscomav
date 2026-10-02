@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Certificate;
+use App\Models\PlatformSetting;
 use App\Models\Tenant;
+use Illuminate\Support\Facades\Log;
 use TCPDF;
 
 /**
@@ -34,9 +36,21 @@ class CertificatePdfService
     {
         $certificate->loadMissing(['user', 'training']);
 
-        $pdf = ((int) ($certificate->template_version ?? 0)) >= 2
-            ? $this->buildProfessional($certificate)
-            : $this->buildLegacy($certificate);
+        if (((int) ($certificate->template_version ?? 0)) >= 2) {
+            try {
+                $pdf = $this->buildProfessional($certificate);
+            } catch (\Throwable $e) {
+                // Rede de segurança: nunca retorna 500 por falha do modelo novo.
+                Log::error('Falha ao gerar certificado no modelo novo; usando layout legado.', [
+                    'certificate_id' => $certificate->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $pdf = $this->buildLegacy($certificate);
+            }
+        } else {
+            $pdf = $this->buildLegacy($certificate);
+        }
 
         return $pdf->Output('certificado-'.$certificate->codigo_certificado.'.pdf', $destination);
     }
@@ -123,8 +137,8 @@ class CertificatePdfService
         $pdf->Line(116, 50, 181, 50);
 
         if ($certificate->foi_reassistido) {
-            $pdf->SetFillColor(...self::GOLD);
-            $pdf->RoundedRect(236, 15, 40, 6.5, 3.2, 'F');
+            // Assinatura TCPDF: RoundedRect($x, $y, $w, $h, $r, $round_corner, $style, $border_style, $fill_color)
+            $pdf->RoundedRect(236, 15, 40, 6.5, 3.2, '1111', 'F', [], self::GOLD);
             $pdf->SetFont('helvetica', 'B', 6.8);
             $pdf->SetTextColor(255, 255, 255);
             $pdf->SetXY(236, 15);
@@ -187,12 +201,15 @@ class CertificatePdfService
 
     private function drawBackground(TCPDF $pdf, ?Tenant $tenant): void
     {
-        $bg = $tenant?->fundoCertificadoFilePath();
+        $bg = $tenant?->fundoCertificadoFilePath()
+            ?? PlatformSetting::fundoCertificadoGlobalPath();
 
         if (! $bg) {
             $default = public_path('images/certificado-fundo.png');
             $bg = file_exists($default) ? $default : null;
         }
+
+        $bg = $bg ? $this->supportedImagePath($bg) : null;
 
         if ($bg) {
             $pdf->Image($bg, 0, 0, self::PAGE_W, self::PAGE_H, '', '', '', false, 300, '', false, false, 0);
@@ -204,6 +221,50 @@ class CertificatePdfService
         $pdf->SetDrawColor(...self::GOLD);
         $pdf->SetLineWidth(1.2);
         $pdf->Rect(8, 8, self::PAGE_W - 16, self::PAGE_H - 16);
+    }
+
+    /**
+     * Garante que a imagem é suportada pelo TCPDF (PNG/JPEG). WebP/GIF são
+     * convertidos para PNG via GD quando possível; caso contrário, ignora.
+     */
+    private function supportedImagePath(string $path): ?string
+    {
+        if (! is_file($path)) {
+            return null;
+        }
+
+        $info = @getimagesize($path);
+        if (! $info) {
+            return null;
+        }
+
+        $mime = $info['mime'] ?? '';
+
+        if (in_array($mime, ['image/png', 'image/jpeg'], true)) {
+            return $path;
+        }
+
+        $img = match ($mime) {
+            'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($path) : null,
+            'image/gif' => function_exists('imagecreatefromgif') ? @imagecreatefromgif($path) : null,
+            default => null,
+        };
+
+        if (! $img) {
+            return null;
+        }
+
+        $destino = $this->storageTempPath($path);
+
+        if (! @imagepng($img, $destino)) {
+            imagedestroy($img);
+
+            return null;
+        }
+
+        imagedestroy($img);
+
+        return is_file($destino) ? $destino : null;
     }
 
     private function drawGrid(TCPDF $pdf, Certificate $certificate, float $y): void
@@ -353,6 +414,11 @@ class CertificatePdfService
 
     private function drawImageFit(TCPDF $pdf, string $path, float $x, float $y, float $boxW, float $boxH, string $align = 'L'): void
     {
+        $path = $this->supportedImagePath($path);
+        if (! $path) {
+            return;
+        }
+
         $path = $this->trimmedImagePath($path);
 
         $info = @getimagesize($path);
@@ -380,86 +446,126 @@ class CertificatePdfService
      */
     private function trimmedImagePath(string $path): string
     {
-        if (! function_exists('imagecreatefrompng') || ! is_file($path)) {
-            return $path;
-        }
-
-        $info = @getimagesize($path);
-        if (! $info) {
-            return $path;
-        }
-
-        $img = match ($info['mime'] ?? '') {
-            'image/png' => @imagecreatefrompng($path),
-            'image/jpeg' => @imagecreatefromjpeg($path),
-            'image/webp' => @imagecreatefromwebp($path),
-            'image/gif' => @imagecreatefromgif($path),
-            default => null,
-        };
-
-        if (! $img) {
-            return $path;
-        }
-
-        $largura = imagesx($img);
-        $altura = imagesy($img);
-        $minX = $largura;
-        $minY = $altura;
-        $maxX = -1;
-        $maxY = -1;
-
-        for ($y = 0; $y < $altura; $y++) {
-            for ($x = 0; $x < $largura; $x++) {
-                $cor = imagecolorat($img, $x, $y);
-                $alpha = ($cor >> 24) & 0x7F;
-                $r = ($cor >> 16) & 0xFF;
-                $g = ($cor >> 8) & 0xFF;
-                $b = $cor & 0xFF;
-
-                // Considera fundo: transparente ou quase-branco
-                if ($alpha > 100 || ($r > 240 && $g > 240 && $b > 240)) {
-                    continue;
-                }
-
-                $minX = min($minX, $x);
-                $minY = min($minY, $y);
-                $maxX = max($maxX, $x);
-                $maxY = max($maxY, $y);
+        try {
+            if (! function_exists('imagecreatefrompng') || ! function_exists('imagecreatetruecolor') || ! is_file($path)) {
+                return $path;
             }
-        }
 
-        if ($maxX < 0) {
+            $info = @getimagesize($path);
+            if (! $info) {
+                return $path;
+            }
+
+            // Evita consumo excessivo de memória em imagens muito grandes.
+            if (($info[0] * $info[1]) > 2500000) {
+                return $path;
+            }
+
+            $img = match ($info['mime'] ?? '') {
+                'image/png' => @imagecreatefrompng($path),
+                'image/jpeg' => function_exists('imagecreatefromjpeg') ? @imagecreatefromjpeg($path) : null,
+                'image/gif' => function_exists('imagecreatefromgif') ? @imagecreatefromgif($path) : null,
+                default => null,
+            };
+
+            if (! $img) {
+                return $path;
+            }
+
+            $largura = imagesx($img);
+            $altura = imagesy($img);
+            $minX = $largura;
+            $minY = $altura;
+            $maxX = -1;
+            $maxY = -1;
+
+            for ($y = 0; $y < $altura; $y++) {
+                for ($x = 0; $x < $largura; $x++) {
+                    $cor = imagecolorat($img, $x, $y);
+                    $alpha = ($cor >> 24) & 0x7F;
+                    $r = ($cor >> 16) & 0xFF;
+                    $g = ($cor >> 8) & 0xFF;
+                    $b = $cor & 0xFF;
+
+                    // Considera fundo: transparente ou quase-branco
+                    if ($alpha > 100 || ($r > 240 && $g > 240 && $b > 240)) {
+                        continue;
+                    }
+
+                    $minX = min($minX, $x);
+                    $minY = min($minY, $y);
+                    $maxX = max($maxX, $x);
+                    $maxY = max($maxY, $y);
+                }
+            }
+
+            if ($maxX < 0) {
+                imagedestroy($img);
+
+                return $path;
+            }
+
+            // Pequena margem de respiro
+            $minX = max(0, $minX - 2);
+            $minY = max(0, $minY - 2);
+            $maxX = min($largura - 1, $maxX + 2);
+            $maxY = min($altura - 1, $maxY + 2);
+
+            $novaLargura = $maxX - $minX + 1;
+            $novaAltura = $maxY - $minY + 1;
+
+            if ($novaLargura >= $largura && $novaAltura >= $altura) {
+                imagedestroy($img);
+
+                return $path;
+            }
+
+            $recortada = imagecreatetruecolor($novaLargura, $novaAltura);
+            if (! $recortada) {
+                imagedestroy($img);
+
+                return $path;
+            }
+
+            imagealphablending($recortada, false);
+            imagesavealpha($recortada, true);
+            imagecopy($recortada, $img, 0, 0, $minX, $minY, $novaLargura, $novaAltura);
             imagedestroy($img);
+
+            $destino = $this->storageTempPath($path.'|crop');
+
+            if (! @imagepng($recortada, $destino)) {
+                imagedestroy($recortada);
+
+                return $path;
+            }
+
+            imagedestroy($recortada);
+
+            return is_file($destino) ? $destino : $path;
+        } catch (\Throwable $e) {
+            Log::warning('Falha ao recortar logo do certificado; usando imagem original.', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
 
             return $path;
         }
+    }
 
-        // Pequena margem de respiro
-        $minX = max(0, $minX - 2);
-        $minY = max(0, $minY - 2);
-        $maxX = min($largura - 1, $maxX + 2);
-        $maxY = min($altura - 1, $maxY + 2);
+    /**
+     * Caminho temporário dentro de storage/app/certificado (evita restrições
+     * de open_basedir do /tmp em hospedagens compartilhadas).
+     */
+    private function storageTempPath(string $seed): string
+    {
+        $dir = storage_path('app/certificado');
 
-        $novaLargura = $maxX - $minX + 1;
-        $novaAltura = $maxY - $minY + 1;
-
-        if ($novaLargura >= $largura && $novaAltura >= $altura) {
-            imagedestroy($img);
-
-            return $path;
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
         }
 
-        $recortada = imagecreatetruecolor($novaLargura, $novaAltura);
-        imagealphablending($recortada, false);
-        imagesavealpha($recortada, true);
-        imagecopy($recortada, $img, 0, 0, $minX, $minY, $novaLargura, $novaAltura);
-        imagedestroy($img);
-
-        $destino = sys_get_temp_dir().DIRECTORY_SEPARATOR.'dss_cert_logo_'.md5($path.'|'.@filemtime($path)).'.png';
-        imagepng($recortada, $destino);
-        imagedestroy($recortada);
-
-        return $destino;
+        return $dir.DIRECTORY_SEPARATOR.'img_'.md5($seed).'.png';
     }
 
     /**
@@ -470,13 +576,18 @@ class CertificatePdfService
         $context = stream_context_create([
             'http' => [
                 'timeout' => 8,
-                'ignore_errors' => true,
             ],
         ]);
 
         $binary = @file_get_contents($certificate->qr_code_url, false, $context);
 
-        return $binary !== false ? $binary : null;
+        // Só usa se for realmente um PNG (evita exceção no TCPDF quando o
+        // serviço externo devolve HTML/erro).
+        if ($binary === false || ! str_starts_with($binary, "\x89PNG\r\n\x1a\n")) {
+            return null;
+        }
+
+        return $binary;
     }
 
     private function truncar(string $valor, int $limite): string
