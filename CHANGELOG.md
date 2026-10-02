@@ -5,6 +5,15 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+## [2.0.65] - 2026-10-02
+
+### Adicionado
+- Botão **Remover fundo** do certificado, disponível no painel da Plataforma
+  (`/plataforma/configuracoes`, fundo padrão) e no cadastro de cada cliente
+  (`/plataforma/{cliente}`). Ao remover, o arquivo é apagado e o certificado
+  volta a usar o fundo padrão (cliente → fundo padrão da plataforma → imagem
+  padrão do sistema).
+
 ## [2.0.64] - 2026-10-02
 
 ### Corrigido
