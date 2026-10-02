@@ -81,6 +81,18 @@
             </div>
         </div>
 
+        <h2 class="text-lg font-bold text-gray-800 mb-3">Fundo do certificado</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Imagem de fundo (base do certificado)</label>
+                <input type="file" name="fundo_certificado" accept="image/png,image/jpeg,image/webp" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <p class="text-xs text-gray-500 mt-1">Imagem A4 paisagem (proporção 297:210 — ex.: 2970x2100 px, PNG/JPG, até 5 MB). Ela fica ao fundo, atrás dos dados do certificado.</p>
+                @if($tenant->fundoCertificadoUrl())
+                    <img src="{{ $tenant->fundoCertificadoUrl() }}" alt="Fundo atual do certificado" class="mt-2 w-full max-w-sm object-contain border border-gray-200 rounded p-1 bg-white">
+                @endif
+            </div>
+        </div>
+
         <h2 class="text-lg font-bold text-gray-800 mb-3">Instrutor (certificados)</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>

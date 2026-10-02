@@ -7,9 +7,9 @@ use App\Models\Training;
 use App\Models\TrainingRewatchRequest;
 use App\Models\UserProgress;
 use App\Services\AuditLogger;
+use App\Services\CertificatePdfService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use TCPDF;
 
 class CertificateController extends Controller
 {
@@ -129,6 +129,10 @@ class CertificateController extends Controller
         if (Schema::hasColumn('certificates', 'porcentagem_assistida')) {
             $payload['porcentagem_assistida'] = (int) $progress->porcentagem_assistida;
         }
+        if (Schema::hasColumn('certificates', 'template_version')) {
+            // Certificados novos usam o modelo único profissional (v2).
+            $payload['template_version'] = 2;
+        }
 
         $certificate = Certificate::create($payload);
 
@@ -143,46 +147,11 @@ class CertificateController extends Controller
         return $certificate;
     }
 
-    private function buildViewData(Certificate $certificate): array
-    {
-        $certificate->loadMissing(['user', 'training']);
-
-        return [
-            'certificate' => $certificate,
-            'validationUrl' => $certificate->validation_url,
-            'qrCodeUrl' => $certificate->qr_code_url,
-            'tempoAssistidoFormatado' => gmdate('H:i:s', max(0, (int) $certificate->tempo_assistido_segundos)),
-        ];
-    }
-
     private function streamPdf(Certificate $certificate)
     {
-        $certificate->loadMissing(['user', 'training']);
+        $output = app(CertificatePdfService::class)->output($certificate);
 
-        $qrDataUri = null;
-        $qrBinary = @file_get_contents($certificate->qr_code_url);
-        if ($qrBinary !== false) {
-            $qrDataUri = 'data:image/png;base64,'.base64_encode($qrBinary);
-        }
-
-        $html = view('certificados.pdf', [
-            'certificate' => $certificate,
-            'validationUrl' => $certificate->validation_url,
-            'qrDataUri' => $qrDataUri,
-            'tempoAssistidoFormatado' => gmdate('H:i:s', max(0, (int) $certificate->tempo_assistido_segundos)),
-        ])->render();
-
-        $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator(plataforma_nome());
-        $pdf->SetAuthor(plataforma_nome());
-        $pdf->SetTitle('Certificado - '.$certificate->user->nome);
-        $pdf->SetSubject('Certificado de Conclusão');
-        $pdf->SetMargins(10, 10, 10);
-        $pdf->SetAutoPageBreak(true, 10);
-        $pdf->AddPage();
-        $pdf->writeHTML($html, true, false, true, false, '');
-
-        return response($pdf->Output('certificado-'.$certificate->codigo_certificado.'.pdf', 'S'))
+        return response($output)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'attachment; filename="certificado-'.$certificate->codigo_certificado.'.pdf"');
     }
@@ -192,32 +161,9 @@ class CertificateController extends Controller
      */
     public function streamPdfForApi(Certificate $certificate)
     {
-        $certificate->loadMissing(['user', 'training']);
+        $output = app(CertificatePdfService::class)->output($certificate);
 
-        $qrDataUri = null;
-        $qrBinary = @file_get_contents($certificate->qr_code_url);
-        if ($qrBinary !== false) {
-            $qrDataUri = 'data:image/png;base64,'.base64_encode($qrBinary);
-        }
-
-        $html = view('certificados.pdf', [
-            'certificate' => $certificate,
-            'validationUrl' => $certificate->validation_url,
-            'qrDataUri' => $qrDataUri,
-            'tempoAssistidoFormatado' => gmdate('H:i:s', max(0, (int) $certificate->tempo_assistido_segundos)),
-        ])->render();
-
-        $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator(plataforma_nome());
-        $pdf->SetAuthor(plataforma_nome());
-        $pdf->SetTitle('Certificado - '.$certificate->user->nome);
-        $pdf->SetSubject('Certificado de Conclusão');
-        $pdf->SetMargins(10, 10, 10);
-        $pdf->SetAutoPageBreak(true, 10);
-        $pdf->AddPage();
-        $pdf->writeHTML($html, true, false, true, false, '');
-
-        return response($pdf->Output('certificado-'.$certificate->codigo_certificado.'.pdf', 'S'))
+        return response($output)
             ->header('Content-Type', 'application/pdf')
             ->header('Content-Disposition', 'inline; filename="certificado-'.$certificate->codigo_certificado.'.pdf"');
     }

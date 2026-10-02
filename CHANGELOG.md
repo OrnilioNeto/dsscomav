@@ -5,6 +5,24 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+## [2.0.63] - 2026-10-02
+
+### Adicionado
+- Certificado único e profissional (A4 paisagem) para todos os **novos**
+  certificados: fundo azul/dourado, título, narrativa, dados completos
+  (beneficiário, treinamento, carga horária, início/fim, tempo assistido,
+  instrutor), QR Code e assinaturas.
+- Campo **Fundo do certificado** no painel da Plataforma (`/plataforma` →
+  cliente) para o super admin enviar a imagem de base; sem upload, usa a
+  imagem padrão `public/images/certificado-fundo.png`.
+- Coluna `certificates.template_version` (2 = modelo novo) e
+  `tenants.fundo_certificado`.
+
+### Observação
+- Certificados já emitidos (`template_version` nulo) continuam sendo gerados
+  exatamente como antes — nada muda para eles.
+- Novos certificados usam o modelo único para todos os tipos (DSS e Treinamento).
+
 ## [2.0.62] - 2026-10-02
 
 ### Adicionado

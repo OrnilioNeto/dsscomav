@@ -93,15 +93,23 @@ class PlataformaTenantController extends Controller
             'instrutor_rg' => $request->input('instrutor_rg') ?: null,
         ]);
 
-        foreach (['logo' => 'logo', 'logo_certificado' => 'logo_certificado'] as $campo => $subdir) {
-            if ($request->hasFile($campo)) {
-                $dir = "uploads/{$tenant->id}/logos";
-                $file = $request->file($campo);
-                $extensao = SafeUpload::extensionFromUploadedFile($file, ['png', 'jpg', 'jpeg', 'webp']) ?? 'png';
-                $filename = $subdir.'_'.time().'.'.$extensao;
-                $file->move(public_path($dir), $filename);
-                $tenant->update([$campo => $dir.'/'.$filename]);
+        $uploads = [
+            'logo' => ['dir' => 'logos', 'prefixo' => 'logo'],
+            'logo_certificado' => ['dir' => 'logos', 'prefixo' => 'logo_certificado'],
+            'fundo_certificado' => ['dir' => 'certificado', 'prefixo' => 'fundo_certificado'],
+        ];
+
+        foreach ($uploads as $campo => $config) {
+            if (! $request->hasFile($campo)) {
+                continue;
             }
+
+            $dir = "uploads/{$tenant->id}/{$config['dir']}";
+            $file = $request->file($campo);
+            $extensao = SafeUpload::extensionFromUploadedFile($file, ['png', 'jpg', 'jpeg', 'webp']) ?? 'png';
+            $filename = $config['prefixo'].'_'.time().'.'.$extensao;
+            $file->move(public_path($dir), $filename);
+            $tenant->update([$campo => $dir.'/'.$filename]);
         }
 
         return redirect()->route('plataforma.index')->with('success', 'Cliente atualizado!');
@@ -181,6 +189,7 @@ class PlataformaTenantController extends Controller
             'instrutor_rg' => 'nullable|string|max:60',
             'logo' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048',
             'logo_certificado' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048',
+            'fundo_certificado' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:5120',
         ]);
     }
 }

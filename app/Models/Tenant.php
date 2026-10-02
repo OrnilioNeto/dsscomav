@@ -20,6 +20,7 @@ class Tenant extends Model
         'nome_exibicao',
         'logo',
         'logo_certificado',
+        'fundo_certificado',
         'cor_primaria',
         'cor_secundaria',
         'email_remetente',
@@ -100,6 +101,19 @@ class Tenant extends Model
     public function logoCertificadoUrl(): ?string
     {
         return $this->logo_certificado ? asset($this->logo_certificado) : null;
+    }
+
+    public function fundoCertificadoUrl(): ?string
+    {
+        return $this->fundo_certificado ? asset($this->fundo_certificado) : null;
+    }
+
+    /**
+     * Caminho absoluto da imagem de fundo do certificado, se configurada.
+     */
+    public function fundoCertificadoFilePath(): ?string
+    {
+        return $this->logoFilePath('fundo_certificado');
     }
 
     public static function slugUnico(string $base): string
