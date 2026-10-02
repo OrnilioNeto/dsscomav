@@ -19,7 +19,7 @@
 
                     <div class="space-y-2 text-sm text-gray-600 mb-4">
                         <p><strong>Tipo:</strong> {{ ucfirst($cert->training->tipo) }}</p>
-                        <p><strong>Carga Horária:</strong> {{ $cert->training->carga_horaria }} minutos</p>
+                        <p><strong>Carga Horária:</strong> {{ $cert->training->carga_horaria_formatada_extenso }}</p>
                         <p><strong>Emitido em:</strong> {{ $cert->data_emissao->format('d/m/Y H:i') }}</p>
                         <p><strong>Início do Treinamento:</strong> {{ optional($cert->data_inicio_assistencia)->format('d/m/Y H:i') }}</p>
                         <p><strong>Fim do Treinamento:</strong> {{ optional($cert->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</p>

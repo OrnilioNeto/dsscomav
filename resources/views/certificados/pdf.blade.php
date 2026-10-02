@@ -112,7 +112,7 @@
 
                     <table style="margin-top: 8px;">
                         <tr>
-                            <td style="width: 25%;"><strong>Carga horária:</strong><br>{{ $certificate->training->carga_horaria }} min</td>
+                            <td style="width: 25%;"><strong>Carga horária:</strong><br>{{ $certificate->training->carga_horaria_formatada }}</td>
                             <td style="width: 25%;"><strong>Início do Treinamento:</strong><br>{{ optional($certificate->data_inicio_assistencia)->format('d/m/Y H:i') }}</td>
                             <td style="width: 25%;"><strong>Fim do Treinamento:</strong><br>{{ optional($certificate->data_finalizacao_assistencia)->format('d/m/Y H:i') }}</td>
                             <td style="width: 25%;"><strong>Tempo assistido:</strong><br>{{ $tempoAssistidoFormatado }}</td>

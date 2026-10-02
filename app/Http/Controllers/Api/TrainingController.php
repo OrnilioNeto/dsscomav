@@ -44,7 +44,8 @@ class TrainingController extends Controller
             'video_embed' => $training->getVideoEmbed(),
             'tipo_video' => $training->tipo_video,
             'carga_horaria' => (int) $training->carga_horaria,
-            'duracao_segundos' => (int) $training->carga_horaria * 60,
+            'carga_horaria_segundos' => $training->carga_horaria_segundos !== null ? (int) $training->carga_horaria_segundos : null,
+            'duracao_segundos' => max(1, $training->duracaoSegundos()),
             'thumbnail' => $training->thumbnail,
             'data_publicacao' => $training->data_publicacao?->toISOString(),
             'data_liberacao' => $training->data_liberacao?->toISOString(),
@@ -356,7 +357,7 @@ class TrainingController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Tempo não pode ser negativo'], 400);
         }
 
-        $duracao = (int) $training->carga_horaria * 60;
+        $duracao = max(1, $training->duracaoSegundos());
         $tempoCliente = min($tempoCliente, $duracao);
 
         $progress = UserProgress::firstOrCreate(

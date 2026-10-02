@@ -21,7 +21,7 @@
     <div class="grid md:grid-cols-3 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <p class="text-gray-600 text-sm font-semibold">Carga Horária</p>
-            <p class="text-3xl font-bold text-blue-900">{{ $training->carga_horaria }} min</p>
+            <p class="text-3xl font-bold text-blue-900">{{ $training->carga_horaria_formatada }}</p>
         </div>
 
         <div class="bg-white p-6 rounded-lg shadow-lg">

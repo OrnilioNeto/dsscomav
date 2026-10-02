@@ -47,7 +47,7 @@
                                 {{ strtoupper($training->tipo) }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 text-gray-600">{{ $training->carga_horaria }} min</td>
+                        <td class="px-6 py-4 text-gray-600">{{ $training->carga_horaria_formatada }}</td>
                         <td class="px-6 py-4">
                             <span class="px-3 py-1 rounded-full text-sm font-semibold
                                 {{ $training->status === 'ativo' ? 'bg-green-100 text-green-900' : 'bg-red-100 text-red-900' }}

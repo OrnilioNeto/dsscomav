@@ -13,6 +13,15 @@
             @csrf
             @method('PUT')
 
+            <div id="form-errors" class="{{ $errors->any() ? '' : 'hidden' }} rounded-lg border border-red-200 bg-red-50 p-4">
+                <p class="font-semibold text-red-800"><i class="fas fa-exclamation-triangle mr-2"></i>Não foi possível salvar o treinamento:</p>
+                <ul class="mt-2 list-disc list-inside text-sm text-red-700">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+
             <div>
                 <label class="block text-gray-700 font-semibold mb-2">Título *</label>
                 <input type="text" name="titulo" value="{{ $training->titulo }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
@@ -38,8 +47,9 @@
                 </div>
 
                 <div>
-                    <label class="block text-gray-700 font-semibold mb-2">Carga Horária (minutos) *</label>
-                    <input type="number" name="carga_horaria" value="{{ $training->carga_horaria }}" required min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    <label class="block text-gray-700 font-semibold mb-2">Carga Horária *</label>
+                    <input type="text" id="carga-horaria-input" name="carga_horaria" value="{{ old('carga_horaria', $training->carga_horaria_input) }}" required inputmode="numeric" maxlength="7" placeholder="Ex.: 20:30" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    <p class="text-xs text-gray-500 mt-1">Formato MM:SS (ex.: 20:30). Para minutos cheios, informe apenas os minutos (ex.: 20).</p>
                 </div>
             </div>
 
@@ -561,4 +571,17 @@
         </form>
     </div>
 </div>
+
+<script>
+    (function () {
+        const input = document.getElementById('carga-horaria-input');
+        if (!input) return;
+        input.addEventListener('input', function () {
+            const digits = input.value.replace(/\D/g, '').slice(0, 6);
+            input.value = digits.length > 2
+                ? digits.slice(0, -2) + ':' + digits.slice(-2)
+                : digits;
+        });
+    })();
+</script>
 @endsection

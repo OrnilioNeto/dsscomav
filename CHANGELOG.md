@@ -5,6 +5,59 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+## [2.0.63] - 2026-10-02
+
+### Adicionado
+- Certificado único e profissional (A4 paisagem) para todos os **novos**
+  certificados: fundo azul/dourado, título, narrativa, dados completos
+  (beneficiário, treinamento, carga horária, início/fim, tempo assistido,
+  instrutor), QR Code e assinaturas.
+- Campo **Fundo do certificado** no painel da Plataforma (`/plataforma` →
+  cliente) para o super admin enviar a imagem de base; sem upload, usa a
+  imagem padrão `public/images/certificado-fundo.png`.
+- Coluna `certificates.template_version` (2 = modelo novo) e
+  `tenants.fundo_certificado`.
+
+### Observação
+- Certificados já emitidos (`template_version` nulo) continuam sendo gerados
+  exatamente como antes — nada muda para eles.
+- Novos certificados usam o modelo único para todos os tipos (DSS e Treinamento).
+
+## [2.0.62] - 2026-10-02
+
+### Adicionado
+- Carga horária do treinamento agora usa um **campo único no formato MM:SS**
+  (ex.: 20:30) no cadastro e na edição, aceitando também apenas minutos.
+  Nova coluna `trainings.carga_horaria_segundos` (nula para registros antigos).
+- Player, API e cálculos de progresso passam a usar a duração total em segundos
+  para treinamentos novos; exibição da carga horária atualizada em listas,
+  certificados e relatórios.
+
+### Observação
+- Nenhum registro existente é alterado: quando `carga_horaria_segundos` é nulo,
+  o comportamento permanece exatamente o anterior (`carga_horaria * 60`).
+
+## [2.0.61] - 2026-10-02
+
+### Corrigido
+- Instabilidade do modal de avaliação (abria e fechava sozinho): o modal foi
+  substituído por um painel fixo abaixo do vídeo.
+- Avaliação agora tem bloqueio validado no servidor: o envio das respostas é
+  recusado antes de 99% de conclusão do vídeo, mesmo que o painel seja
+  reabilitado via DevTools/F12.
+- Bloqueio global de teclado do player não interfere mais na digitação da senha
+  de re-identificação nem na seleção das alternativas.
+
+### Alterado
+- Avaliação do treinamento agora aparece abaixo do vídeo: perguntas e opções
+  ficam visíveis, porém desabilitadas, e são liberadas automaticamente após
+  100% de conclusão do vídeo (com aviso ao usuário).
+- Re-identificação por senha (NR-01 Anexo II) validada no envio das respostas
+  para treinamentos do tipo **Treinamento**; DSS segue dispensando a senha.
+
+### Removido
+- Rota `POST /treinamentos/{id}/avaliacao/iniciar` e o modal de avaliação.
+
 ## [2.0.60] - 2026-09-25
 
 ### Adicionado

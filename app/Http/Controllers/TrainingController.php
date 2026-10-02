@@ -48,7 +48,7 @@ class TrainingController extends Controller
             'tipo_treinamento' => 'required_if:tipo,treinamento|nullable|in:inicial,periodico,eventual',
             'url_video' => 'required|url',
             'tipo_video' => 'required|in:youtube,vimeo,upload',
-            'carga_horaria' => 'required|integer|min:1',
+            'carga_horaria' => 'required',
             'dias_validade' => 'nullable|integer|min:1',
             'obrigatorio' => 'nullable|boolean',
             'avaliacao_pergunta' => 'nullable|string|max:500',
@@ -73,6 +73,14 @@ class TrainingController extends Controller
         }
 
         $validator = Validator::make($request->all(), $rules);
+
+        $validator->after(function ($validator) use ($request) {
+            $duracao = $this->parseCargaHorariaInput($request->input('carga_horaria'), $request->input('carga_horaria_segundos'));
+
+            if ($duracao === null || ($duracao['minutos'] * 60 + $duracao['segundos']) < 1) {
+                $validator->errors()->add('carga_horaria', 'Informe uma carga horária válida, no formato MM:SS (ex.: 20:30).');
+            }
+        });
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -103,6 +111,9 @@ class TrainingController extends Controller
             }
         }
 
+        $duracao = $this->parseCargaHorariaInput($request->input('carga_horaria'), $request->input('carga_horaria_segundos'))
+            ?? ['minutos' => 1, 'segundos' => 0];
+
         $data = [
             'titulo' => $request->titulo,
             'descricao' => $request->descricao,
@@ -112,7 +123,8 @@ class TrainingController extends Controller
             'tipo_usuario_permitido' => $request->tipo_usuario_permitido ?? ['motorista', 'funcionario', 'terceirizado'],
             'url_video' => $request->url_video,
             'tipo_video' => $request->tipo_video,
-            'carga_horaria' => $request->carga_horaria,
+            'carga_horaria' => $duracao['minutos'],
+            'carga_horaria_segundos' => $duracao['segundos'] > 0 ? $duracao['segundos'] : null,
             'dias_validade' => $request->filled('dias_validade') ? (int) $request->dias_validade : null,
             'obrigatorio' => $request->boolean('obrigatorio'),
             'data_publicacao' => now(),
@@ -245,7 +257,7 @@ class TrainingController extends Controller
             'conteudo_programatico' => 'nullable|string',
             'tipo' => 'required|in:dss,treinamento',
             'tipo_treinamento' => 'required_if:tipo,treinamento|nullable|in:inicial,periodico,eventual',
-            'carga_horaria' => 'required|integer|min:1',
+            'carga_horaria' => 'required',
             'dias_validade' => 'nullable|integer|min:1',
             'obrigatorio' => 'nullable|boolean',
             'avaliacao_pergunta' => 'nullable|string|max:500',
@@ -270,6 +282,14 @@ class TrainingController extends Controller
         }
 
         $validator = Validator::make($request->all(), $rules);
+
+        $validator->after(function ($validator) use ($request) {
+            $duracao = $this->parseCargaHorariaInput($request->input('carga_horaria'), $request->input('carga_horaria_segundos'));
+
+            if ($duracao === null || ($duracao['minutos'] * 60 + $duracao['segundos']) < 1) {
+                $validator->errors()->add('carga_horaria', 'Informe uma carga horária válida, no formato MM:SS (ex.: 20:30).');
+            }
+        });
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -300,6 +320,9 @@ class TrainingController extends Controller
             }
         }
 
+        $duracao = $this->parseCargaHorariaInput($request->input('carga_horaria'), $request->input('carga_horaria_segundos'))
+            ?? ['minutos' => 1, 'segundos' => 0];
+
         $updateData = [
             'titulo' => $request->titulo,
             'descricao' => $request->descricao,
@@ -307,7 +330,8 @@ class TrainingController extends Controller
             'tipo' => $request->tipo,
             'tipo_treinamento' => $request->input('tipo') === 'treinamento' ? $request->tipo_treinamento : null,
             'tipo_usuario_permitido' => $request->tipo_usuario_permitido ?? $training->tipo_usuario_permitido,
-            'carga_horaria' => $request->carga_horaria,
+            'carga_horaria' => $duracao['minutos'],
+            'carga_horaria_segundos' => $duracao['segundos'] > 0 ? $duracao['segundos'] : null,
             'dias_validade' => $request->filled('dias_validade') ? (int) $request->dias_validade : null,
             'status' => $request->status ?? $training->status,
             'obrigatorio' => $request->boolean('obrigatorio'),
@@ -414,6 +438,55 @@ class TrainingController extends Controller
         if ($training->quantidade_questoes_prova && count($questoes) > 0 && $training->quantidade_questoes_prova > count($questoes)) {
             $training->update(['quantidade_questoes_prova' => count($questoes)]);
         }
+    }
+
+    /**
+     * Converte o campo único de carga horária em minutos/segundos.
+     *
+     * Aceita "MM:SS" (ex.: "20:30"), apenas minutos (ex.: "20") e, por
+     * compatibilidade com formulários antigos, minutos + carga_horaria_segundos.
+     * Retorna null quando o valor é inválido.
+     */
+    private function parseCargaHorariaInput($valor, $segundosLegado = null): ?array
+    {
+        $valor = trim((string) $valor);
+
+        if ($valor === '') {
+            return null;
+        }
+
+        if (str_contains($valor, ':')) {
+            $partes = explode(':', $valor);
+
+            if (count($partes) !== 2) {
+                return null;
+            }
+
+            [$minutos, $segundos] = $partes;
+            $minutos = $minutos === '' ? 0 : (ctype_digit($minutos) ? (int) $minutos : null);
+            $segundos = $segundos === '' ? 0 : (ctype_digit($segundos) ? (int) $segundos : null);
+
+            if ($minutos === null || $segundos === null || $segundos > 59) {
+                return null;
+            }
+        } else {
+            if (! ctype_digit($valor)) {
+                return null;
+            }
+
+            $minutos = (int) $valor;
+            $segundos = $segundosLegado !== null && $segundosLegado !== '' ? (int) $segundosLegado : 0;
+
+            if ($segundos < 0 || $segundos > 59) {
+                return null;
+            }
+        }
+
+        if ($minutos > 9999) {
+            return null;
+        }
+
+        return ['minutos' => $minutos, 'segundos' => $segundos];
     }
 
     /**

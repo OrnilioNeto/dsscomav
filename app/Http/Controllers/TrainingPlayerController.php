@@ -58,7 +58,16 @@ class TrainingPlayerController extends Controller
 
         TrainingLog::registrar($training->id, $user->id, 'curso_iniciado', 'Acesso ao player do treinamento.');
 
-        return view('treinamentos.player', compact('training', 'progress'));
+        // Questões exibidas abaixo do vídeo; liberadas apenas após a conclusão (100%).
+        $assessment = null;
+        $assessmentUnlocked = false;
+
+        if ($training->hasAssessment() && ! $progress->avaliacao_aprovada) {
+            $assessment = $this->buildAssessmentPayload($training);
+            $assessmentUnlocked = $user->isTestUser() || (int) $progress->porcentagem_assistida >= 99;
+        }
+
+        return view('treinamentos.player', compact('training', 'progress', 'assessment', 'assessmentUnlocked'));
     }
 
     public function updateProgress(Request $request, $id)
@@ -85,7 +94,7 @@ class TrainingPlayerController extends Controller
         }
 
         // Obter duração do treinamento (em segundos)
-        $duracao = (int) $training->carga_horaria * 60;
+        $duracao = max(1, $training->duracaoSegundos());
 
         // Capear tempo à duração máxima
         $tempoCliente = min($tempoCliente, $duracao);
@@ -104,7 +113,7 @@ class TrainingPlayerController extends Controller
         }
 
         $tempoAssistido = max($tempoAnterior, $tempoCliente);
-        $porcentagemAssistida = max((int) $porcentagem, (int) $progress->porcentagem_assistida);
+        $porcentagemAssistida = min(100, max((int) $porcentagem, (int) $progress->porcentagem_assistida));
 
         $updateData = [
             'tempo_assistido' => $tempoAssistido,
@@ -115,9 +124,18 @@ class TrainingPlayerController extends Controller
             $updateData['data_inicio'] = now(config('app.timezone'));
         }
 
+        $porcentagemAnterior = (int) $progress->porcentagem_assistida;
+
         $progress->update($updateData);
 
         $fresh = $progress->fresh();
+
+        // Registra a liberação da avaliação quando o vídeo atinge a conclusão.
+        if ($training->hasAssessment() && ! $fresh->avaliacao_aprovada
+            && $porcentagemAnterior < 99 && (int) $fresh->porcentagem_assistida >= 99) {
+            TrainingLog::registrar($training->id, $user->id, 'avaliacao_iniciada', 'Avaliação liberada após conclusão do vídeo.');
+        }
+
         $showAssessment = $training->hasAssessment() && ($isTestUser || $fresh->porcentagem_assistida >= 99) && ! $fresh->avaliacao_aprovada;
 
         if (($isTestUser || $fresh->porcentagem_assistida >= 99) && $fresh->avaliacao_aprovada && ! $fresh->concluido) {
@@ -139,54 +157,12 @@ class TrainingPlayerController extends Controller
     }
 
     /**
-     * Etapa 1 da avaliação: re-identificação do trabalhador por senha individual
-     * (NR-01 Anexo II 4.6.1/4.6.2) e liberação das questões embaralhadas.
+     * Monta as questões exibidas no player abaixo do vídeo. Quando há banco de
+     * questões, sorteia e embaralha as opções, guardando o mapa de validação na
+     * sessão (NR-01 Anexo II 4.6.2).
      */
-    public function iniciarAvaliacao(Request $request, $id)
+    private function buildAssessmentPayload(Training $training): array
     {
-        $training = Training::with('questions')->findOrFail($id);
-        $user = auth()->user();
-
-        if (! $user->canAccessTraining($training)) {
-            return response()->json(['error' => 'Acesso negado'], 403);
-        }
-
-        if (! $training->hasAssessment()) {
-            return response()->json(['error' => 'Treinamento sem avaliação cadastrada'], 422);
-        }
-
-        // Re-identificação por senha: exigida apenas para o tipo "Treinamento"
-        // (NR-01 Anexo II 4.6.1/4.6.2). DSS dispensa a confirmação.
-        $requiresPassword = $training->tipo === 'treinamento';
-
-        if ($requiresPassword) {
-            $validator = validator($request->all(), [
-                'password' => 'required|string',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json(['error' => 'Informe sua senha para iniciar a avaliação.'], 422);
-            }
-
-            // Re-identificação individual: confere a senha do usuário autenticado (4.6.1)
-            if (! Hash::check($request->input('password'), $user->password)) {
-                TrainingLog::registrar($training->id, $user->id, 'avaliacao_senha_invalida', 'Tentativa de iniciar avaliação com senha incorreta.');
-
-                return response()->json(['error' => 'Senha incorreta. Verifique e tente novamente.'], 422);
-            }
-        }
-
-        // Registra o início da prova (log de rastreabilidade)
-        TrainingLog::registrar(
-            $training->id,
-            $user->id,
-            'avaliacao_iniciada',
-            $requiresPassword
-                ? 'Avaliação iniciada com re-identificação por senha.'
-                : 'Avaliação iniciada sem re-identificação por senha (tipo DSS).'
-        );
-
-        // Caso 1: banco de questões — sorteia questões e embaralha opções
         if ($training->hasQuestionBank()) {
             $questoes = $training->questions;
             $quantidade = (int) ($training->quantidade_questoes_prova ?: $questoes->count());
@@ -210,25 +186,22 @@ class TrainingPlayerController extends Controller
             // Guarda o mapeamento da ordem embaralhada para validar no servidor (4.6.2)
             session()->put("avaliacao_{$training->id}_map", $payload->mapWithKeys(fn ($q) => [$q['id'] => $q['mapa']])->toArray());
 
-            return response()->json([
-                'success' => true,
+            return [
                 'modo' => 'banco',
-                'quantidade' => $selecionadas->count(),
                 'questoes' => $payload->map(fn ($q) => [
                     'id' => $q['id'],
                     'pergunta' => $q['pergunta'],
                     'opcoes' => $q['opcoes'],
-                ])->values(),
-            ]);
+                ])->values()->all(),
+            ];
         }
 
-        // Caso 2: pergunta única legada (DSS / treinamento sem banco)
-        return response()->json([
-            'success' => true,
+        // Pergunta única legada (DSS / treinamento sem banco)
+        return [
             'modo' => 'legado',
             'pergunta' => $training->avaliacao_pergunta,
             'opcoes' => array_values(array_filter($training->avaliacao_opcoes ?? [])),
-        ]);
+        ];
     }
 
     public function submitAssessment(Request $request, $id)
@@ -249,14 +222,30 @@ class TrainingPlayerController extends Controller
             ->where('training_id', $training->id)
             ->firstOrFail();
 
+        // Re-identificação por senha (NR-01 Anexo II 4.6.1/4.6.2): exigida no
+        // envio para o tipo "Treinamento" (DSS dispensa a confirmação).
+        if ($training->tipo === 'treinamento') {
+            $senha = (string) $request->input('password', '');
+
+            if ($senha === '' || ! Hash::check($senha, $user->password)) {
+                TrainingLog::registrar($training->id, $user->id, 'avaliacao_senha_invalida', 'Tentativa de responder avaliação com senha incorreta.');
+
+                return response()->json(['error' => 'Senha incorreta. Confirme sua senha de acesso e tente novamente.'], 422);
+            }
+        }
+
+        // Bloqueio no servidor: a avaliação só é corrigida após a conclusão do
+        // vídeo (>= 99%), mesmo que o usuário reabilite o painel pelo navegador.
+        if (! $isTestUser && (int) $progress->porcentagem_assistida < 99) {
+            return response()->json(['error' => 'A avaliação será liberada após você concluir 100% do vídeo.'], 422);
+        }
+
         // ===== Banco de questões =====
         if ($training->hasQuestionBank()) {
             $mapa = session()->get("avaliacao_{$training->id}_map", []);
 
             if (empty($mapa)) {
-                return response()->json(['error' => $training->tipo === 'treinamento'
-                    ? 'Sessão da prova expirada ou não iniciada. Clique em "Realizar avaliação" e confirme sua senha novamente.'
-                    : 'Sessão da prova expirada ou não iniciada. Clique em "Realizar avaliação" novamente.'], 422);
+                return response()->json(['error' => 'Sessão da avaliação expirada. Recarregue a página e responda novamente.'], 422);
             }
 
             $respostas = $request->input('respostas', []);

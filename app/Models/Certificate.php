@@ -26,6 +26,7 @@ class Certificate extends Model
         'foi_reassistido',
         'caminho_arquivo',
         'valido',
+        'template_version',
     ];
 
     protected $casts = [
@@ -35,6 +36,7 @@ class Certificate extends Model
         'valido' => 'boolean',
         'tempo_assistido_segundos' => 'integer',
         'porcentagem_assistida' => 'integer',
+        'template_version' => 'integer',
     ];
 
     // Relacionamentos

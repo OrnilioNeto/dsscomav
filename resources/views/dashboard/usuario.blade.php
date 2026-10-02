@@ -193,7 +193,7 @@
                                     </div>
                                 </div>
                                 <div class="flex gap-2 text-sm text-gray-600 mb-3">
-                                    <span><i class="fas fa-clock text-purple-500"></i> {{ $training->carga_horaria }} min</span>
+                                    <span><i class="fas fa-clock text-purple-500"></i> {{ $training->carga_horaria_formatada }}</span>
                                     <span><i class="fas fa-{{ $training->obrigatorio ? 'exclamation-circle text-purple-600' : 'check text-green-600' }}"></i> {{ $training->obrigatorio ? 'Obrigatório' : 'Opcional' }}</span>
                                 </div>
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
@@ -280,7 +280,7 @@
                                     </div>
                                 </div>
                                 <div class="flex gap-2 text-sm text-gray-600 mb-3">
-                                    <span><i class="fas fa-clock text-orange-500"></i> {{ $training->carga_horaria }} min</span>
+                                    <span><i class="fas fa-clock text-orange-500"></i> {{ $training->carga_horaria_formatada }}</span>
                                     <span><i class="fas fa-{{ $training->obrigatorio ? 'exclamation-circle text-orange-600' : 'check text-green-600' }}"></i> {{ $training->obrigatorio ? 'Obrigatório' : 'Opcional' }}</span>
                                 </div>
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
@@ -345,7 +345,7 @@
                                 </div>
                                 <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
                                 <div class="flex gap-2 text-sm text-gray-600 mb-3">
-                                    <span><i class="fas fa-clock text-blue-500"></i> {{ $training->carga_horaria }} min</span>
+                                    <span><i class="fas fa-clock text-blue-500"></i> {{ $training->carga_horaria_formatada }}</span>
                                     <span><i class="fas fa-{{ $training->obrigatorio ? 'exclamation-circle text-red-600' : 'check text-green-600' }}"></i> {{ $training->obrigatorio ? 'Obrigatório' : 'Opcional' }}</span>
                                 </div>
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
@@ -405,7 +405,7 @@
                                 </div>
                                 <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
                                 <div class="flex gap-2 text-sm text-gray-600 mb-3">
-                                    <span><i class="fas fa-clock text-green-500"></i> {{ $training->carga_horaria }} min</span>
+                                    <span><i class="fas fa-clock text-green-500"></i> {{ $training->carga_horaria_formatada }}</span>
                                     <span class="text-green-600"><i class="fas fa-check-circle"></i> Concluído</span>
                                 </div>
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
@@ -467,7 +467,7 @@
                                 </div>
                                 <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
                                 <div class="flex gap-2 text-sm text-gray-600 mb-3">
-                                    <span><i class="fas fa-clock text-gray-500"></i> {{ $training->carga_horaria }} min</span>
+                                    <span><i class="fas fa-clock text-gray-500"></i> {{ $training->carga_horaria_formatada }}</span>
                                     <span class="text-gray-500"><i class="fas fa-lock"></i> Aguardando liberação</span>
                                 </div>
                                 <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600 locked-release-label mb-3">
