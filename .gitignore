@@ -28,6 +28,7 @@ public/uploads
 storage/app/public/*
 !storage/app/public/.gitkeep
 storage/app/tmp/*
+storage/app/certificado/
 
 # Arquivos de configuração locais
 .user.ini

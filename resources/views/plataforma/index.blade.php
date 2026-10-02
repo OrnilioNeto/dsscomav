@@ -8,9 +8,14 @@
         <h1 class="text-4xl font-bold text-gray-800">
             <i class="fas fa-building text-indigo-600 mr-3"></i>Clientes (Plataforma)
         </h1>
-        <a href="{{ route('plataforma.create') }}" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
-            <i class="fas fa-plus mr-2"></i>Novo Cliente
-        </a>
+        <div class="flex gap-3">
+            <a href="{{ route('plataforma.settings.edit') }}" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
+                <i class="fas fa-award mr-2"></i>Certificado padrão
+            </a>
+            <a href="{{ route('plataforma.create') }}" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
+                <i class="fas fa-plus mr-2"></i>Novo Cliente
+            </a>
+        </div>
     </div>
 
     @if(session('success'))

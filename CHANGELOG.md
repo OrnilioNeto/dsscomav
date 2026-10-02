@@ -5,6 +5,27 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+## [2.0.64] - 2026-10-02
+
+### Corrigido
+- Erro 500 ao baixar certificado novo com selo **REASSISTIDO**: a chamada
+  `RoundedRect` do TCPDF recebia o estilo no argumento errado. Corrigido e
+  coberto por teste.
+- Geração do certificado com rede de segurança: se o modelo novo falhar,
+  registra no log e entrega o layout legado (não retorna mais 500).
+
+### Adicionado
+- Página **/plataforma/configuracoes** — fundo padrão do certificado da empresa
+  raiz (sem tenant), com upload pelo super admin (nova tabela
+  `platform_settings`).
+- Resolução do fundo: tenant → fundo padrão da plataforma → imagem padrão do
+  sistema → moldura.
+
+### Alterado
+- QR Code só é desenhado se o retorno for um PNG válido; recorte do logo agora
+  usa `storage/app/certificado` (evita restrição de open_basedir) e converte
+  WebP para PNG quando possível.
+
 ## [2.0.63] - 2026-10-02
 
 ### Adicionado
