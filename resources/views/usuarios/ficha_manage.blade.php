@@ -215,7 +215,7 @@
                                         <td class="p-3 font-semibold text-gray-800">
                                             {{ $cert->training->titulo }}
                                             @if($cert->training->tipo_treinamento)
-                                                <span class="block text-xs text-gray-500 font-normal">{{ ucfirst($cert->training->tipo_treinamento) }} · {{ $cert->training->carga_horaria }} min</span>
+                                                <span class="block text-xs text-gray-500 font-normal">{{ ucfirst($cert->training->tipo_treinamento) }} · {{ $cert->training->carga_horaria_formatada }}</span>
                                             @endif
                                         </td>
                                         <td class="p-3 text-gray-600">{{ $cert->data_emissao->format('d/m/Y') }}</td>

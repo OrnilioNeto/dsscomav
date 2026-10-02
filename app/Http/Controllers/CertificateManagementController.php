@@ -393,7 +393,7 @@ class CertificateManagementController extends Controller
                 ->selectRaw('SUM(CASE WHEN concluido = 1 THEN 1 ELSE 0 END) as concluidas')
                 ->selectRaw('SUM(COALESCE(tempo_assistido, 0)) as tempo_total_assistido')
                 ->groupBy('training_id')
-                ->with(['training:id,titulo,tipo,carga_horaria'])
+                ->with(['training:id,titulo,tipo,carga_horaria,carga_horaria_segundos'])
                 ->orderByDesc('assistencias')
                 ->take(10)
                 ->get();
@@ -516,7 +516,7 @@ class CertificateManagementController extends Controller
                 $todosTreinamentos = Training::where('status', 'ativo')->orderBy('titulo')->get();
 
                 $progressMap = UserProgress::where('user_id', $focoUsuario->id)
-                    ->with('training:id,titulo,tipo,carga_horaria,dias_validade')
+                    ->with('training:id,titulo,tipo,carga_horaria,carga_horaria_segundos,dias_validade')
                     ->get()
                     ->keyBy('training_id');
 
@@ -936,7 +936,7 @@ class CertificateManagementController extends Controller
             ->selectRaw('SUM(CASE WHEN concluido = 1 THEN 1 ELSE 0 END) as concluidas')
             ->selectRaw('SUM(COALESCE(tempo_assistido, 0)) as tempo_total_assistido')
             ->groupBy('training_id')
-            ->with(['training:id,titulo,tipo,carga_horaria'])
+            ->with(['training:id,titulo,tipo,carga_horaria,carga_horaria_segundos'])
             ->orderByDesc('assistencias')
             ->get();
 

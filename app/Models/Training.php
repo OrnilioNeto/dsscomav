@@ -26,6 +26,7 @@ class Training extends Model
         'url_video', // YouTube, Vimeo ou link local
         'tipo_video', // 'youtube', 'vimeo', 'upload'
         'carga_horaria',
+        'carga_horaria_segundos',
         'dias_validade',
         'thumbnail',
         'data_publicacao',
@@ -47,9 +48,67 @@ class Training extends Model
         'avaliacao_resposta_correta' => 'integer',
         'quantidade_questoes_prova' => 'integer',
         'nota_minima_aprovacao' => 'integer',
+        'carga_horaria_segundos' => 'integer',
         'dias_validade' => 'integer',
         'obrigatorio' => 'boolean',
     ];
+
+    /**
+     * Duração total do treinamento em segundos.
+     *
+     * Compatível com registros antigos: quando carga_horaria_segundos é nulo,
+     * o total continua sendo carga_horaria * 60 (comportamento original).
+     */
+    public function duracaoSegundos(): int
+    {
+        return ((int) $this->carga_horaria) * 60 + (int) ($this->carga_horaria_segundos ?? 0);
+    }
+
+    /**
+     * Rótulo compacto da carga horária (ex.: "20 min", "20 min 30 s").
+     */
+    public function getCargaHorariaFormatadaAttribute(): string
+    {
+        $minutos = (int) $this->carga_horaria;
+        $segundos = (int) ($this->carga_horaria_segundos ?? 0);
+
+        if ($segundos <= 0) {
+            return "{$minutos} min";
+        }
+
+        return $minutos > 0 ? "{$minutos} min {$segundos} s" : "{$segundos} s";
+    }
+
+    /**
+     * Rótulo por extenso da carga horária (ex.: "20 minutos e 30 segundos").
+     */
+    public function getCargaHorariaFormatadaExtensoAttribute(): string
+    {
+        $minutos = (int) $this->carga_horaria;
+        $segundos = (int) ($this->carga_horaria_segundos ?? 0);
+
+        if ($segundos <= 0) {
+            return "{$minutos} minutos";
+        }
+
+        if ($minutos <= 0) {
+            return "{$segundos} segundos";
+        }
+
+        return "{$minutos} minutos e {$segundos} segundos";
+    }
+
+    /**
+     * Valor do campo único de carga horária no formato MM:SS (ex.: "20:30").
+     * Registros antigos sem segundos continuam exibindo apenas os minutos.
+     */
+    public function getCargaHorariaInputAttribute(): string
+    {
+        $minutos = (int) $this->carga_horaria;
+        $segundos = (int) ($this->carga_horaria_segundos ?? 0);
+
+        return $segundos > 0 ? sprintf('%d:%02d', $minutos, $segundos) : (string) $minutos;
+    }
 
     // Relacionamentos
     public function progress()

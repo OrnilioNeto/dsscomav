@@ -253,7 +253,7 @@ Dashboard Administrador
                             <h3 class="font-bold text-gray-800 text-sm mb-2">{{ $training->titulo }}</h3>
                             <p class="text-xs text-gray-600 mb-3">{{ substr($training->descricao, 0, 60) . '...' }}</p>
                             <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-600">⏱ {{ $training->carga_horaria }} min</span>
+                                <span class="text-xs text-gray-600">⏱ {{ $training->carga_horaria_formatada }}</span>
                                 <span class="bg-purple-600 text-white text-xs px-2 py-1 rounded">Assistir</span>
                             </div>
                         </a>

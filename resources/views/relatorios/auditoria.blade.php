@@ -495,7 +495,7 @@
                         <tr class="border-b border-slate-100">
                             <td class="px-4 py-4 align-top">
                                 <div class="font-semibold text-slate-900">{{ $training->titulo }}</div>
-                                <div class="mt-1 text-xs text-slate-500">{{ ucfirst($training->tipo) }} • {{ $training->carga_horaria }} min</div>
+                                <div class="mt-1 text-xs text-slate-500">{{ ucfirst($training->tipo) }} • {{ $training->carga_horaria_formatada }}</div>
                             </td>
                             <td class="px-4 py-4 text-center font-semibold text-slate-800">{{ $training->progress_count }}</td>
                             <td class="px-4 py-4 text-center font-semibold text-slate-800">{{ $training->concluidos_count }}</td>

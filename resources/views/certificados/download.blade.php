@@ -80,7 +80,7 @@
                         <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <div class="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Carga horária</p>
-                                <p class="mt-1 text-lg font-bold">{{ $certificate->training->carga_horaria }} min</p>
+                                <p class="mt-1 text-lg font-bold">{{ $certificate->training->carga_horaria_formatada }}</p>
                             </div>
                             <div class="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Início do Treinamento</p>

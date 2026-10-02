@@ -62,7 +62,7 @@
                             class="mr-2">
                         <span class="text-gray-700">{{ $treinamento->titulo }}</span>
                         <span class="text-xs text-gray-500 ml-2">
-                            {{ $treinamento->tipo_treinamento ? ucfirst($treinamento->tipo_treinamento) : strtoupper($treinamento->tipo) }} · {{ $treinamento->carga_horaria }} min
+                            {{ $treinamento->tipo_treinamento ? ucfirst($treinamento->tipo_treinamento) : strtoupper($treinamento->tipo) }} · {{ $treinamento->carga_horaria_formatada }}
                         </span>
                     </label>
                 @empty

@@ -362,7 +362,7 @@
                 <div class="small-cards">
                     <div class="info-box">
                         <span class="label">Carga Horária</span>
-                        <span class="value">{{ $certificate->training->carga_horaria }} min</span>
+                        <span class="value">{{ $certificate->training->carga_horaria_formatada }}</span>
                     </div>
                     <div class="info-box">
                         <span class="label">Emissão</span>

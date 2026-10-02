@@ -80,7 +80,7 @@
                     <div class="grid md:grid-cols-2 gap-4 border-t pt-5">
                         <div>
                             <p class="text-gray-600 text-sm font-semibold">Carga Horária</p>
-                            <p class="text-lg font-bold text-gray-800">{{ $certificate->training->carga_horaria }} minutos</p>
+                            <p class="text-lg font-bold text-gray-800">{{ $certificate->training->carga_horaria_formatada_extenso }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm font-semibold">Tipo do Conteúdo</p>

@@ -30,7 +30,7 @@
                     @forelse($treinamentos as $treinamento)
                         <strong>{{ $treinamento->titulo }}</strong>
                         @if($treinamento->tipo_treinamento) ({{ ucfirst($treinamento->tipo_treinamento) }}) @endif
-                        — {{ $treinamento->carga_horaria }} minutos
+                        — {{ $treinamento->carga_horaria_formatada_extenso }}
                         @if(!$loop->last)<br>@endif
                     @empty
                         —

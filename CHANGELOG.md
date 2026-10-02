@@ -5,6 +5,20 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+## [2.0.62] - 2026-10-02
+
+### Adicionado
+- Carga horária do treinamento agora usa um **campo único no formato MM:SS**
+  (ex.: 20:30) no cadastro e na edição, aceitando também apenas minutos.
+  Nova coluna `trainings.carga_horaria_segundos` (nula para registros antigos).
+- Player, API e cálculos de progresso passam a usar a duração total em segundos
+  para treinamentos novos; exibição da carga horária atualizada em listas,
+  certificados e relatórios.
+
+### Observação
+- Nenhum registro existente é alterado: quando `carga_horaria_segundos` é nulo,
+  o comportamento permanece exatamente o anterior (`carga_horaria * 60`).
+
 ## [2.0.61] - 2026-10-02
 
 ### Corrigido

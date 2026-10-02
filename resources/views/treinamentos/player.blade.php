@@ -43,8 +43,12 @@
             </span>
         </div>
         <div class="text-right">
-            <p class="text-3xl font-bold text-blue-900">{{ $training->carga_horaria }}</p>
-            <p class="text-gray-600">minutos</p>
+            @if((int) $training->carga_horaria_segundos > 0)
+                <p class="text-3xl font-bold text-blue-900">{{ $training->carga_horaria_formatada }}</p>
+            @else
+                <p class="text-3xl font-bold text-blue-900">{{ $training->carga_horaria }}</p>
+                <p class="text-gray-600">minutos</p>
+            @endif
         </div>
     </div>
 
@@ -263,7 +267,7 @@
     // Re-identificação por senha: somente para o tipo "Treinamento" (DSS dispensa)
     const passwordRequired = {{ $training->tipo === 'treinamento' ? 'true' : 'false' }};
     const trainingType = '{{ $training->tipo_video }}';
-    const registeredDurationSeconds = {{ (int) $training->carga_horaria * 60 }};
+    const registeredDurationSeconds = {{ max(1, $training->duracaoSegundos()) }};
 
     let currentProgress = {{ $progress->porcentagem_assistida }};
     let assessmentUnlocked = {{ $assessmentUnlocked ? 'true' : 'false' }};

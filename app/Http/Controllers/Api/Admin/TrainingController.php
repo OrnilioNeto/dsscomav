@@ -30,6 +30,8 @@ class TrainingController extends Controller
             'url_video' => $training->url_video,
             'tipo_video' => $training->tipo_video,
             'carga_horaria' => (int) $training->carga_horaria,
+            'carga_horaria_segundos' => $training->carga_horaria_segundos !== null ? (int) $training->carga_horaria_segundos : null,
+            'duracao_segundos' => max(1, $training->duracaoSegundos()),
             'thumbnail' => $training->thumbnail,
             'data_publicacao' => $training->data_publicacao?->toISOString(),
             'data_liberacao' => $training->data_liberacao?->toISOString(),
@@ -100,7 +102,8 @@ class TrainingController extends Controller
             'tipo' => 'required|in:dss,treinamento',
             'url_video' => 'required|url',
             'tipo_video' => 'required|in:youtube,vimeo,upload',
-            'carga_horaria' => 'required|integer|min:1',
+            'carga_horaria' => 'required|integer|min:0|max:9999',
+            'carga_horaria_segundos' => 'nullable|integer|min:0|max:59',
             'obrigatorio' => 'nullable|boolean',
             'avaliacao_pergunta' => 'required|string|max:500',
             'avaliacao_opcoes' => 'required|array|min:2',
@@ -112,6 +115,14 @@ class TrainingController extends Controller
             'tipo_usuario_permitido' => 'required_if:tipo,dss|array',
             'tipo_usuario_permitido.*' => 'in:motorista,funcionario,terceirizado',
         ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $total = ((int) $request->input('carga_horaria')) * 60 + ((int) $request->input('carga_horaria_segundos', 0));
+
+            if ($total < 1) {
+                $validator->errors()->add('carga_horaria', 'Informe uma carga horária maior que zero (minutos ou segundos).');
+            }
+        });
 
         if ($validator->fails()) {
             return response()->json([
@@ -130,6 +141,13 @@ class TrainingController extends Controller
         $data['status'] = 'ativo';
         $data['data_publicacao'] = now();
         $data['obrigatorio'] = $request->boolean('obrigatorio');
+        $data['carga_horaria'] = (int) $request->input('carga_horaria');
+
+        // Campo novo e opcional: só sobrescreve quando enviado (não apaga em updates antigos).
+        if ($request->has('carga_horaria_segundos')) {
+            $data['carga_horaria_segundos'] = ((int) $request->input('carga_horaria_segundos', 0)) > 0 ? (int) $request->input('carga_horaria_segundos') : null;
+        }
+
         $data['avaliacao_resposta_correta'] = (int) $data['avaliacao_resposta_correta'];
 
         if ($request->has('data_liberacao') && $request->filled('data_liberacao')) {
@@ -171,7 +189,8 @@ class TrainingController extends Controller
             'titulo' => 'required|string|max:255',
             'descricao' => 'nullable|string',
             'tipo' => 'required|in:dss,treinamento',
-            'carga_horaria' => 'required|integer|min:1',
+            'carga_horaria' => 'required|integer|min:0|max:9999',
+            'carga_horaria_segundos' => 'nullable|integer|min:0|max:59',
             'obrigatorio' => 'nullable|boolean',
             'avaliacao_pergunta' => 'required|string|max:500',
             'avaliacao_opcoes' => 'required|array|min:2',
@@ -183,6 +202,14 @@ class TrainingController extends Controller
             'tipo_usuario_permitido' => 'required_if:tipo,dss|array',
             'tipo_usuario_permitido.*' => 'in:motorista,funcionario,terceirizado',
         ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $total = ((int) $request->input('carga_horaria')) * 60 + ((int) $request->input('carga_horaria_segundos', 0));
+
+            if ($total < 1) {
+                $validator->errors()->add('carga_horaria', 'Informe uma carga horária maior que zero (minutos ou segundos).');
+            }
+        });
 
         if ($validator->fails()) {
             return response()->json([
@@ -198,6 +225,13 @@ class TrainingController extends Controller
         ]);
 
         $data['obrigatorio'] = $request->boolean('obrigatorio');
+        $data['carga_horaria'] = (int) $request->input('carga_horaria');
+
+        // Campo novo e opcional: só sobrescreve quando enviado (não apaga em updates antigos).
+        if ($request->has('carga_horaria_segundos')) {
+            $data['carga_horaria_segundos'] = ((int) $request->input('carga_horaria_segundos', 0)) > 0 ? (int) $request->input('carga_horaria_segundos') : null;
+        }
+
         $data['avaliacao_resposta_correta'] = (int) $data['avaliacao_resposta_correta'];
 
         if ($request->has('data_liberacao') && $request->filled('data_liberacao')) {

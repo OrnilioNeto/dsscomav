@@ -12,6 +12,15 @@
         <form id="treinamento-form" action="{{ route('treinamentos.store') }}" method="POST" class="space-y-6">
             @csrf
 
+            <div id="form-errors" class="{{ $errors->any() ? '' : 'hidden' }} rounded-lg border border-red-200 bg-red-50 p-4">
+                <p class="font-semibold text-red-800"><i class="fas fa-exclamation-triangle mr-2"></i>Não foi possível salvar o treinamento:</p>
+                <ul class="mt-2 list-disc list-inside text-sm text-red-700">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+
             <div>
                 <label class="block text-gray-700 font-semibold mb-2">Título *</label>
                 <input type="text" name="titulo" value="{{ old('titulo') }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
@@ -37,8 +46,9 @@
                 </div>
 
                 <div>
-                    <label class="block text-gray-700 font-semibold mb-2">Carga Horária (minutos) *</label>
-                    <input type="number" name="carga_horaria" value="{{ old('carga_horaria') }}" required min="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    <label class="block text-gray-700 font-semibold mb-2">Carga Horária *</label>
+                    <input type="text" id="carga-horaria-input" name="carga_horaria" value="{{ old('carga_horaria') }}" required inputmode="numeric" maxlength="7" placeholder="Ex.: 20:30" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    <p class="text-xs text-gray-500 mt-1">Formato MM:SS (ex.: 20:30). Para minutos cheios, informe apenas os minutos (ex.: 20).</p>
                 </div>
             </div>
 
@@ -335,13 +345,26 @@
                             const responseText = await response.text();
 
                             if (response.ok) {
-                                // Se o backend devolveu a própria tela de cadastro com erros,
-                                // renderizar a resposta HTML para que a validação fique visível.
+                                // Se o backend devolveu a própria tela de cadastro com erros de validação,
+                                // exibe as mensagens na própria página (sem recarregar/re-renderizar).
                                 const responsePath = new URL(response.url).pathname;
                                 if (responsePath === window.location.pathname) {
-                                    document.open();
-                                    document.write(responseText);
-                                    document.close();
+                                    const doc = new DOMParser().parseFromString(responseText, 'text/html');
+                                    const erros = Array.from(doc.querySelectorAll('#form-errors li'))
+                                        .map((li) => li.textContent.trim())
+                                        .filter(Boolean);
+                                    const box = document.getElementById('form-errors');
+
+                                    if (box && erros.length > 0) {
+                                        box.querySelector('ul').innerHTML = erros.map((e) => `<li>${e.replace(/</g, '&lt;')}</li>`).join('');
+                                        box.classList.remove('hidden');
+                                        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        submitBtn.disabled = false;
+                                        submitBtn.innerHTML = originalText;
+                                        return;
+                                    }
+
+                                    window.location.reload();
                                     return;
                                 }
 
@@ -349,7 +372,17 @@
                                 const redirectUrl = response.url || '{{ route("treinamentos.index") }}';
                                 window.location.href = redirectUrl;
                             } else {
-                                alert('Erro ao criar treinamento. Verifique os dados e tente novamente.');
+                                let detalhe = '';
+
+                                try {
+                                    const erro = JSON.parse(responseText);
+                                    detalhe = erro.message
+                                        || (erro.errors ? Object.values(erro.errors).flat()[0] : '');
+                                } catch (parseError) {
+                                    // resposta não-JSON (HTML de erro, por exemplo)
+                                }
+
+                                alert('Erro ao criar treinamento.' + (detalhe ? ' ' + detalhe : ' Verifique os dados e tente novamente.'));
                                 submitBtn.disabled = false;
                                 submitBtn.innerHTML = originalText;
                             }
@@ -627,4 +660,17 @@
         </form>
     </div>
 </div>
+
+<script>
+    (function () {
+        const input = document.getElementById('carga-horaria-input');
+        if (!input) return;
+        input.addEventListener('input', function () {
+            const digits = input.value.replace(/\D/g, '').slice(0, 6);
+            input.value = digits.length > 2
+                ? digits.slice(0, -2) + ':' + digits.slice(-2)
+                : digits;
+        });
+    })();
+</script>
 @endsection

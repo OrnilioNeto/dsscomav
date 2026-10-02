@@ -94,7 +94,7 @@ class TrainingPlayerController extends Controller
         }
 
         // Obter duração do treinamento (em segundos)
-        $duracao = (int) $training->carga_horaria * 60;
+        $duracao = max(1, $training->duracaoSegundos());
 
         // Capear tempo à duração máxima
         $tempoCliente = min($tempoCliente, $duracao);
