@@ -106,8 +106,7 @@ Route::middleware('auth')->group(function () {
     // Visualizar e completar treinamentos
     Route::get('/treinamentos/{id}/player', [TrainingPlayerController::class, 'show'])->name('treinamentos.player');
     Route::post('/treinamentos/{id}/atualizar-progresso', [TrainingPlayerController::class, 'updateProgress'])->name('treinamentos.atualizar-progresso');
-    Route::post('/treinamentos/{id}/avaliacao/iniciar', [TrainingPlayerController::class, 'iniciarAvaliacao'])->name('treinamentos.avaliacao.iniciar')->middleware('throttle:10,1');
-    Route::post('/treinamentos/{id}/avaliacao', [TrainingPlayerController::class, 'submitAssessment'])->name('treinamentos.avaliacao');
+    Route::post('/treinamentos/{id}/avaliacao', [TrainingPlayerController::class, 'submitAssessment'])->name('treinamentos.avaliacao')->middleware('throttle:10,1');
     Route::post('/treinamentos/{id}/completar', [TrainingPlayerController::class, 'complete'])->name('treinamentos.completar');
 
     // Certificados do usuário

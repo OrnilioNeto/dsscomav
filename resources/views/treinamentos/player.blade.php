@@ -97,12 +97,86 @@
             </div>
         @endif
 
-        <div class="mt-5 flex justify-center">
-            <button id="assessment-btn" type="button" class="hidden rounded-lg bg-emerald-600 px-6 py-3 font-bold text-white hover:bg-emerald-700 transition">
-                <i class="fas fa-clipboard-check mr-2"></i>Realizar avaliação
-            </button>
-        </div>
     </div>
+
+    @if($assessment)
+    <div id="assessment-panel" class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+        <h2 class="text-xl font-bold mb-4 flex items-center">
+            <i class="fas fa-clipboard-check text-emerald-600 mr-2"></i>Avaliação do treinamento
+        </h2>
+
+        <div id="assessment-locked-notice" class="{{ $assessmentUnlocked ? 'hidden' : '' }} rounded-lg bg-amber-50 border border-amber-200 p-4 mb-5">
+            <p class="text-sm text-amber-900 font-semibold">
+                <i class="fas fa-lock mr-2"></i>A avaliação será liberada para resposta após você concluir 100% do vídeo.
+            </p>
+            <p class="text-xs text-amber-800 mt-1">
+                Progresso atual do vídeo: <span id="assessment-lock-progress">{{ $progress->porcentagem_assistida }}%</span>.
+                As perguntas abaixo serão habilitadas automaticamente quando o vídeo terminar.
+            </p>
+        </div>
+
+        <div id="assessment-unlocked-notice" class="{{ $assessmentUnlocked ? '' : 'hidden' }} rounded-lg bg-emerald-50 border border-emerald-200 p-4 mb-5">
+            <p class="text-sm text-emerald-900 font-semibold">
+                <i class="fas fa-lock-open mr-2"></i>Vídeo concluído! A avaliação está liberada.
+            </p>
+            <p class="text-xs text-emerald-800 mt-1">Selecione uma opção e clique em "Responder avaliação".</p>
+        </div>
+
+        <form id="assessment-form" class="space-y-5">
+            @csrf
+            @if($training->tipo === 'treinamento')
+                <div>
+                    <label for="assessment-senha" class="block text-gray-700 font-semibold mb-1">
+                        <i class="fas fa-user-lock mr-1"></i>Sua senha de acesso *
+                    </label>
+                    <input type="password" id="assessment-senha" autocomplete="current-password"
+                        placeholder="Digite sua senha para confirmar sua identificação"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        {{ $assessmentUnlocked ? '' : 'disabled' }}>
+                    <p class="text-xs text-gray-500 mt-1">Re-identificação individual exigida pela NR-01 Anexo II (4.6.1/4.6.2).</p>
+                </div>
+            @endif
+
+            <div id="assessment-questoes-container" class="space-y-5 {{ $assessmentUnlocked ? '' : 'opacity-60 pointer-events-none' }}">
+                @if($assessment['modo'] === 'banco')
+                    @foreach($assessment['questoes'] as $qi => $questao)
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <p class="font-semibold text-gray-800 mb-2">{{ $qi + 1 }}. {{ $questao['pergunta'] }}</p>
+                            <div class="space-y-2">
+                                @foreach($questao['opcoes'] as $oi => $opcao)
+                                    <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 hover:border-blue-500">
+                                        <input type="radio" name="respostas[{{ $questao['id'] }}]" value="{{ $oi }}" class="text-blue-900" required {{ $assessmentUnlocked ? '' : 'disabled' }}>
+                                        <span class="text-gray-700">{{ $opcao }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                @else
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <p class="font-semibold text-gray-800 mb-2">{{ $assessment['pergunta'] }}</p>
+                        <div class="space-y-2">
+                            @foreach($assessment['opcoes'] as $oi => $opcao)
+                                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 hover:border-blue-500">
+                                    <input type="radio" name="answer" value="{{ $oi }}" class="text-blue-900" required {{ $assessmentUnlocked ? '' : 'disabled' }}>
+                                    <span class="text-gray-700">{{ $opcao }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            </div>
+
+            <div id="assessment-message" class="text-sm font-medium"></div>
+
+            <button type="submit" id="assessment-submit-btn"
+                class="w-full rounded-lg bg-emerald-600 px-6 py-3 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
+                {{ $assessmentUnlocked ? '' : 'disabled' }}>
+                <i class="fas fa-check mr-2"></i>Responder avaliação
+            </button>
+        </form>
+    </div>
+    @endif
 
     <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
         <h2 class="text-xl font-bold mb-4 flex items-center">
@@ -157,10 +231,10 @@
         <div class="bg-white p-6 rounded-lg shadow-lg">
             <h2 class="text-xl font-bold mb-4">Instruções</h2>
             <ul class="space-y-2 text-gray-700 list-disc list-inside">
-                <li>Assista o vídeo completamente para desbloquear a avaliação.</li>
+                <li>Assista o vídeo completamente para liberar a avaliação.</li>
                 <li><strong>Não é permitido adiantar o vídeo.</strong></li>
                 <li><strong>A velocidade de reprodução está bloqueada em 1x (normal).</strong></li>
-                <li>A partir de 90% será liberado o botão para realizar a avaliação.</li>
+                <li>As perguntas aparecem abaixo do vídeo e são habilitadas automaticamente após 100% de conclusão.</li>
                 <li>Responda corretamente para concluir o treinamento.</li>
             </ul>
         </div>
@@ -170,50 +244,6 @@
         <a href="{{ route('dashboard') }}" class="flex-1 bg-gray-400 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-500 transition text-center">
             <i class="fas fa-arrow-left mr-2"></i>Voltar
         </a>
-    </div>
-</div>
-
-<div id="assessment-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 px-4">
-    <div class="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div class="mb-4 flex items-start justify-between gap-4">
-            <div>
-                <h2 class="text-2xl font-bold text-gray-800">Avaliação do treinamento</h2>
-                <p class="text-gray-600">Responda para liberar a conclusão.</p>
-            </div>
-            <button type="button" onclick="closeAssessment()" class="text-gray-500 hover:text-gray-800">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-
-        <!-- Etapa 1: re-identificação por senha (NR-01 Anexo II 4.6.1) -->
-        <div id="assessment-step-senha">
-            <div class="rounded-lg bg-blue-50 border border-blue-200 p-4 mb-4">
-                <p class="text-sm text-blue-900 font-semibold"><i class="fas fa-user-lock mr-2"></i>Identificação individual</p>
-                <p class="text-xs text-blue-700 mt-1">Para garantir a confiabilidade da avaliação, confirme sua senha de acesso individual antes de iniciar a prova (NR-01 Anexo II 4.6.1/4.6.2).</p>
-            </div>
-            <div class="space-y-3">
-                <label class="block text-gray-700 font-semibold">Sua senha de acesso *</label>
-                <input type="password" id="assessment-senha" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" placeholder="Digite sua senha" autocomplete="current-password">
-                <div id="assessment-senha-message" class="text-sm font-medium"></div>
-                <button type="button" onclick="iniciarProva()" class="w-full rounded-lg bg-blue-900 px-4 py-3 font-semibold text-white hover:bg-blue-800">
-                    <i class="fas fa-play mr-2"></i>Confirmar e iniciar avaliação
-                </button>
-            </div>
-        </div>
-
-        <!-- Etapa 2: questões -->
-        <div id="assessment-step-questoes" style="display:none;">
-            <form id="assessment-form" class="space-y-4">
-                @csrf
-                <div id="assessment-questoes-container" class="space-y-5"></div>
-                <div id="assessment-message" class="text-sm font-medium"></div>
-                <div class="flex gap-3 pt-2">
-                    <button type="submit" class="flex-1 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700">
-                        <i class="fas fa-check mr-2"></i>Enviar respostas
-                    </button>
-                </div>
-            </form>
-        </div>
     </div>
 </div>
 
@@ -228,21 +258,17 @@
 <script>
     const progressUrl = '{{ route('treinamentos.atualizar-progresso', $training->id) }}';
     const assessmentUrl = '{{ route('treinamentos.avaliacao', $training->id) }}';
-    const assessmentInitUrl = '{{ route('treinamentos.avaliacao.iniciar', $training->id) }}';
     const csrfToken = '{{ csrf_token() }}';
-    const hasAssessment = {{ $training->hasAssessment() ? 'true' : 'false' }};
-    const isTestUser = {{ auth()->user()->isTestUser() ? 'true' : 'false' }};
+    const hasAssessment = {{ $assessment ? 'true' : 'false' }};
     // Re-identificação por senha: somente para o tipo "Treinamento" (DSS dispensa)
     const passwordRequired = {{ $training->tipo === 'treinamento' ? 'true' : 'false' }};
     const trainingType = '{{ $training->tipo_video }}';
     const registeredDurationSeconds = {{ (int) $training->carga_horaria * 60 }};
 
     let currentProgress = {{ $progress->porcentagem_assistida }};
-    let assessmentOpened = {{ $progress->avaliacao_aprovada ? 'true' : 'false' }};
-    let assessmentUnlocked = {{ (auth()->user()->isTestUser() || $progress->porcentagem_assistida >= 99) ? 'true' : 'false' }};
+    let assessmentUnlocked = {{ $assessmentUnlocked ? 'true' : 'false' }};
     let lastUpdateTime = 0;
     let lastSafeTime = {{ (int) $progress->tempo_assistido }};
-    let assessmentAttempt = {{ (int) ($progress->avaliacao_tentativas ?? 0) }};
 
     let ultimoTempo = lastSafeTime;
     let watchedSeconds = lastSafeTime;
@@ -260,148 +286,37 @@
     const AVANÇO_MÁXIMO_UX = 2; // segundos - limiar cliente (UX)
     const AVANÇO_MÁXIMO_SERVIDOR = 10; // segundos - validado no servidor
 
-    function podeAvancar(tempoAtual) {
-        return tempoAtual <= ultimoTempo;
-    }
+    function unlockAssessment() {
+        if (!hasAssessment || assessmentUnlocked) return;
 
-    function unlockAssessmentButton() {
-        if (!hasAssessment || assessmentOpened) return;
+        const form = document.getElementById('assessment-form');
+        const panel = document.getElementById('assessment-panel');
+        if (!form || !panel) return;
 
         assessmentUnlocked = true;
-        const button = document.getElementById('assessment-btn');
+
+        form.querySelectorAll('input, button').forEach((el) => { el.disabled = false; });
+
+        document.getElementById('assessment-locked-notice')?.classList.add('hidden');
+        document.getElementById('assessment-unlocked-notice')?.classList.remove('hidden');
+        document.getElementById('assessment-questoes-container')?.classList.remove('opacity-60', 'pointer-events-none');
+
         const status = document.getElementById('assessment-status');
-
-        if (button) {
-            button.classList.remove('hidden');
-        }
-
         if (status) {
-            status.textContent = 'A avaliação já está liberada. Clique no botão abaixo do vídeo para continuar.';
+            status.textContent = 'A avaliação está liberada. Responda no painel abaixo do vídeo.';
         }
     }
 
     function setCertificateSuccessMessage() {
         const status = document.getElementById('assessment-status');
-        const button = document.getElementById('assessment-btn');
 
         if (status) {
             status.innerHTML = '<span class="text-green-700 font-semibold">Certificado gerado com sucesso. Você pode acessá-lo na aba de certificados.</span>';
         }
 
-        if (button) {
-            button.classList.add('hidden');
-        }
-    }
-
-    function openAssessment() {
-        if (!hasAssessment || assessmentOpened || !assessmentUnlocked) return;
-        assessmentOpened = true;
-        document.getElementById('assessment-modal').classList.remove('hidden');
-        document.getElementById('assessment-modal').classList.add('flex');
-        const msg = document.getElementById('assessment-message');
-        if (msg) { msg.textContent = ''; }
-
-        if (!passwordRequired) {
-            // DSS: sem etapa de senha, inicia a avaliação diretamente
-            document.getElementById('assessment-step-senha').style.display = 'none';
-            document.getElementById('assessment-step-questoes').style.display = 'block';
-            document.getElementById('assessment-questoes-container').innerHTML =
-                '<p class="text-gray-600">Carregando avaliação...</p>';
-            iniciarProva();
-            return;
-        }
-
-        // Reinicia o fluxo: primeira etapa exige a re-identificação por senha
-        document.getElementById('assessment-step-senha').style.display = 'block';
-        document.getElementById('assessment-step-questoes').style.display = 'none';
-        const msgSenha = document.getElementById('assessment-senha-message');
-        if (msgSenha) { msgSenha.textContent = ''; }
-    }
-
-    function closeAssessment() {
-        document.getElementById('assessment-modal').classList.add('hidden');
-        document.getElementById('assessment-modal').classList.remove('flex');
-    }
-
-    function renderAssessmentQuestions(data) {
-        const container = document.getElementById('assessment-questoes-container');
-        if (!container) return;
-
-        if (data.modo === 'banco') {
-            container.innerHTML = (data.questoes || []).map((q, qi) => {
-                const opts = (q.opcoes || []).map((o, oi) => `
-                    <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:border-blue-500">
-                        <input type="radio" name="respostas[${q.id}]" value="${oi}" class="text-blue-900" required>
-                        <span class="text-gray-700">${o}</span>
-                    </label>`).join('');
-                return `<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <p class="font-semibold text-gray-800 mb-2">${qi + 1}. ${q.pergunta}</p>
-                    <div class="space-y-2">${opts}</div>
-                </div>`;
-            }).join('');
-        } else {
-            const opts = (data.opcoes || []).map((o, oi) => `
-                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:border-blue-500">
-                    <input type="radio" name="answer" value="${oi}" class="text-blue-900" required>
-                    <span class="text-gray-700">${o}</span>
-                </label>`).join('');
-            container.innerHTML = `<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <p class="font-semibold text-gray-800 mb-2">${data.pergunta}</p>
-                <div class="space-y-2">${opts}</div>
-            </div>`;
-        }
-    }
-
-    async function iniciarProva() {
-        const senhaInput = document.getElementById('assessment-senha');
-        const msgEl = document.getElementById('assessment-senha-message');
-        const senha = senhaInput ? senhaInput.value : '';
-
-        if (passwordRequired && !senha) {
-            msgEl.textContent = 'Informe sua senha para iniciar a avaliação.';
-            msgEl.className = 'text-sm font-medium text-red-600';
-            return;
-        }
-
-        const showError = (text) => {
-            const target = passwordRequired ? msgEl : document.getElementById('assessment-message');
-            target.textContent = text;
-            target.className = 'text-sm font-medium text-red-600';
-        };
-
-        if (passwordRequired) {
-            msgEl.textContent = 'Verificando sua identificação...';
-            msgEl.className = 'text-sm font-medium text-gray-600';
-        }
-
-        try {
-            const r = await fetch(assessmentInitUrl, {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify(passwordRequired ? { password: senha } : {})
-            });
-
-            const data = await r.json();
-
-            if (!r.ok) {
-                showError(data.error || data.message || 'Erro ao iniciar a avaliação.');
-                return;
-            }
-
-            if (senhaInput) senhaInput.value = '';
-            msgEl.textContent = '';
-            renderAssessmentQuestions(data);
-            document.getElementById('assessment-step-senha').style.display = 'none';
-            document.getElementById('assessment-step-questoes').style.display = 'block';
-        } catch (e) {
-            console.error(e);
-            showError('Erro de conexão. Tente novamente.');
+        const submitBtn = document.getElementById('assessment-submit-btn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
         }
     }
 
@@ -409,6 +324,11 @@
         currentProgress = Math.floor(percent);
         document.getElementById('progress-percent').textContent = currentProgress + '%';
         document.getElementById('progress-bar').style.width = currentProgress + '%';
+
+        const lockProgress = document.getElementById('assessment-lock-progress');
+        if (lockProgress) {
+            lockProgress.textContent = currentProgress + '%';
+        }
 
         const now = Date.now();
         if (now - lastUpdateTime < 5000) return;
@@ -426,7 +346,7 @@
             })
         }).then(r => r.json()).then(data => {
             if (data.show_assessment || currentProgress >= 99) {
-                unlockAssessmentButton();
+                unlockAssessment();
             }
         }).catch(e => console.error(e));
     }
@@ -434,7 +354,11 @@
     function handleAssessmentSubmit(e) {
         e.preventDefault();
 
+        if (!assessmentUnlocked) return;
+
         const container = document.getElementById('assessment-questoes-container');
+        const message = document.getElementById('assessment-message');
+        const submitBtn = document.getElementById('assessment-submit-btn');
         const answers = {};
         const checkedBank = container.querySelectorAll('input[type="radio"]:checked');
         let payload = {};
@@ -453,11 +377,26 @@
         if (Object.keys(payload).length === 0) {
             const answer = container.querySelector('input[name="answer"]:checked')?.value;
             if (answer === undefined) {
-                console.log('[ASSESSMENT] nenhuma resposta selecionada');
+                message.textContent = 'Selecione uma opção antes de responder.';
+                message.className = 'text-sm font-medium text-red-600';
                 return;
             }
             payload = { answer };
         }
+
+        if (passwordRequired) {
+            const senha = (document.getElementById('assessment-senha')?.value || '').trim();
+            if (!senha) {
+                message.textContent = 'Informe sua senha de acesso para confirmar sua identificação.';
+                message.className = 'text-sm font-medium text-red-600';
+                return;
+            }
+            payload.password = senha;
+        }
+
+        if (submitBtn) submitBtn.disabled = true;
+        message.textContent = 'Enviando respostas...';
+        message.className = 'text-sm font-medium text-gray-600';
 
         fetch(assessmentUrl, {
             method: 'POST',
@@ -490,35 +429,34 @@
 
             return data;
         }).then(data => {
-            document.getElementById('assessment-message').textContent = data.message || 'Resposta processada.';
-            document.getElementById('assessment-message').className = 'text-sm font-medium ' + (data.success ? 'text-green-600' : 'text-red-600');
+            message.textContent = data.message || 'Resposta processada.';
+            message.className = 'text-sm font-medium ' + (data.success ? 'text-green-600' : 'text-red-600');
+
             if (data.success) {
                 setCertificateSuccessMessage();
-                setTimeout(() => closeAssessment(), 900);
-                setTimeout(() => location.reload(), 2000);
+                setTimeout(() => location.reload(), 1800);
                 return;
             }
 
+            if (submitBtn) submitBtn.disabled = false;
+
+            if (passwordRequired) {
+                const senhaInput = document.getElementById('assessment-senha');
+                if (senhaInput) senhaInput.value = '';
+            }
+
             if (data.reset_required) {
-                closeAssessment();
                 setTimeout(() => location.reload(), 1200);
             }
         }).catch(e => {
             console.error('[ASSESSMENT] erro:', e);
-            document.getElementById('assessment-message').textContent = e?.message || 'Erro ao processar resposta. Tente novamente.';
-            document.getElementById('assessment-message').className = 'text-sm font-medium text-red-600';
+            message.textContent = e?.message || 'Erro ao processar resposta. Tente novamente.';
+            message.className = 'text-sm font-medium text-red-600';
+            if (submitBtn) submitBtn.disabled = false;
         });
     }
 
-    document.getElementById('assessment-form').addEventListener('submit', handleAssessmentSubmit);
-    document.getElementById('assessment-btn')?.addEventListener('click', openAssessment);
-    document.getElementById('assessment-senha')?.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') iniciarProva();
-    });
-
-    if (isTestUser || currentProgress >= 99) {
-        unlockAssessmentButton();
-    }
+    document.getElementById('assessment-form')?.addEventListener('submit', handleAssessmentSubmit);
 
     if (trainingType === 'upload') {
         const video = document.getElementById('training-video');
@@ -537,7 +475,14 @@
         // Bloqueio agora feito via seeking event + timeupdate
 
         // CAMADA 2: BLOQUEAR TECLADO - TODAS as keys que avançam vídeo
+        // (não bloqueia digitação/seleção nos campos da avaliação e demais formulários)
         document.addEventListener('keydown', (e) => {
+            const target = e.target;
+            if (target instanceof HTMLElement &&
+                (target.closest('input, textarea, select, button') || target.isContentEditable)) {
+                return;
+            }
+
             if (['ArrowRight', 'ArrowLeft', ' ', 'j', 'l', 'k'].includes(e.key)) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -626,7 +571,7 @@
             }
 
             if (percent >= 99 && hasReallyStartedPlayback) {
-                unlockAssessmentButton();
+                unlockAssessment();
             }
         });
 
@@ -636,6 +581,7 @@
             watchedSeconds = referenceDuration || Math.floor(video.duration || registeredDurationSeconds);
             // marcar conclusão com horário local
             salvarProgresso(100, true);
+            unlockAssessment();
             playStartedAt = null;
         });
 
@@ -733,7 +679,7 @@
                                     }
 
                                     if (percent >= 99 && hasReallyStartedPlayback) {
-                                        unlockAssessmentButton();
+                                        unlockAssessment();
                                     }
                                 }, 1000);
                             }
@@ -756,7 +702,7 @@
                                 ultimoTempo = youtubeDuration;
                                 watchedSeconds = youtubeDuration;
                                 salvarProgresso(100, true);
-                                closeAssessment();
+                                unlockAssessment();
                             }
 
                             if (youtubeTrackingTimer) {

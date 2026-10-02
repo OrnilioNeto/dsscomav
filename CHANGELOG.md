@@ -5,6 +5,27 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+## [2.0.61] - 2026-10-02
+
+### Corrigido
+- Instabilidade do modal de avaliação (abria e fechava sozinho): o modal foi
+  substituído por um painel fixo abaixo do vídeo.
+- Avaliação agora tem bloqueio validado no servidor: o envio das respostas é
+  recusado antes de 99% de conclusão do vídeo, mesmo que o painel seja
+  reabilitado via DevTools/F12.
+- Bloqueio global de teclado do player não interfere mais na digitação da senha
+  de re-identificação nem na seleção das alternativas.
+
+### Alterado
+- Avaliação do treinamento agora aparece abaixo do vídeo: perguntas e opções
+  ficam visíveis, porém desabilitadas, e são liberadas automaticamente após
+  100% de conclusão do vídeo (com aviso ao usuário).
+- Re-identificação por senha (NR-01 Anexo II) validada no envio das respostas
+  para treinamentos do tipo **Treinamento**; DSS segue dispensando a senha.
+
+### Removido
+- Rota `POST /treinamentos/{id}/avaliacao/iniciar` e o modal de avaliação.
+
 ## [2.0.60] - 2026-09-25
 
 ### Adicionado
