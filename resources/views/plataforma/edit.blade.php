@@ -89,6 +89,13 @@
                 <p class="text-xs text-gray-500 mt-1">Imagem A4 paisagem (proporção 297:210 — ex.: 2970x2100 px, PNG/JPG, até 5 MB). Ela fica ao fundo, atrás dos dados do certificado.</p>
                 @if($tenant->fundoCertificadoUrl())
                     <img src="{{ $tenant->fundoCertificadoUrl() }}" alt="Fundo atual do certificado" class="mt-2 w-full max-w-sm object-contain border border-gray-200 rounded p-1 bg-white">
+                    <div class="mt-3">
+                        <button type="submit" form="form-remover-fundo-tenant"
+                            onclick="return confirm('Remover o fundo do certificado deste cliente? Ele volta a usar o fundo padrão da plataforma.');"
+                            class="inline-flex items-center px-4 py-2 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 text-sm font-semibold">
+                            <i class="fas fa-trash mr-2"></i>Remover fundo
+                        </button>
+                    </div>
                 @endif
             </div>
         </div>
@@ -115,6 +122,11 @@
                 <i class="fas fa-save mr-2"></i>Salvar
             </button>
         </div>
+    </form>
+
+    <form id="form-remover-fundo-tenant" method="POST" action="{{ route('plataforma.tenants.fundo.destroy', $tenant) }}" class="hidden">
+        @csrf
+        @method('DELETE')
     </form>
 
     <h2 class="text-lg font-bold text-gray-800 mb-3">Módulos liberados</h2>

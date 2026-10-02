@@ -35,6 +35,13 @@
             <div class="mb-6">
                 <p class="text-xs font-bold text-gray-600 mb-2">Fundo atual:</p>
                 <img src="{{ $setting->fundoCertificadoUrl() }}" alt="Fundo padrão atual do certificado" class="w-full max-w-xl object-contain border border-gray-200 rounded p-1 bg-white">
+                <div class="mt-3">
+                    <button type="submit" form="form-remover-fundo-padrao"
+                        onclick="return confirm('Remover o fundo padrão do certificado? O sistema volta a usar a imagem padrão.');"
+                        class="inline-flex items-center px-4 py-2 rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 text-sm font-semibold">
+                        <i class="fas fa-trash mr-2"></i>Remover fundo
+                    </button>
+                </div>
             </div>
         @else
             <p class="text-sm text-gray-500 italic mb-6">Nenhum fundo padrão configurado. Sem ele, o sistema usa a imagem padrão do sistema (ou uma moldura simples).</p>
@@ -46,6 +53,11 @@
                 <i class="fas fa-save mr-2"></i>Salvar
             </button>
         </div>
+    </form>
+
+    <form id="form-remover-fundo-padrao" method="POST" action="{{ route('plataforma.settings.fundo.destroy') }}" class="hidden">
+        @csrf
+        @method('DELETE')
     </form>
 </div>
 @endsection

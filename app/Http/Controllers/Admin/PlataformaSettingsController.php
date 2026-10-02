@@ -39,4 +39,20 @@ class PlataformaSettingsController extends Controller
 
         return redirect()->route('plataforma.settings.edit')->with('success', 'Fundo padrão do certificado atualizado!');
     }
+
+    /**
+     * Remove o fundo padrão e volta para a imagem padrão do sistema.
+     */
+    public function removeFundo()
+    {
+        $setting = PlatformSetting::firstOrCreate([]);
+
+        if ($setting->fundo_certificado) {
+            @unlink(public_path($setting->fundo_certificado));
+            $setting->update(['fundo_certificado' => null]);
+        }
+
+        return redirect()->route('plataforma.settings.edit')
+            ->with('success', 'Fundo padrão removido. O certificado volta a usar a imagem padrão do sistema.');
+    }
 }

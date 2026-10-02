@@ -115,6 +115,20 @@ class PlataformaTenantController extends Controller
         return redirect()->route('plataforma.index')->with('success', 'Cliente atualizado!');
     }
 
+    /**
+     * Remove o fundo do certificado do cliente e volta ao fundo padrão.
+     */
+    public function removeFundo(Tenant $tenant)
+    {
+        if ($tenant->fundo_certificado) {
+            @unlink(public_path($tenant->fundo_certificado));
+            $tenant->update(['fundo_certificado' => null]);
+        }
+
+        return redirect()->route('plataforma.edit', $tenant)
+            ->with('success', 'Fundo do certificado removido. O cliente volta a usar o fundo padrão da plataforma.');
+    }
+
     public function toggleModule(Tenant $tenant, string $module)
     {
         if (! array_key_exists($module, config('modules', []))) {
