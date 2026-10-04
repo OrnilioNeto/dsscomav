@@ -5,6 +5,33 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+## [2.0.66] - 2026-10-03
+
+### Adicionado
+- Data de **liberação** do conteúdo (segunda-feira agendada) exibida nas listas e
+  cards: dashboard do usuário, lista de treinamentos, detalhe, campos
+  "Treinamento" dos relatórios (treinamentos, certificados, auditoria e IA),
+  isenções de férias e reassistir. Quando não há data de liberação, usa a
+  publicação e, por último, a criação do registro.
+- Regra única de elegibilidade em `User::eligibleForContent()`: cadastro após a
+  semana de liberação, público-alvo/atribuição, isenção de férias do conteúdo e
+  férias na data de liberação.
+
+### Alterado
+- Listas de conteúdo passam a ser ordenadas pela data de liberação (liberados
+  mais recentes primeiro; bloqueados com a próxima liberação primeiro) em vez da
+  data de cadastro.
+- Relatórios de conteúdo (tela de treinamentos, PDFs, CSV, auditoria e relatórios
+  com IA) não contabilizam mais usuários inelegíveis, isentos por férias ou em
+  férias na data de liberação — em totais, taxas, listas de pendentes/concluídos/
+  não iniciados e resumo por conteúdo.
+- Taxa de conclusão (`Training::getTaxaConclusao`) passa a usar a base elegível
+  do conteúdo.
+
+### Corrigido
+- Usuários sem liberação para o conteúdo ou em férias apareciam como "não
+  iniciados" e inflavam as taxas em relatórios e dashboards.
+
 ## [2.0.65] - 2026-10-02
 
 ### Adicionado
