@@ -10,6 +10,7 @@ use App\Models\UserProgress;
 use App\Models\UserVacation;
 use App\Services\AiSummarizer;
 use App\Services\TrainingAnalyzer;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -126,7 +127,7 @@ class CertificateManagementController extends Controller
         }
 
         $certificados = $query->paginate(15);
-        $treinamentos = Training::orderBy('titulo')->get();
+        $treinamentos = Training::orderByReleaseDate('desc')->get();
         // Tipos de usuário existentes para o filtro
         $userTypes = User::kpiEligible()->select('tipo_usuario')->distinct()->orderBy('tipo_usuario')->pluck('tipo_usuario');
 
@@ -286,7 +287,7 @@ class CertificateManagementController extends Controller
                 ->paginate(15);
         }
 
-        $treinamentos = Training::orderBy('titulo')->get();
+        $treinamentos = Training::orderByReleaseDate('desc')->get();
         $usuariosEmFeriasBase = User::query()->vacationInPeriod($request->input('data_inicio'), $request->input('data_fim'));
         $this->aplicarEscopoUsuariosComuns($usuariosEmFeriasBase, $request->user());
         if ($request->filled('tipo_usuario')) {
@@ -401,7 +402,7 @@ class CertificateManagementController extends Controller
             $trainingIds = $treinamentosResumo->pluck('training_id')->toArray();
             $usuariosPorTreinamento = [];
 
-            if (!empty($trainingIds)) {
+            if (! empty($trainingIds)) {
                 $progressByTraining = UserProgress::whereIn('training_id', $trainingIds)
                     ->with('user:id,nome,cpf,tipo_usuario')
                     ->whereHas('user', function ($uq) {
@@ -432,8 +433,8 @@ class CertificateManagementController extends Controller
                     foreach ($progressList as $p) {
                         if ($p->concluido && $mostrarConcluidos) {
                             $usuariosPorTreinamento[$tId]['concluidos']->push($p->user);
-                        } elseif (!$p->concluido && $mostrarPendentes) {
-                            if (!in_array($p->user_id, $userIdsIsentosPendentes)) {
+                        } elseif (! $p->concluido && $mostrarPendentes) {
+                            if (! in_array($p->user_id, $userIdsIsentosPendentes)) {
                                 $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
                             }
                         }
@@ -448,7 +449,7 @@ class CertificateManagementController extends Controller
 
                             $userIdsEmFeriasNaLiberacao = [];
                             if ($dataLiberacao) {
-                                $liberacao = \Carbon\Carbon::parse($dataLiberacao);
+                                $liberacao = Carbon::parse($dataLiberacao);
                                 $userIdsEmFeriasNaLiberacao = UserVacation::where('data_inicio', '<=', $liberacao->format('Y-m-d'))
                                     ->where('data_fim', '>=', $liberacao->format('Y-m-d'))
                                     ->pluck('user_id')
@@ -463,7 +464,7 @@ class CertificateManagementController extends Controller
                                 if (in_array($user->id, $userIdsWithProgress)) {
                                     return false;
                                 }
-                                if (!$user->canAccessTraining($trainingModel)) {
+                                if (! $user->canAccessTraining($trainingModel)) {
                                     return false;
                                 }
                                 if (in_array($user->id, $userIdsEmFeriasNaLiberacao)) {
@@ -472,6 +473,7 @@ class CertificateManagementController extends Controller
                                 if (in_array($user->id, $userIdsIsentos)) {
                                     return false;
                                 }
+
                                 return true;
                             })->values();
                             $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciados;
@@ -513,7 +515,7 @@ class CertificateManagementController extends Controller
             $focoUsuario = User::with('role')->find($request->integer('usuario_id'));
 
             if ($focoUsuario) {
-                $todosTreinamentos = Training::where('status', 'ativo')->orderBy('titulo')->get();
+                $todosTreinamentos = Training::where('status', 'ativo')->orderByReleaseDate('desc')->get();
 
                 $progressMap = UserProgress::where('user_id', $focoUsuario->id)
                     ->with('training:id,titulo,tipo,carga_horaria,carga_horaria_segundos,dias_validade')
@@ -523,7 +525,7 @@ class CertificateManagementController extends Controller
                 $focoUsuarioTreinamentosFull = $todosTreinamentos->map(function ($training) use ($focoUsuario, $progressMap) {
                     $podeAcessar = $focoUsuario->canAccessTraining($training);
 
-                    if (!$podeAcessar) {
+                    if (! $podeAcessar) {
                         return null;
                     }
 
@@ -540,7 +542,7 @@ class CertificateManagementController extends Controller
                     $row->data_inicio = $progress ? $progress->data_inicio : null;
                     $row->data_conclusao = $progress ? $progress->data_conclusao : null;
 
-                    if (!$progress) {
+                    if (! $progress) {
                         $row->status = 'nao_iniciado';
                     } elseif ($progress->concluido) {
                         $row->status = 'concluido';
@@ -597,7 +599,7 @@ class CertificateManagementController extends Controller
                 ->get()
                 ->keyBy('user_id');
 
-            $focoTreinamentoUsuariosFull = $todosUsuarios->map(function ($user) use ($trainingFilter, $progressMap) {
+            $focoTreinamentoUsuariosFull = $todosUsuarios->map(function ($user) use ($progressMap) {
                 $progress = $progressMap->get($user->id);
 
                 $row = new \stdClass;
@@ -611,7 +613,7 @@ class CertificateManagementController extends Controller
                 $row->data_inicio = $progress ? $progress->data_inicio : null;
                 $row->data_conclusao = $progress ? $progress->data_conclusao : null;
 
-                if (!$progress) {
+                if (! $progress) {
                     $row->status = 'nao_iniciado';
                 } elseif ($progress->concluido) {
                     $row->status = 'concluido';
@@ -644,24 +646,30 @@ class CertificateManagementController extends Controller
         if ($request->filled('exportar_resumo')) {
             $headers = [
                 'Content-Type' => 'text/csv',
-                'Content-Disposition' => 'attachment; filename="resumo_treinamentos_' . date('Y-m-d_His') . '.csv"',
+                'Content-Disposition' => 'attachment; filename="resumo_treinamentos_'.date('Y-m-d_His').'.csv"',
             ];
 
-            $callback = function () use ($treinamentosResumo, $usuariosPorTreinamento, $statusProgresso) {
+            $callback = function () use ($treinamentosResumo, $usuariosPorTreinamento) {
                 $file = fopen('php://output', 'w');
                 fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM UTF-8
                 fputcsv($file, ['Treinamento', 'Tipo', 'Participações', 'Concluídas', 'Taxa Conclusão', 'Tempo Total', 'Usuários'], ';');
 
                 foreach ($treinamentosResumo as $resumo) {
-                    $taxa = $resumo->assistencias > 0 ? number_format(($resumo->concluidas / $resumo->assistencias) * 100, 1, ',', '.') . '%' : '0,0%';
+                    $taxa = $resumo->assistencias > 0 ? number_format(($resumo->concluidas / $resumo->assistencias) * 100, 1, ',', '.').'%' : '0,0%';
                     $tempo = gmdate('H:i:s', (int) ($resumo->tempo_total_assistido ?? 0));
 
                     $usuarios = $usuariosPorTreinamento[$resumo->training_id] ?? null;
                     $nomes = [];
                     if ($usuarios) {
-                        foreach ($usuarios['concluidos'] as $u) { $nomes[] = $u->nome . ' (concluído)'; }
-                        foreach ($usuarios['pendentes'] as $u) { $nomes[] = $u->nome . ' (pendente)'; }
-                        foreach ($usuarios['nao_iniciados'] as $u) { $nomes[] = $u->nome . ' (não iniciado)'; }
+                        foreach ($usuarios['concluidos'] as $u) {
+                            $nomes[] = $u->nome.' (concluído)';
+                        }
+                        foreach ($usuarios['pendentes'] as $u) {
+                            $nomes[] = $u->nome.' (pendente)';
+                        }
+                        foreach ($usuarios['nao_iniciados'] as $u) {
+                            $nomes[] = $u->nome.' (não iniciado)';
+                        }
                     }
 
                     fputcsv($file, [
@@ -950,7 +958,7 @@ class CertificateManagementController extends Controller
         $trainingIds = $treinamentosResumo->pluck('training_id')->toArray();
         $usuariosPorTreinamento = [];
 
-        if (!empty($trainingIds)) {
+        if (! empty($trainingIds)) {
             $progressByTraining = UserProgress::whereIn('training_id', $trainingIds)
                 ->with('user:id,nome,cpf,tipo_usuario')
                 ->whereHas('user', function ($uq) {
@@ -981,8 +989,8 @@ class CertificateManagementController extends Controller
                 foreach ($progressList as $p) {
                     if ($p->concluido && $mostrarConcluidos) {
                         $usuariosPorTreinamento[$tId]['concluidos']->push($p->user);
-                    } elseif (!$p->concluido && $mostrarPendentes) {
-                        if (!in_array($p->user_id, $userIdsIsentosPendentes)) {
+                    } elseif (! $p->concluido && $mostrarPendentes) {
+                        if (! in_array($p->user_id, $userIdsIsentosPendentes)) {
                             $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
                         }
                     }
@@ -997,7 +1005,7 @@ class CertificateManagementController extends Controller
 
                         $userIdsEmFeriasNaLiberacao = [];
                         if ($dataLiberacao) {
-                            $liberacao = \Carbon\Carbon::parse($dataLiberacao);
+                            $liberacao = Carbon::parse($dataLiberacao);
                             $userIdsEmFeriasNaLiberacao = UserVacation::where('data_inicio', '<=', $liberacao->format('Y-m-d'))
                                 ->where('data_fim', '>=', $liberacao->format('Y-m-d'))
                                 ->pluck('user_id')
@@ -1012,7 +1020,7 @@ class CertificateManagementController extends Controller
                             if (in_array($user->id, $userIdsWithProgress)) {
                                 return false;
                             }
-                            if (!$user->canAccessTraining($trainingModel)) {
+                            if (! $user->canAccessTraining($trainingModel)) {
                                 return false;
                             }
                             if (in_array($user->id, $userIdsEmFeriasNaLiberacao)) {
@@ -1021,6 +1029,7 @@ class CertificateManagementController extends Controller
                             if (in_array($user->id, $userIdsIsentos)) {
                                 return false;
                             }
+
                             return true;
                         })->values();
                         $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciados;
@@ -1033,23 +1042,23 @@ class CertificateManagementController extends Controller
         $subtituloFiltro = '';
         if ($request->filled('usuario_id')) {
             $usuario = User::find($request->integer('usuario_id'));
-            $subtituloFiltro .= 'Usuário: ' . ($usuario ? $usuario->nome : '—') . ' | ';
+            $subtituloFiltro .= 'Usuário: '.($usuario ? $usuario->nome : '—').' | ';
         }
         if ($trainingFilter) {
-            $subtituloFiltro .= 'Treinamento: ' . $trainingFilter->titulo . ' | ';
+            $subtituloFiltro .= 'Treinamento: '.$trainingFilter->titulo.' | ';
         }
         if ($statusProgresso) {
-            $labelStatus = match($statusProgresso) {
+            $labelStatus = match ($statusProgresso) {
                 'concluido' => 'Concluídos',
                 'pendente' => 'Pendentes',
                 'nao_iniciado' => 'Não iniciados',
                 'nao_finalizados' => 'Não finalizados (pendente + não iniciado)',
                 default => $statusProgresso,
             };
-            $subtituloFiltro .= 'Status: ' . $labelStatus . ' | ';
+            $subtituloFiltro .= 'Status: '.$labelStatus.' | ';
         }
         if ($request->filled('tipo_usuario')) {
-            $subtituloFiltro .= 'Tipo: ' . ucfirst(str_replace('_', ' ', $request->input('tipo_usuario'))) . ' | ';
+            $subtituloFiltro .= 'Tipo: '.ucfirst(str_replace('_', ' ', $request->input('tipo_usuario'))).' | ';
         }
         $subtituloFiltro = rtrim($subtituloFiltro, ' | ');
 
@@ -1217,7 +1226,7 @@ class CertificateManagementController extends Controller
      */
     public function relatoriosIa(Request $request)
     {
-        $treinamentos = Training::orderBy('titulo')->get();
+        $treinamentos = Training::orderByReleaseDate('desc')->get();
 
         return view('admin.relatorios_ia', [
             'treinamentos' => $treinamentos,
@@ -1555,7 +1564,7 @@ class CertificateManagementController extends Controller
             $users = User::kpiEligible($periodoInicio, $periodoFim)->orderBy('nome')->get();
         }
 
-        $treinamentos = Training::orderBy('titulo')->get();
+        $treinamentos = Training::orderByReleaseDate('desc')->get();
 
         $usuariosSemTreinamentoLista = (clone $usuariosSemTreinamentoBase)
             ->orderBy('nome')

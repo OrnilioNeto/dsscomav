@@ -71,7 +71,7 @@
                         @foreach($treinamentos as $training)
                             <option value="{{ $training->id }}" 
                                 @if(request('training_id') == $training->id) selected @endif>
-                                {{ $training->titulo }}
+                                {{ $training->titulo }} — Liberação: {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') ?? '—' }}
                             </option>
                         @endforeach
                     </select>

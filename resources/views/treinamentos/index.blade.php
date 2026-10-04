@@ -32,7 +32,7 @@
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Tipo</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Carga Horária</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Publicado</th>
+                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Liberação</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Ações</th>
                 </tr>
             </thead>
@@ -55,7 +55,16 @@
                                 {{ ucfirst($training->status) }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 text-gray-600">{{ $training->data_publicacao?->format('d/m/Y') }}</td>
+                        <td class="px-6 py-4 text-gray-600">
+                            @if($training->data_liberacao_exibicao)
+                                {{ $training->data_liberacao_exibicao->format('d/m/Y H:i') }}
+                                @if($training->data_liberacao && $training->data_liberacao->isFuture())
+                                    <span class="ml-1 text-xs font-semibold text-orange-600">(agendado)</span>
+                                @endif
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                        </td>
                         <td class="px-6 py-4 space-x-2">
                             <a href="{{ route('treinamentos.show', $training) }}" class="text-blue-600 hover:text-blue-900">
                                 <i class="fas fa-eye mr-1"></i>Ver

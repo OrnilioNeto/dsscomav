@@ -70,7 +70,7 @@ class TrainingController extends Controller
             $query->where('tipo', $tipo);
         }
 
-        $trainings = $query->orderByDesc('created_at')->paginate($perPage);
+        $trainings = $query->orderByReleaseDate('desc')->paginate($perPage);
 
         return response()->json([
             'status' => 'success',

@@ -12,7 +12,7 @@ class TrainingVacationExemptionController extends Controller
 {
     public function index(Request $request, User $user)
     {
-        $treinamentos = Training::where('status', 'ativo')->orderBy('titulo')->get();
+        $treinamentos = Training::where('status', 'ativo')->orderByReleaseDate('desc')->get();
 
         $progressMap = UserProgress::where('user_id', $user->id)
             ->with('training:id,titulo,tipo')

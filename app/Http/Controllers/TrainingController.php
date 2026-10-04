@@ -26,7 +26,7 @@ class TrainingController extends Controller
 
     public function index()
     {
-        $treinamentos = Training::paginate(15);
+        $treinamentos = Training::orderByReleaseDate('desc')->paginate(15);
 
         return view('treinamentos.index', compact('treinamentos'));
     }

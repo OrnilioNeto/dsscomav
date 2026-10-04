@@ -12,6 +12,9 @@
             ">
                 {{ strtoupper($training->tipo) }}
             </span>
+            <p class="text-sm text-gray-500 mt-3">
+                <i class="fas fa-calendar-check mr-1"></i>Liberação: {{ optional($training->data_liberacao_exibicao)->format('d/m/Y H:i') }}
+            </p>
         </div>
         <a href="{{ route('treinamentos.edit', $training) }}" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition">
             <i class="fas fa-edit mr-2"></i>Editar

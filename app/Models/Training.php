@@ -270,4 +270,32 @@ class Training extends Model
 
         return Carbon::now(config('app.timezone'))->gte($this->data_liberacao);
     }
+
+    /**
+     * Data de referência do conteúdo para ordenação/exibição: a data de
+     * liberação agendada (segunda-feira) com fallback para a publicação e,
+     * por último, a criação do registro (conteúdos legados).
+     */
+    public function releaseDate(): ?Carbon
+    {
+        return $this->data_liberacao ?? $this->data_publicacao ?? $this->created_at;
+    }
+
+    /**
+     * Acessor para exibição da data de liberação (com os mesmos fallbacks).
+     */
+    public function getDataLiberacaoExibicaoAttribute(): ?Carbon
+    {
+        return $this->releaseDate();
+    }
+
+    /**
+     * Ordena pela data de liberação do conteúdo (fallback: publicação/criação).
+     */
+    public function scopeOrderByReleaseDate($query, string $direction = 'asc')
+    {
+        $direction = strtolower($direction) === 'desc' ? 'desc' : 'asc';
+
+        return $query->orderByRaw('COALESCE(data_liberacao, data_publicacao, created_at) '.$direction);
+    }
 }

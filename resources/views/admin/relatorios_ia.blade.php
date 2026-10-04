@@ -21,7 +21,7 @@
                 <select id="training_id" class="form-control" style="border-radius: 8px; border: 2px solid rgba(255,255,255,0.3); background: white; color: #333; padding: 12px; font-size: 1rem; transition: all 0.3s;">
                     <option value="">-- Selecione um treinamento --</option>
                     @foreach($treinamentos as $t)
-                        <option value="{{ $t->id }}">{{ $t->titulo }}</option>
+                        <option value="{{ $t->id }}">{{ $t->titulo }} — Liberação: {{ optional($t->data_liberacao_exibicao)->format('d/m/Y') ?? '—' }}</option>
                     @endforeach
                 </select>
             </div>
