@@ -227,6 +227,107 @@ class User extends Authenticatable
         return $query->where('created_at', '<=', $maxUserCreatedAt);
     }
 
+    /**
+     * Elegibilidade completa do usuário para um conteúdo específico:
+     * regra de liberação por cadastro (segunda-feira da semana), público-alvo
+     * ou atribuição (treinamento direcionado), isenção de férias do conteúdo
+     * e férias na data de liberação do conteúdo.
+     *
+     * Deve ser combinado com kpiEligible() nos relatórios para também
+     * excluir usuários em férias no momento atual, testes e admins sem
+     * participação.
+     */
+    public function scopeEligibleForContent($query, Training $training)
+    {
+        $query->eligibleForTrainingKpi($training);
+
+        if ($training->tipo === 'treinamento') {
+            $query->whereHas('assignedTrainings', function ($q) use ($training) {
+                $q->where('trainings.id', $training->id);
+            });
+        } else {
+            $permitidos = $training->tipo_usuario_permitido;
+
+            if (is_string($permitidos)) {
+                $permitidos = json_decode($permitidos, true);
+            }
+
+            if (is_array($permitidos) && ! in_array('todos', $permitidos, true)) {
+                $query->whereIn('tipo_usuario', $permitidos);
+            }
+        }
+
+        $query->whereDoesntHave('trainingExemptions', function ($q) use ($training) {
+            $q->where('training_id', $training->id);
+        });
+
+        $dataLiberacao = $training->data_liberacao
+            ?? $training->data_publicacao
+            ?? $training->created_at;
+
+        if ($dataLiberacao) {
+            $data = Carbon::parse($dataLiberacao)->toDateString();
+
+            $query->whereDoesntHave('vacations', function ($q) use ($data) {
+                $q->whereDate('data_inicio', '<=', $data)
+                    ->whereDate('data_fim', '>=', $data);
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * Versão em memória (sem query) da regra de elegibilidade para um conteúdo.
+     * Mantém a mesma semântica de scopeEligibleForContent().
+     */
+    public function isEligibleForContent(Training $training): bool
+    {
+        $dataLiberacao = $training->data_liberacao
+            ?? $training->data_publicacao
+            ?? $training->created_at;
+
+        if ($dataLiberacao) {
+            $maxUserCreatedAt = Carbon::parse($dataLiberacao, config('app.timezone'))
+                ->endOfWeek(Carbon::SUNDAY)
+                ->endOfDay();
+
+            if ($this->created_at && $this->created_at->gt($maxUserCreatedAt)) {
+                return false;
+            }
+        }
+
+        if ($training->tipo === 'treinamento') {
+            if (! $training->assignedUsers()->where('users.id', $this->id)->exists()) {
+                return false;
+            }
+        } else {
+            $permitidos = $training->tipo_usuario_permitido;
+
+            if (is_string($permitidos)) {
+                $permitidos = json_decode($permitidos, true);
+            }
+
+            if (is_array($permitidos) && ! in_array('todos', $permitidos, true) && ! in_array($this->tipo_usuario, $permitidos, true)) {
+                return false;
+            }
+        }
+
+        if ($this->trainingExemptions()->where('training_id', $training->id)->exists()) {
+            return false;
+        }
+
+        if ($dataLiberacao) {
+            $data = Carbon::parse($dataLiberacao)->toDateString();
+
+            if ($this->vacations()->whereDate('data_inicio', '<=', $data)->whereDate('data_fim', '>=', $data)->exists()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function getCpfFormatted()
     {
         return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $this->cpf);

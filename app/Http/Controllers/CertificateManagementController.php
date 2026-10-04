@@ -4,13 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Certificate;
 use App\Models\Training;
-use App\Models\TrainingVacationExemption;
 use App\Models\User;
 use App\Models\UserProgress;
-use App\Models\UserVacation;
 use App\Services\AiSummarizer;
 use App\Services\TrainingAnalyzer;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -192,7 +189,7 @@ class CertificateManagementController extends Controller
 
             if ($trainingId) {
                 $treinamentoNaoIniciado = $trainingFilter;
-                $usersQuery->eligibleForTrainingKpi($treinamentoNaoIniciado);
+                $usersQuery->eligibleForContent($treinamentoNaoIniciado);
                 $usersQuery->whereDoesntHave('progress', function ($q) use ($treinamentoNaoIniciado) {
                     $q->where('training_id', $treinamentoNaoIniciado->id);
                 });
@@ -235,7 +232,7 @@ class CertificateManagementController extends Controller
 
             if ($trainingFilter) {
                 $query->whereHas('user', function ($q) use ($trainingFilter) {
-                    $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+                    $q->kpiEligible()->eligibleForContent($trainingFilter);
                 });
             }
 
@@ -342,7 +339,7 @@ class CertificateManagementController extends Controller
 
             if ($trainingFilter) {
                 $query->whereHas('user', function ($q) use ($trainingFilter) {
-                    $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+                    $q->kpiEligible()->eligibleForContent($trainingFilter);
                 });
             }
 
@@ -388,16 +385,30 @@ class CertificateManagementController extends Controller
             $tempoTotalAssistido = (clone $query)->sum('tempo_assistido');
             $tempoMedioAssistido = (clone $query)->avg('tempo_assistido');
 
-            $treinamentosResumo = (clone $query)
-                ->select('training_id')
-                ->selectRaw('COUNT(*) as assistencias')
-                ->selectRaw('SUM(CASE WHEN concluido = 1 THEN 1 ELSE 0 END) as concluidas')
-                ->selectRaw('SUM(COALESCE(tempo_assistido, 0)) as tempo_total_assistido')
-                ->groupBy('training_id')
+            // Resumo por conteúdo considerando apenas usuários elegíveis para
+            // cada conteúdo (cadastro, público/atribuição, isenções e férias).
+            $progressosFiltrados = (clone $query)
                 ->with(['training:id,titulo,tipo,carga_horaria,carga_horaria_segundos'])
-                ->orderByDesc('assistencias')
-                ->take(10)
-                ->get();
+                ->get()
+                ->groupBy('training_id');
+
+            $treinamentosResumo = $progressosFiltrados->map(function ($lista, $tId) {
+                $training = $lista->first()->training;
+                if (! $training) {
+                    return null;
+                }
+
+                $elegiveis = User::kpiEligible()->eligibleForContent($training)->pluck('id');
+                $listaElegivel = $lista->whereIn('user_id', $elegiveis);
+
+                return (object) [
+                    'training_id' => $tId,
+                    'training' => $training,
+                    'assistencias' => $listaElegivel->count(),
+                    'concluidas' => $listaElegivel->where('concluido', true)->count(),
+                    'tempo_total_assistido' => (int) $listaElegivel->sum('tempo_assistido'),
+                ];
+            })->filter()->sortByDesc('assistencias')->take(10)->values();
 
             $trainingIds = $treinamentosResumo->pluck('training_id')->toArray();
             $usuariosPorTreinamento = [];
@@ -405,9 +416,6 @@ class CertificateManagementController extends Controller
             if (! empty($trainingIds)) {
                 $progressByTraining = UserProgress::whereIn('training_id', $trainingIds)
                     ->with('user:id,nome,cpf,tipo_usuario')
-                    ->whereHas('user', function ($uq) {
-                        $uq->kpiEligible();
-                    })
                     ->get()
                     ->groupBy('training_id');
 
@@ -424,60 +432,37 @@ class CertificateManagementController extends Controller
                         'nao_iniciados' => collect(),
                     ];
 
-                    $progressList = $progressByTraining->get($tId, collect());
+                    $trainingModel = $trainingModels->get($tId);
+                    if (! $trainingModel) {
+                        continue;
+                    }
 
-                    $userIdsIsentosPendentes = TrainingVacationExemption::where('training_id', $tId)
-                        ->pluck('user_id')
-                        ->toArray();
+                    // Base elegível do conteúdo: cadastro, público/atribuição,
+                    // isenções de férias e férias na data de liberação.
+                    $userIdsElegiveis = User::kpiEligible()
+                        ->eligibleForContent($trainingModel)
+                        ->pluck('id')
+                        ->all();
+
+                    $progressList = $progressByTraining->get($tId, collect())
+                        ->whereIn('user_id', $userIdsElegiveis);
 
                     foreach ($progressList as $p) {
                         if ($p->concluido && $mostrarConcluidos) {
                             $usuariosPorTreinamento[$tId]['concluidos']->push($p->user);
                         } elseif (! $p->concluido && $mostrarPendentes) {
-                            if (! in_array($p->user_id, $userIdsIsentosPendentes)) {
-                                $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
-                            }
+                            $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
                         }
                     }
 
                     if ($mostrarNaoIniciados) {
-                        $trainingModel = $trainingModels->get($tId);
-                        if ($trainingModel) {
-                            $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
-                            $dataLiberacao = $trainingModel->data_liberacao ?? $trainingModel->data_publicacao ?? null;
-                            $todosUsuariosKpi = User::kpiEligible()->orderBy('nome')->get();
+                        $userIdsWithProgress = $progressList->pluck('user_id')->all();
 
-                            $userIdsEmFeriasNaLiberacao = [];
-                            if ($dataLiberacao) {
-                                $liberacao = Carbon::parse($dataLiberacao);
-                                $userIdsEmFeriasNaLiberacao = UserVacation::where('data_inicio', '<=', $liberacao->format('Y-m-d'))
-                                    ->where('data_fim', '>=', $liberacao->format('Y-m-d'))
-                                    ->pluck('user_id')
-                                    ->toArray();
-                            }
-
-                            $userIdsIsentos = TrainingVacationExemption::where('training_id', $tId)
-                                ->pluck('user_id')
-                                ->toArray();
-
-                            $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $userIdsEmFeriasNaLiberacao, $userIdsIsentos) {
-                                if (in_array($user->id, $userIdsWithProgress)) {
-                                    return false;
-                                }
-                                if (! $user->canAccessTraining($trainingModel)) {
-                                    return false;
-                                }
-                                if (in_array($user->id, $userIdsEmFeriasNaLiberacao)) {
-                                    return false;
-                                }
-                                if (in_array($user->id, $userIdsIsentos)) {
-                                    return false;
-                                }
-
-                                return true;
-                            })->values();
-                            $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciados;
-                        }
+                        $usuariosPorTreinamento[$tId]['nao_iniciados'] = User::kpiEligible()
+                            ->eligibleForContent($trainingModel)
+                            ->whereNotIn('id', $userIdsWithProgress)
+                            ->orderBy('nome')
+                            ->get();
                     }
                 }
             }
@@ -523,7 +508,7 @@ class CertificateManagementController extends Controller
                     ->keyBy('training_id');
 
                 $focoUsuarioTreinamentosFull = $todosTreinamentos->map(function ($training) use ($focoUsuario, $progressMap) {
-                    $podeAcessar = $focoUsuario->canAccessTraining($training);
+                    $podeAcessar = $focoUsuario->isEligibleForContent($training);
 
                     if (! $podeAcessar) {
                         return null;
@@ -582,16 +567,14 @@ class CertificateManagementController extends Controller
         $focoTreinamentoResumo = ['concluidos' => 0, 'pendentes' => 0, 'nao_iniciados' => 0, 'total' => 0];
 
         if ($trainingFilter) {
-            $todosUsuarios = User::kpiEligible()->orderBy('nome');
+            $todosUsuarios = User::kpiEligible()->eligibleForContent($trainingFilter)->orderBy('nome');
             $this->aplicarEscopoUsuariosComuns($todosUsuarios, $request->user());
 
             if ($request->filled('tipo_usuario')) {
                 $todosUsuarios->where('tipo_usuario', $request->input('tipo_usuario'));
             }
 
-            $todosUsuarios = $todosUsuarios->get()->filter(function ($user) use ($trainingFilter) {
-                return $user->canAccessTraining($trainingFilter);
-            })->values();
+            $todosUsuarios = $todosUsuarios->get();
 
             $progressMap = UserProgress::where('training_id', $trainingFilter->id)
                 ->whereIn('user_id', $todosUsuarios->pluck('id'))
@@ -749,7 +732,7 @@ class CertificateManagementController extends Controller
 
             if ($trainingId) {
                 $treinamentoNaoIniciado = $trainingFilter;
-                $usersQuery->eligibleForTrainingKpi($treinamentoNaoIniciado);
+                $usersQuery->eligibleForContent($treinamentoNaoIniciado);
                 $usersQuery->whereDoesntHave('progress', function ($q) use ($treinamentoNaoIniciado) {
                     $q->where('training_id', $treinamentoNaoIniciado->id);
                 });
@@ -779,7 +762,7 @@ class CertificateManagementController extends Controller
 
             if ($trainingFilter) {
                 $query->whereHas('user', function ($q) use ($trainingFilter) {
-                    $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+                    $q->kpiEligible()->eligibleForContent($trainingFilter);
                 });
             }
 
@@ -892,7 +875,7 @@ class CertificateManagementController extends Controller
 
         if ($trainingFilter) {
             $query->whereHas('user', function ($q) use ($trainingFilter) {
-                $q->kpiEligible()->eligibleForTrainingKpi($trainingFilter);
+                $q->kpiEligible()->eligibleForContent($trainingFilter);
             });
         }
 
@@ -938,15 +921,30 @@ class CertificateManagementController extends Controller
             $query->whereDate('data_conclusao', '<=', $request->input('data_fim'));
         }
 
-        $treinamentosResumo = (clone $query)
-            ->select('training_id')
-            ->selectRaw('COUNT(*) as assistencias')
-            ->selectRaw('SUM(CASE WHEN concluido = 1 THEN 1 ELSE 0 END) as concluidas')
-            ->selectRaw('SUM(COALESCE(tempo_assistido, 0)) as tempo_total_assistido')
-            ->groupBy('training_id')
+        // Resumo por conteúdo considerando apenas usuários elegíveis para
+        // cada conteúdo (cadastro, público/atribuição, isenções e férias).
+        $progressosFiltrados = (clone $query)
             ->with(['training:id,titulo,tipo,carga_horaria,carga_horaria_segundos'])
-            ->orderByDesc('assistencias')
-            ->get();
+            ->get()
+            ->groupBy('training_id');
+
+        $treinamentosResumo = $progressosFiltrados->map(function ($lista, $tId) {
+            $training = $lista->first()->training;
+            if (! $training) {
+                return null;
+            }
+
+            $elegiveis = User::kpiEligible()->eligibleForContent($training)->pluck('id');
+            $listaElegivel = $lista->whereIn('user_id', $elegiveis);
+
+            return (object) [
+                'training_id' => $tId,
+                'training' => $training,
+                'assistencias' => $listaElegivel->count(),
+                'concluidas' => $listaElegivel->where('concluido', true)->count(),
+                'tempo_total_assistido' => (int) $listaElegivel->sum('tempo_assistido'),
+            ];
+        })->filter()->sortByDesc('assistencias')->values();
 
         $totalTreinamentos = $treinamentosResumo->count();
         $totalConcluidas = $treinamentosResumo->sum('concluidas');
@@ -961,9 +959,6 @@ class CertificateManagementController extends Controller
         if (! empty($trainingIds)) {
             $progressByTraining = UserProgress::whereIn('training_id', $trainingIds)
                 ->with('user:id,nome,cpf,tipo_usuario')
-                ->whereHas('user', function ($uq) {
-                    $uq->kpiEligible();
-                })
                 ->get()
                 ->groupBy('training_id');
 
@@ -980,60 +975,37 @@ class CertificateManagementController extends Controller
                     'nao_iniciados' => collect(),
                 ];
 
-                $progressList = $progressByTraining->get($tId, collect());
+                $trainingModel = $trainingModels->get($tId);
+                if (! $trainingModel) {
+                    continue;
+                }
 
-                $userIdsIsentosPendentes = TrainingVacationExemption::where('training_id', $tId)
-                    ->pluck('user_id')
-                    ->toArray();
+                // Base elegível do conteúdo: cadastro, público/atribuição,
+                // isenções de férias e férias na data de liberação.
+                $userIdsElegiveis = User::kpiEligible()
+                    ->eligibleForContent($trainingModel)
+                    ->pluck('id')
+                    ->all();
+
+                $progressList = $progressByTraining->get($tId, collect())
+                    ->whereIn('user_id', $userIdsElegiveis);
 
                 foreach ($progressList as $p) {
                     if ($p->concluido && $mostrarConcluidos) {
                         $usuariosPorTreinamento[$tId]['concluidos']->push($p->user);
                     } elseif (! $p->concluido && $mostrarPendentes) {
-                        if (! in_array($p->user_id, $userIdsIsentosPendentes)) {
-                            $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
-                        }
+                        $usuariosPorTreinamento[$tId]['pendentes']->push($p->user);
                     }
                 }
 
                 if ($mostrarNaoIniciados) {
-                    $trainingModel = $trainingModels->get($tId);
-                    if ($trainingModel) {
-                        $userIdsWithProgress = $progressList->pluck('user_id')->toArray();
-                        $dataLiberacao = $trainingModel->data_liberacao ?? $trainingModel->data_publicacao ?? null;
-                        $todosUsuariosKpi = User::kpiEligible()->orderBy('nome')->get();
+                    $userIdsWithProgress = $progressList->pluck('user_id')->all();
 
-                        $userIdsEmFeriasNaLiberacao = [];
-                        if ($dataLiberacao) {
-                            $liberacao = Carbon::parse($dataLiberacao);
-                            $userIdsEmFeriasNaLiberacao = UserVacation::where('data_inicio', '<=', $liberacao->format('Y-m-d'))
-                                ->where('data_fim', '>=', $liberacao->format('Y-m-d'))
-                                ->pluck('user_id')
-                                ->toArray();
-                        }
-
-                        $userIdsIsentos = TrainingVacationExemption::where('training_id', $tId)
-                            ->pluck('user_id')
-                            ->toArray();
-
-                        $naoIniciados = $todosUsuariosKpi->filter(function ($user) use ($trainingModel, $userIdsWithProgress, $userIdsEmFeriasNaLiberacao, $userIdsIsentos) {
-                            if (in_array($user->id, $userIdsWithProgress)) {
-                                return false;
-                            }
-                            if (! $user->canAccessTraining($trainingModel)) {
-                                return false;
-                            }
-                            if (in_array($user->id, $userIdsEmFeriasNaLiberacao)) {
-                                return false;
-                            }
-                            if (in_array($user->id, $userIdsIsentos)) {
-                                return false;
-                            }
-
-                            return true;
-                        })->values();
-                        $usuariosPorTreinamento[$tId]['nao_iniciados'] = $naoIniciados;
-                    }
+                    $usuariosPorTreinamento[$tId]['nao_iniciados'] = User::kpiEligible()
+                        ->eligibleForContent($trainingModel)
+                        ->whereNotIn('id', $userIdsWithProgress)
+                        ->orderBy('nome')
+                        ->get();
                 }
             }
         }
@@ -1370,7 +1342,7 @@ class CertificateManagementController extends Controller
 
         $usuariosBase = User::query()->kpiEligible($periodoInicio, $periodoFim);
         if ($trainingFilter) {
-            $usuariosBase->eligibleForTrainingKpi($trainingFilter);
+            $usuariosBase->eligibleForContent($trainingFilter);
         }
         $this->aplicarEscopoUsuariosComuns($usuariosBase, $user);
         if ($request->filled('tipo_usuario')) {
@@ -1385,7 +1357,7 @@ class CertificateManagementController extends Controller
         $certificadosBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim, $trainingFilter) {
             $q->kpiEligible($periodoInicio, $periodoFim);
             if ($trainingFilter) {
-                $q->eligibleForTrainingKpi($trainingFilter);
+                $q->eligibleForContent($trainingFilter);
             }
         });
         if ($request->filled('usuario_id')) {
@@ -1411,7 +1383,7 @@ class CertificateManagementController extends Controller
         $progressBase->whereHas('user', function ($q) use ($periodoInicio, $periodoFim, $trainingFilter) {
             $q->kpiEligible($periodoInicio, $periodoFim);
             if ($trainingFilter) {
-                $q->eligibleForTrainingKpi($trainingFilter);
+                $q->eligibleForContent($trainingFilter);
             }
         });
         if ($request->filled('tipo_usuario')) {
@@ -1475,39 +1447,46 @@ class CertificateManagementController extends Controller
             ->orderByDesc('total')
             ->get();
 
-        $treinamentosMaisAssistidos = Training::withCount(['progress'])
-            ->withCount(['progress as concluidos_count' => function ($q) {
-                $q->where('concluido', true);
-            }])
-            ->withSum('progress as tempo_total_assistido', 'tempo_assistido')
-            ->orderByDesc('progress_count')
+        // Estatísticas por conteúdo considerando apenas usuários elegíveis
+        // (cadastro, público/atribuição, isenções e férias na liberação).
+        $estatisticasPorTreinamento = [];
+        foreach (Training::all() as $training) {
+            $elegiveis = User::kpiEligible()->eligibleForContent($training)->pluck('id');
+
+            $iniciados = $training->progress()->whereIn('user_id', $elegiveis)->count();
+            $concluidos = $training->progress()->whereIn('user_id', $elegiveis)->where('concluido', true)->count();
+            $tempoTotal = (int) $training->progress()->whereIn('user_id', $elegiveis)->sum('tempo_assistido');
+
+            $estatisticasPorTreinamento[] = [
+                'training' => $training,
+                'progress_count' => $iniciados,
+                'concluidos_count' => $concluidos,
+                'tempo_total_assistido' => $tempoTotal,
+                'taxa' => $iniciados > 0 ? ($concluidos / $iniciados) * 100 : 0,
+            ];
+        }
+
+        $treinamentosMaisAssistidos = collect($estatisticasPorTreinamento)
+            ->sortByDesc('progress_count')
             ->take(10)
-            ->get();
+            ->map(function ($row) {
+                $training = $row['training'];
+                $training->progress_count = $row['progress_count'];
+                $training->concluidos_count = $row['concluidos_count'];
+                $training->tempo_total_assistido = $row['tempo_total_assistido'];
+
+                return $training;
+            })
+            ->values();
 
         $conteudosPorTipo = Training::selectRaw("COALESCE(tipo, 'sem_tipo') as tipo, COUNT(*) as total")
             ->groupBy('tipo')
             ->orderByDesc('total')
             ->get();
 
-        $taxaConclusao = [];
-        $treinamentosComProgressos = Training::withCount(['progress' => function ($q) {
-            $q->whereHas('user', function ($u) {
-                $u->kpiEligible();
-            });
-        }])
-            ->withCount(['progress as concluidos_count' => function ($q) {
-                $q->where('concluido', true)
-                    ->whereHas('user', function ($u) {
-                        $u->kpiEligible();
-                    });
-            }])
-            ->get();
-
-        foreach ($treinamentosComProgressos as $training) {
-            $taxaConclusao[$training->id] = $training->progress_count > 0
-                ? ($training->concluidos_count / $training->progress_count) * 100
-                : 0;
-        }
+        $taxaConclusao = collect($estatisticasPorTreinamento)
+            ->mapWithKeys(fn ($row) => [$row['training']->id => $row['taxa']])
+            ->all();
 
         $usuariosEmDestaque = (clone $progressBase)
             ->select('user_id')
