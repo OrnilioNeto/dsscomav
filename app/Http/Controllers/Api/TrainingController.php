@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\Controller;
 use App\Models\Certificate;
 use App\Models\Training;
 use App\Models\UserProgress;
+use App\Services\YoutubeStreamResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class TrainingController extends Controller
 {
@@ -27,7 +31,7 @@ class TrainingController extends Controller
         }
 
         $assessment = null;
-        if ($training->hasAssessment() && $progress && $progress->porcentagem_assistida >= 99 && !$progress->avaliacao_aprovada) {
+        if ($training->hasAssessment() && $progress && $progress->porcentagem_assistida >= 99 && ! $progress->avaliacao_aprovada) {
             $assessment = [
                 'pergunta' => $training->avaliacao_pergunta,
                 'opcoes' => array_values(array_filter($training->avaliacao_opcoes ?? [])),
@@ -78,6 +82,7 @@ class TrainingController extends Controller
 
         $trainings = Training::with('materials')
             ->where('status', 'ativo')
+            ->orderByReleaseDate('desc')
             ->get()
             ->filter(fn ($t) => $user->canAccessTraining($t));
 
@@ -94,10 +99,10 @@ class TrainingController extends Controller
 
             if ($progress && $progress->concluido) {
                 $concluidos[] = $item;
-            } elseif ($training->tipo === 'dss' && !$training->isReleased()) {
+            } elseif ($training->tipo === 'dss' && ! $training->isReleased()) {
                 $item['progress'] = null;
                 $bloqueados[] = $item;
-            } elseif ($training->tipo === 'treinamento' && !$training->isReleased()) {
+            } elseif ($training->tipo === 'treinamento' && ! $training->isReleased()) {
                 // Mesma regra do web: direcionados não liberados ficam ocultos
                 continue;
             } elseif ($training->tipo === 'treinamento') {
@@ -106,6 +111,14 @@ class TrainingController extends Controller
                 $disponiveis[] = $item;
             }
         }
+
+        // Bloqueados: próxima liberação (segunda-feira) primeiro
+        usort($bloqueados, function (array $a, array $b) {
+            return strcmp(
+                (string) ($a['data_liberacao'] ?? $a['data_publicacao'] ?? ''),
+                (string) ($b['data_liberacao'] ?? $b['data_publicacao'] ?? '')
+            );
+        });
 
         return response()->json([
             'status' => 'success',
@@ -123,14 +136,14 @@ class TrainingController extends Controller
         $user = request()->user();
         $training = Training::with('materials')->findOrFail($id);
 
-        if (!$user->canAccessTraining($training)) {
+        if (! $user->canAccessTraining($training)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Acesso negado a este treinamento.',
             ], 403);
         }
 
-        if (!$training->isReleased()) {
+        if (! $training->isReleased()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Treinamento ainda não liberado.',
@@ -151,7 +164,7 @@ class TrainingController extends Controller
             ]
         );
 
-        if (!$progress->data_inicio) {
+        if (! $progress->data_inicio) {
             $progress->update(['data_inicio' => now(config('app.timezone'))]);
         }
 
@@ -160,7 +173,7 @@ class TrainingController extends Controller
 
         // Streaming online via proxy (o servidor não armazena os vídeos)
         $data['stream_proxy_url'] = $training->tipo_video === 'youtube' && $data['stream_url']
-            ? url('/api/v1/trainings/' . $training->id . '/stream-proxy')
+            ? url('/api/v1/trainings/'.$training->id.'/stream-proxy')
             : null;
 
         return response()->json([
@@ -178,7 +191,7 @@ class TrainingController extends Controller
         $user = request()->user();
         $training = Training::findOrFail($id);
 
-        if (!$user->canAccessTraining($training)) {
+        if (! $user->canAccessTraining($training)) {
             return response()->json(['status' => 'error', 'message' => 'Acesso negado'], 403);
         }
 
@@ -200,28 +213,28 @@ class TrainingController extends Controller
     {
         $user = request()->user();
 
-        if (!$user) {
+        if (! $user) {
             $token = request()->query('token') ?: request()->bearerToken();
             if ($token) {
-                $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                $accessToken = PersonalAccessToken::findToken($token);
                 if ($accessToken) {
                     $user = $accessToken->tokenable;
                 }
             }
         }
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['status' => 'error', 'message' => 'Não autenticado.'], 401);
         }
 
         $training = Training::findOrFail($id);
 
-        if (!$user->canAccessTraining($training)) {
+        if (! $user->canAccessTraining($training)) {
             return response()->json(['status' => 'error', 'message' => 'Acesso negado'], 403);
         }
 
         $streamUrl = $this->resolveStreamUrl($training);
-        if (!$streamUrl) {
+        if (! $streamUrl) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Stream indisponível no momento.',
@@ -251,7 +264,7 @@ class TrainingController extends Controller
                 CURLOPT_BUFFERSIZE => 65536,
                 CURLOPT_CONNECTTIMEOUT => 10,
                 CURLOPT_TIMEOUT => 0,
-                CURLOPT_HTTPHEADER => $range ? ['Range: ' . $range] : [],
+                CURLOPT_HTTPHEADER => $range ? ['Range: '.$range] : [],
                 CURLOPT_WRITEFUNCTION => function ($curl, $data) {
                     if (connection_aborted()) {
                         return 0;
@@ -288,7 +301,7 @@ class TrainingController extends Controller
                 CURLOPT_NOBODY => false,
                 CURLOPT_CONNECTTIMEOUT => 8,
                 CURLOPT_TIMEOUT => 15,
-                CURLOPT_HTTPHEADER => ['Range: ' . ($range ?? 'bytes=0-0')],
+                CURLOPT_HTTPHEADER => ['Range: '.($range ?? 'bytes=0-0')],
             ]);
 
             $response = curl_exec($ch);
@@ -311,7 +324,7 @@ class TrainingController extends Controller
                 $result['status'] = $status;
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Preflight do stream falhou: ' . $e->getMessage());
+            Log::warning('Preflight do stream falhou: '.$e->getMessage());
         }
 
         return $result;
@@ -324,12 +337,12 @@ class TrainingController extends Controller
         }
 
         try {
-            $resolver = app(\App\Services\YoutubeStreamResolver::class);
+            $resolver = app(YoutubeStreamResolver::class);
             $videoId = $resolver->extractVideoId($training->url_video);
 
             return $videoId ? $resolver->resolve($videoId) : null;
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Falha ao resolver stream: ' . $e->getMessage());
+            Log::warning('Falha ao resolver stream: '.$e->getMessage());
 
             return null;
         }
@@ -341,7 +354,7 @@ class TrainingController extends Controller
         $user = $request->user();
         $isTestUser = $user->isTestUser();
 
-        if (!$user->canAccessTraining($training)) {
+        if (! $user->canAccessTraining($training)) {
             return response()->json(['status' => 'error', 'message' => 'Acesso negado'], 403);
         }
 
@@ -389,16 +402,16 @@ class TrainingController extends Controller
             'porcentagem_assistida' => $porcentagemAssistida,
         ];
 
-        if (!$progress->data_inicio) {
+        if (! $progress->data_inicio) {
             $updateData['data_inicio'] = now(config('app.timezone'));
         }
 
         $progress->update($updateData);
 
         $fresh = $progress->fresh();
-        $showAssessment = $training->hasAssessment() && ($isTestUser || $fresh->porcentagem_assistida >= 99) && !$fresh->avaliacao_aprovada;
+        $showAssessment = $training->hasAssessment() && ($isTestUser || $fresh->porcentagem_assistida >= 99) && ! $fresh->avaliacao_aprovada;
 
-        if (($isTestUser || $fresh->porcentagem_assistida >= 99) && $fresh->avaliacao_aprovada && !$fresh->concluido) {
+        if (($isTestUser || $fresh->porcentagem_assistida >= 99) && $fresh->avaliacao_aprovada && ! $fresh->concluido) {
             $fresh->update([
                 'concluido' => true,
                 'data_conclusao' => now(config('app.timezone')),
@@ -442,11 +455,11 @@ class TrainingController extends Controller
         $user = $request->user();
         $isTestUser = $user->isTestUser();
 
-        if (!$user->canAccessTraining($training)) {
+        if (! $user->canAccessTraining($training)) {
             return response()->json(['status' => 'error', 'message' => 'Acesso negado'], 403);
         }
 
-        if (!$training->hasAssessment()) {
+        if (! $training->hasAssessment()) {
             return response()->json(['status' => 'error', 'message' => 'Treinamento sem avaliação cadastrada'], 422);
         }
 
@@ -474,10 +487,10 @@ class TrainingController extends Controller
 
         $isCorrect = (int) $request->answer === (int) $training->avaliacao_resposta_correta;
 
-        if (!$isCorrect) {
+        if (! $isCorrect) {
             $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
 
-            if (!$isTestUser && $tentativas >= 2) {
+            if (! $isTestUser && $tentativas >= 2) {
                 $progress->update($this->filterUserProgressColumns([
                     'avaliacao_tentativas' => 0,
                     'avaliacao_aprovada' => false,
@@ -517,7 +530,7 @@ class TrainingController extends Controller
             'avaliacao_resposta_usuario' => (int) $request->answer,
         ]));
 
-        if (($isTestUser || $progress->porcentagem_assistida >= 99) && !$progress->concluido) {
+        if (($isTestUser || $progress->porcentagem_assistida >= 99) && ! $progress->concluido) {
             $progress->update([
                 'concluido' => true,
                 'data_conclusao' => now(config('app.timezone')),
@@ -562,7 +575,7 @@ class TrainingController extends Controller
             ]
         );
 
-        if (!$progress->concluido) {
+        if (! $progress->concluido) {
             $progress->update([
                 'concluido' => true,
                 'porcentagem_assistida' => 100,
@@ -580,14 +593,14 @@ class TrainingController extends Controller
 
     private function issueCertificateIfReady(Training $training, UserProgress $progress): void
     {
-        if (!$progress->concluido || !$progress->avaliacao_aprovada) {
+        if (! $progress->concluido || ! $progress->avaliacao_aprovada) {
             return;
         }
 
         try {
-            app(\App\Http\Controllers\CertificateController::class)->generateCertificate($training, $progress);
+            app(CertificateController::class)->generateCertificate($training, $progress);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Falha ao gerar certificado via API', [
+            Log::error('Falha ao gerar certificado via API', [
                 'training_id' => $training->id,
                 'user_id' => $progress->user_id,
                 'error' => $e->getMessage(),

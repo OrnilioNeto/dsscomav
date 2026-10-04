@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Admin\RankingController;
 use App\Http\Controllers\Controller;
 use App\Models\Certificate;
 use App\Models\RankingMonthlyScore;
@@ -19,14 +20,14 @@ class DashboardController extends Controller
         $month = (int) now()->month;
         $year = (int) now()->year;
 
-        $controller = app(\App\Http\Controllers\Admin\RankingController::class);
+        $controller = app(RankingController::class);
         $internalRequest = new Request(['month' => $month, 'year' => $year]);
         $resolver = app(RankingRuleResolverService::class);
         $breakdownData = $controller->breakdown($internalRequest, $user->id, $resolver)->getData();
         $totalPoints = collect($breakdownData->trainings ?? [])->sum('raw_score');
 
         $userRank = 0;
-        if (!$user->usuario_teste && $totalPoints > 0) {
+        if (! $user->usuario_teste && $totalPoints > 0) {
             $monthlyScore = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
                 ->where('ranking_monthly_scores.user_id', $user->id)
                 ->where('ranking_monthly_scores.month_reference', $month)
@@ -93,7 +94,7 @@ class DashboardController extends Controller
             ->pluck('total', 'tipo_usuario');
 
         $taxaConclusao = [];
-        $treinamentos = Training::where('status', 'ativo')->take(5)->get();
+        $treinamentos = Training::where('status', 'ativo')->orderByReleaseDate('desc')->take(5)->get();
         foreach ($treinamentos as $training) {
             $taxaConclusao[] = [
                 'id' => $training->id,
@@ -120,7 +121,7 @@ class DashboardController extends Controller
         $totalUsuarios = User::kpiEligible()->where('role_id', '<>', 1)->count();
         $certificadosEmitidos = Certificate::whereHas('user', fn ($q) => $q->kpiEligible())->count();
 
-        $treinamentosRecentes = Training::orderBy('created_at', 'desc')->take(5)->get(['id', 'titulo', 'status', 'created_at']);
+        $treinamentosRecentes = Training::orderByReleaseDate('desc')->take(5)->get(['id', 'titulo', 'status', 'data_liberacao', 'data_publicacao', 'created_at']);
         $usuariosRecentes = User::kpiEligible()->where('role_id', '<>', 1)
             ->orderBy('created_at', 'desc')
             ->take(5)
@@ -166,7 +167,7 @@ class DashboardController extends Controller
         $month = (int) now()->month;
         $year = (int) now()->year;
 
-        $controller = app(\App\Http\Controllers\Admin\RankingController::class);
+        $controller = app(RankingController::class);
         $internalRequest = new Request(['month' => $month, 'year' => $year]);
         $breakdownData = $controller->breakdown($internalRequest, $user->id, $resolver)->getData();
 

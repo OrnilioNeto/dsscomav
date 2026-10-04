@@ -48,6 +48,7 @@
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold">Treinamento</th>
                         <th class="px-4 py-3 text-center font-semibold">Tipo</th>
+                        <th class="px-4 py-3 text-center font-semibold">Liberação</th>
                         <th class="px-4 py-3 text-center font-semibold">Progresso</th>
                         <th class="px-4 py-3 text-center font-semibold">Status</th>
                         <th class="px-4 py-3 text-center font-semibold">Isento?</th>
@@ -62,6 +63,9 @@
                             </td>
                             <td class="px-4 py-3 text-center text-sm text-gray-600">
                                 {{ $item->training->tipo ? ucfirst($item->training->tipo) : '—' }}
+                            </td>
+                            <td class="px-4 py-3 text-center text-sm text-gray-600">
+                                {{ optional($item->training->data_liberacao_exibicao)->format('d/m/Y') ?? '—' }}
                             </td>
                             <td class="px-4 py-3 text-center">
                                 @if($item->tem_progresso)
@@ -115,7 +119,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-8 text-center text-gray-600">
+                            <td colspan="7" class="px-4 py-8 text-center text-gray-600">
                                 <i class="fas fa-inbox text-3xl text-gray-400 mb-2"></i>
                                 <p>Nenhum treinamento encontrado para este usuário</p>
                             </td>

@@ -196,6 +196,9 @@
                                     <span><i class="fas fa-clock text-purple-500"></i> {{ $training->carga_horaria_formatada }}</span>
                                     <span><i class="fas fa-{{ $training->obrigatorio ? 'exclamation-circle text-purple-600' : 'check text-green-600' }}"></i> {{ $training->obrigatorio ? 'Obrigatório' : 'Opcional' }}</span>
                                 </div>
+                                <div class="text-xs text-gray-500 mb-3">
+                                    <i class="fas fa-calendar-check text-purple-500 mr-1"></i>Liberado em {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') }}
+                                </div>
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
                                    class="block w-full bg-purple-600 text-white text-center py-2 rounded hover:bg-purple-700 transition font-semibold">
                                     <i class="fas {{ $concluido ? 'fa-redo' : ($iniciado ? 'fa-play' : 'fa-play-circle') }} mr-2"></i>{{ $concluido ? 'Reabrir' : ($iniciado ? 'Continuar' : 'Assistir') }}
@@ -283,6 +286,9 @@
                                     <span><i class="fas fa-clock text-orange-500"></i> {{ $training->carga_horaria_formatada }}</span>
                                     <span><i class="fas fa-{{ $training->obrigatorio ? 'exclamation-circle text-orange-600' : 'check text-green-600' }}"></i> {{ $training->obrigatorio ? 'Obrigatório' : 'Opcional' }}</span>
                                 </div>
+                                <div class="text-xs text-gray-500 mb-3">
+                                    <i class="fas fa-calendar-check text-orange-500 mr-1"></i>Liberado em {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') }}
+                                </div>
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
                                    class="block w-full bg-orange-500 text-white text-center py-2 rounded hover:bg-orange-600 transition font-semibold">
                                     <i class="fas fa-play mr-2"></i>Continuar
@@ -348,6 +354,9 @@
                                     <span><i class="fas fa-clock text-blue-500"></i> {{ $training->carga_horaria_formatada }}</span>
                                     <span><i class="fas fa-{{ $training->obrigatorio ? 'exclamation-circle text-red-600' : 'check text-green-600' }}"></i> {{ $training->obrigatorio ? 'Obrigatório' : 'Opcional' }}</span>
                                 </div>
+                                <div class="text-xs text-gray-500 mb-3">
+                                    <i class="fas fa-calendar-check text-blue-500 mr-1"></i>Liberado em {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') }}
+                                </div>
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
                                    class="block w-full bg-blue-900 text-white text-center py-2 rounded hover:bg-blue-800 transition font-semibold">
                                     <i class="fas fa-play mr-2"></i>Iniciar
@@ -407,6 +416,9 @@
                                 <div class="flex gap-2 text-sm text-gray-600 mb-3">
                                     <span><i class="fas fa-clock text-green-500"></i> {{ $training->carga_horaria_formatada }}</span>
                                     <span class="text-green-600"><i class="fas fa-check-circle"></i> Concluído</span>
+                                </div>
+                                <div class="text-xs text-gray-500 mb-3">
+                                    <i class="fas fa-calendar-check text-green-500 mr-1"></i>Liberado em {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') }}
                                 </div>
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
                                    class="block w-full bg-green-500 text-white text-center py-2 rounded hover:bg-green-600 transition font-semibold">
@@ -471,7 +483,7 @@
                                     <span class="text-gray-500"><i class="fas fa-lock"></i> Aguardando liberação</span>
                                 </div>
                                 <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600 locked-release-label mb-3">
-                                    Libera em breve
+                                    Libera em {{ optional($training->data_liberacao_exibicao)->format('d/m/Y, H:i') }}
                                 </div>
                                 <button type="button" disabled
                                         class="block w-full bg-gray-400 text-white text-center py-2 rounded font-semibold cursor-not-allowed">

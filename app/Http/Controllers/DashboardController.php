@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Admin\RankingController;
 use App\Models\Certificate;
+use App\Models\RankingMonthlyScore;
 use App\Models\Training;
 use App\Models\TrainingVacationExemption;
 use App\Models\User;
 use App\Models\UserProgress;
-use Illuminate\Http\Request;
-use App\Models\RankingMonthlyScore;
 use App\Services\RankingRuleResolverService;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -53,7 +54,7 @@ class DashboardController extends Controller
             ->get();
 
         $taxaConclusao = [];
-        $treinamentos = Training::where('status', 'ativo')->take(5)->get();
+        $treinamentos = Training::where('status', 'ativo')->orderByReleaseDate('desc')->take(5)->get();
         foreach ($treinamentos as $training) {
             $taxaConclusao[$training->id] = $training->getTaxaConclusao();
         }
@@ -72,7 +73,7 @@ class DashboardController extends Controller
     private function dashboardAdmin()
     {
         $user = auth()->user();
-        
+
         $totalUsuarios = User::kpiEligible()->where('role_id', '<>', 1)->count();
         $totalTreinamentos = Training::count();
         $usuariosAtivos = User::kpiEligible()->where('role_id', '<>', 1)->count();
@@ -80,28 +81,29 @@ class DashboardController extends Controller
             $query->kpiEligible();
         })->count();
 
-        $treinamentosRecentes = Training::orderBy('created_at', 'desc')->take(5)->get();
+        $treinamentosRecentes = Training::orderByReleaseDate('desc')->take(5)->get();
         $usuariosRecentes = User::kpiEligible()->where('role_id', '<>', 1)->orderBy('created_at', 'desc')->take(5)->get();
 
         // Se o admin participa de treinamentos, carregar dados de treinamentos disponíveis
         $treinamentosDisponíveis = [];
         if ($user->participa_treinamentos) {
             $treinamentosDisponíveis = Training::where('status', 'ativo')
+                ->orderByReleaseDate('desc')
                 ->get()
-                ->filter(fn($t) => $user->canAccessTraining($t));
+                ->filter(fn ($t) => $user->canAccessTraining($t));
         }
 
         // Cálculo de pontos e rank em tempo real para o admin (visão pessoal)
         $month = now()->month;
         $year = now()->year;
         $resolver = app(RankingRuleResolverService::class);
-        $rankingController = app(\App\Http\Controllers\Admin\RankingController::class);
+        $rankingController = app(RankingController::class);
         $requestObj = new Request(['month' => $month, 'year' => $year]);
         $breakdownData = $rankingController->breakdown($requestObj, $user->id, $resolver)->getData();
         $totalPoints = collect($breakdownData->trainings ?? [])->sum('raw_score');
 
         $userRank = 0;
-        if (!$user->usuario_teste && $totalPoints > 0) {
+        if (! $user->usuario_teste && $totalPoints > 0) {
             $monthlyScore = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
                 ->where('ranking_monthly_scores.user_id', $user->id)
                 ->where('ranking_monthly_scores.month_reference', $month)
@@ -135,7 +137,7 @@ class DashboardController extends Controller
             'treinamentosDisponíveis' => $treinamentosDisponíveis,
             'rankingLevel' => $rankingLevel,
             'totalPoints' => $totalPoints,
-            'userRank' => $userRank
+            'userRank' => $userRank,
         ]);
     }
 
@@ -149,18 +151,22 @@ class DashboardController extends Controller
             ->toArray();
 
         // DSS: comportamento atual (público-alvo por tipo de usuário)
+        // Ordenação: liberação mais recente primeiro (bloqueados: próxima liberação primeiro)
         $dssElegiveis = Training::where('status', 'ativo')
             ->where('tipo', 'dss')
             ->get()
-            ->filter(fn($t) => $user->canAccessTraining($t))
-            ->filter(fn($t) => !in_array($t->id, $exemptTrainingIds));
+            ->filter(fn ($t) => $user->canAccessTraining($t))
+            ->filter(fn ($t) => ! in_array($t->id, $exemptTrainingIds))
+            ->sortByDesc(fn ($t) => $t->releaseDate()?->getTimestamp() ?? 0)
+            ->values();
 
         $treinamentosDisponíveis = $dssElegiveis
-            ->filter(fn($t) => $t->isReleased())
+            ->filter(fn ($t) => $t->isReleased())
             ->values();
 
         $treinamentosBloqueados = $dssElegiveis
-            ->filter(fn($t) => !$t->isReleased())
+            ->filter(fn ($t) => ! $t->isReleased())
+            ->sortBy(fn ($t) => $t->releaseDate()?->getTimestamp() ?? PHP_INT_MAX)
             ->values();
 
         // Treinamentos direcionados (tipo=treinamento) liberados para este funcionário
@@ -170,8 +176,9 @@ class DashboardController extends Controller
                 $query->where('users.id', $user->id);
             })
             ->get()
-            ->filter(fn($t) => $t->isReleased())
-            ->filter(fn($t) => !in_array($t->id, $exemptTrainingIds))
+            ->filter(fn ($t) => $t->isReleased())
+            ->filter(fn ($t) => ! in_array($t->id, $exemptTrainingIds))
+            ->sortByDesc(fn ($t) => $t->releaseDate()?->getTimestamp() ?? 0)
             ->values();
 
         $progresso = UserProgress::where('user_id', $user->id)->get();
@@ -189,8 +196,8 @@ class DashboardController extends Controller
 
         foreach ($treinamentosDisponíveis as $training) {
             $userProgress = $progresso->where('training_id', $training->id)->first();
-            
-            if (!$userProgress) {
+
+            if (! $userProgress) {
                 $treinamentosNaoIniciados[] = $training;
             } elseif ($userProgress->concluido) {
                 $treinamentosConcluidos[] = $training;
@@ -203,17 +210,17 @@ class DashboardController extends Controller
         $month = now()->month;
         $year = now()->year;
         $resolver = app(RankingRuleResolverService::class);
-        
+
         // Reutilizamos a lógica do RankingController para pegar a pontuação real atualizada
-        $rankingController = app(\App\Http\Controllers\Admin\RankingController::class);
+        $rankingController = app(RankingController::class);
         $request = new Request(['month' => $month, 'year' => $year]);
         $breakdownData = $rankingController->breakdown($request, $user->id, $resolver)->getData();
-        
+
         $totalPoints = collect($breakdownData->trainings ?? [])->sum('raw_score');
 
         // Rank baseado na última consolidação (usa position já calculado com desempate)
         $userRank = 0;
-        if (!$user->usuario_teste && $totalPoints > 0) {
+        if (! $user->usuario_teste && $totalPoints > 0) {
             $monthlyScore = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
                 ->where('ranking_monthly_scores.user_id', $user->id)
                 ->where('ranking_monthly_scores.month_reference', $month)
@@ -251,7 +258,7 @@ class DashboardController extends Controller
             'treinamentosCompletos' => $treinamentosCompletos,
             'rankingLevel' => $rankingLevel,
             'totalPoints' => $totalPoints,
-            'userRank' => $userRank
+            'userRank' => $userRank,
         ]);
     }
 
@@ -262,7 +269,7 @@ class DashboardController extends Controller
         $year = now()->year;
 
         // Reutilizamos a lógica de breakdown do RankingController, mas para o próprio usuário
-        $controller = app(\App\Http\Controllers\Admin\RankingController::class);
+        $controller = app(RankingController::class);
         $request = new Request(['month' => $month, 'year' => $year]);
         $breakdownData = $controller->breakdown($request, $user->id, $resolver)->getData();
         $trainings = $breakdownData->trainings ?? [];
@@ -270,7 +277,7 @@ class DashboardController extends Controller
         $score = collect($trainings)->sum('raw_score');
 
         $userRank = 0;
-        if (!$user->usuario_teste && $score > 0) {
+        if (! $user->usuario_teste && $score > 0) {
             $monthlyScore = RankingMonthlyScore::join('users', 'ranking_monthly_scores.user_id', '=', 'users.id')
                 ->where('ranking_monthly_scores.user_id', $user->id)
                 ->where('ranking_monthly_scores.month_reference', $month)
@@ -301,7 +308,7 @@ class DashboardController extends Controller
             'userRank' => $userRank,
             'trainings' => $trainings,
             'month' => $month,
-            'year' => $year
+            'year' => $year,
         ]);
     }
 
@@ -313,59 +320,59 @@ class DashboardController extends Controller
     {
         if ($position === 1) {
             return [
-                'name'  => 'Mítico',
-                'sub'   => 'Comandante da Segurança',
+                'name' => 'Mítico',
+                'sub' => 'Comandante da Segurança',
                 'class' => 'tier-mythic',
                 'color' => '#7c3aed',
-                'icon'  => 'fa-dragon',
-                'msg'   => 'Você é o Comandante da Segurança! Parabéns por liderar o ranking — sua dedicação protege vidas e inspira toda a frota.',
+                'icon' => 'fa-dragon',
+                'msg' => 'Você é o Comandante da Segurança! Parabéns por liderar o ranking — sua dedicação protege vidas e inspira toda a frota.',
             ];
         } elseif ($position <= 3) {
             return [
-                'name'  => 'Titã',
-                'sub'   => 'Mestre da Prevenção',
+                'name' => 'Titã',
+                'sub' => 'Mestre da Prevenção',
                 'class' => 'tier-titan',
                 'color' => '#ef4444',
-                'icon'  => 'fa-crown',
-                'msg'   => 'Incrível! Você está entre os 3 primeiros como Mestre da Prevenção. Continue assim e conquiste o topo!',
+                'icon' => 'fa-crown',
+                'msg' => 'Incrível! Você está entre os 3 primeiros como Mestre da Prevenção. Continue assim e conquiste o topo!',
             ];
         } elseif ($position <= 10) {
             return [
-                'name'  => 'Imperial',
-                'sub'   => 'Defensor Supremo',
+                'name' => 'Imperial',
+                'sub' => 'Defensor Supremo',
                 'class' => 'tier-imperial',
                 'color' => '#f97316',
-                'icon'  => 'fa-shield-halved',
-                'msg'   => 'Excelente! Você é um Defensor Supremo no top 10. Seu comprometimento com a segurança faz a diferença todos os dias.',
+                'icon' => 'fa-shield-halved',
+                'msg' => 'Excelente! Você é um Defensor Supremo no top 10. Seu comprometimento com a segurança faz a diferença todos os dias.',
             ];
         } elseif ($position <= 20) {
             return [
-                'name'  => 'Elite',
-                'sub'   => 'Embaixador da Segurança',
+                'name' => 'Elite',
+                'sub' => 'Embaixador da Segurança',
                 'class' => 'tier-elite',
                 'color' => '#0ea5e9',
-                'icon'  => 'fa-star',
-                'msg'   => 'Parabéns! Você está no top 20 como Embaixador da Segurança. Mais um esforço e você entra para o grupo Imperial!',
+                'icon' => 'fa-star',
+                'msg' => 'Parabéns! Você está no top 20 como Embaixador da Segurança. Mais um esforço e você entra para o grupo Imperial!',
             ];
         } elseif ($position <= 35) {
             return [
-                'name'  => 'Prata',
-                'sub'   => 'Agente Preventivo',
+                'name' => 'Prata',
+                'sub' => 'Agente Preventivo',
                 'class' => 'tier-silver',
                 'color' => '#64748b',
-                'icon'  => 'fa-certificate',
-                'msg'   => 'Bom trabalho, Agente Preventivo! Você está crescendo no ranking. Foque nos treinamentos e suba para o nível Elite!',
+                'icon' => 'fa-certificate',
+                'msg' => 'Bom trabalho, Agente Preventivo! Você está crescendo no ranking. Foque nos treinamentos e suba para o nível Elite!',
             ];
         }
 
         // Posição 36+ ou sem posição ainda
         return [
-            'name'  => 'Bronze',
-            'sub'   => 'Observador de Segurança',
+            'name' => 'Bronze',
+            'sub' => 'Observador de Segurança',
             'class' => 'tier-bronze',
             'color' => '#b45309',
-            'icon'  => 'fa-shield-alt',
-            'msg'   => 'Todo grande campeão começa aqui! Complete os treinamentos, ganhe pontos e suba para o nível Prata.',
+            'icon' => 'fa-shield-alt',
+            'msg' => 'Todo grande campeão começa aqui! Complete os treinamentos, ganhe pontos e suba para o nível Prata.',
         ];
     }
 }

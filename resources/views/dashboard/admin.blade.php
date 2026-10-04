@@ -155,7 +155,7 @@ Dashboard Administrador
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
                             <div>
                                 <p class="font-semibold text-gray-800">{{ $training->titulo }}</p>
-                                <p class="text-sm text-gray-600">{{ $training->created_at->format('d/m/Y H:i') }}</p>
+                                <p class="text-sm text-gray-600">Liberação: {{ optional($training->data_liberacao_exibicao)->format('d/m/Y H:i') }}</p>
                             </div>
                             <span class="bg-{{ $training->status === 'ativo' ? 'green' : 'red' }}-100 text-{{ $training->status === 'ativo' ? 'green' : 'red' }}-900 px-3 py-1 rounded-full text-sm">
                                 {{ $training->status }}
@@ -256,6 +256,9 @@ Dashboard Administrador
                                 <span class="text-xs text-gray-600">⏱ {{ $training->carga_horaria_formatada }}</span>
                                 <span class="bg-purple-600 text-white text-xs px-2 py-1 rounded">Assistir</span>
                             </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                <i class="fas fa-calendar-check mr-1"></i>Liberação: {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') }}
+                            </p>
                         </a>
                     @empty
                         <div class="col-span-3 text-center p-6">

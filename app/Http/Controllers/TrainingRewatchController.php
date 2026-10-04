@@ -9,13 +9,12 @@ use App\Models\User;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class TrainingRewatchController extends Controller
 {
     public function index(Request $request, User $user)
     {
-        $treinamentos = Training::where('status', 'ativo')->orderBy('titulo')->get();
+        $treinamentos = Training::where('status', 'ativo')->orderByReleaseDate('desc')->get();
 
         $progressMap = UserProgress::where('user_id', $user->id)
             ->with('training:id,titulo,tipo')
@@ -120,7 +119,7 @@ class TrainingRewatchController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            return back()->with('error', 'Erro ao processar solicitação: ' . $e->getMessage());
+            return back()->with('error', 'Erro ao processar solicitação: '.$e->getMessage());
         }
     }
 

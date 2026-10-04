@@ -152,6 +152,8 @@ class TrainingAnalyzer
      * Mesma lógica do kpiEligible + eligibleForTrainingKpi, porém
      * inativos só são desconsiderados a partir da data de inativação.
      * Se inativaram APÓS a liberação do treinamento, ainda são elegíveis.
+     * Aplica também público/atribuição, isenções de férias e férias na
+     * data de liberação do conteúdo.
      *
      * @return Builder
      */
@@ -193,14 +195,8 @@ class TrainingAnalyzer
             });
 
         // eligibleForTrainingKpi: cadastro até o fim da semana da data do treinamento
-        if ($dataLiberacao) {
-            $maxUserCreatedAt = Carbon::parse($dataLiberacao, config('app.timezone'))
-                ->endOfWeek(Carbon::SUNDAY)
-                ->endOfDay();
-            $query->where('created_at', '<=', $maxUserCreatedAt);
-        }
-
-        return $query;
+        // + público/atribuição, isenções e férias na liberação do conteúdo
+        return $query->eligibleForContent($training);
     }
 
     /**
@@ -226,7 +222,7 @@ class TrainingAnalyzer
 
         // Filtrar apenas: excluir super_admin, teste, admin sem participação, férias
         // NÃO exclui inativos — se fizeram o treinamento, aparecem no relatório
-        $progressos = $todosProgressos->filter(function ($p) {
+        $progressos = $todosProgressos->filter(function ($p) use ($idsElegiveis) {
             $u = $p->user;
             if (! $u) {
                 return false;
@@ -238,6 +234,10 @@ class TrainingAnalyzer
                 return false;
             }
             if ($u->isOnVacation()) {
+                return false;
+            }
+            // Isenções de férias e férias na data de liberação do conteúdo
+            if (! in_array($p->user_id, $idsElegiveis, true)) {
                 return false;
             }
 

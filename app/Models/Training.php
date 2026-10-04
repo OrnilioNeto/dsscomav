@@ -169,28 +169,11 @@ class Training extends Model
 
     public function getTaxaConclusao()
     {
-        // Para treinamento direcionado, o público-alvo são os funcionários atribuídos
-        if ($this->tipo === 'treinamento') {
-            $total = $this->assignedUsers()->count();
+        // Base elegível do conteúdo: cadastro, público/atribuição, isenções de
+        // férias e férias na liberação (mesma regra dos relatórios).
+        $elegiveis = User::kpiEligible()->eligibleForContent($this)->pluck('id');
 
-            if ($total === 0) {
-                return 0;
-            }
-
-            $concluido = $this->progress()
-                ->where('concluido', true)
-                ->whereIn('user_id', $this->assignedUsers()->select('users.id'))
-                ->distinct('user_id')
-                ->count();
-
-            return round(($concluido / $total) * 100, 2);
-        }
-
-        $total = User::kpiEligible()
-            ->eligibleForTrainingKpi($this)
-            ->where('status', 'ativo')
-            ->whereIn('tipo_usuario', is_array($this->tipo_usuario_permitido) ? $this->tipo_usuario_permitido : json_decode($this->tipo_usuario_permitido, true) ?? [])
-            ->count();
+        $total = $elegiveis->count();
 
         if ($total === 0) {
             return 0;
@@ -198,9 +181,7 @@ class Training extends Model
 
         $concluido = $this->progress()
             ->where('concluido', true)
-            ->whereHas('user', function ($query) {
-                $query->kpiEligible()->eligibleForTrainingKpi($this);
-            })
+            ->whereIn('user_id', $elegiveis)
             ->distinct('user_id')
             ->count();
 
@@ -269,5 +250,33 @@ class Training extends Model
         }
 
         return Carbon::now(config('app.timezone'))->gte($this->data_liberacao);
+    }
+
+    /**
+     * Data de referência do conteúdo para ordenação/exibição: a data de
+     * liberação agendada (segunda-feira) com fallback para a publicação e,
+     * por último, a criação do registro (conteúdos legados).
+     */
+    public function releaseDate(): ?Carbon
+    {
+        return $this->data_liberacao ?? $this->data_publicacao ?? $this->created_at;
+    }
+
+    /**
+     * Acessor para exibição da data de liberação (com os mesmos fallbacks).
+     */
+    public function getDataLiberacaoExibicaoAttribute(): ?Carbon
+    {
+        return $this->releaseDate();
+    }
+
+    /**
+     * Ordena pela data de liberação do conteúdo (fallback: publicação/criação).
+     */
+    public function scopeOrderByReleaseDate($query, string $direction = 'asc')
+    {
+        $direction = strtolower($direction) === 'desc' ? 'desc' : 'asc';
+
+        return $query->orderByRaw('COALESCE(data_liberacao, data_publicacao, created_at) '.$direction);
     }
 }

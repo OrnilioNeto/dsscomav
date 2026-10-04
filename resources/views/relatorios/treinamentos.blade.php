@@ -137,7 +137,7 @@
                     <select name="training_id" id="training_id" onchange="this.form.submit()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todos</option>
                         @foreach($treinamentos as $training)
-                            <option value="{{ $training->id }}" @if(request('training_id') == $training->id) selected @endif>{{ $training->titulo }}</option>
+                            <option value="{{ $training->id }}" @if(request('training_id') == $training->id) selected @endif>{{ $training->titulo }} — Liberação: {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') ?? '—' }}</option>
                         @endforeach
                     </select>
                 </div>
