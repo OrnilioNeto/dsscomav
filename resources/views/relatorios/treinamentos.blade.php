@@ -193,6 +193,11 @@
                     <a href="{{ route('relatorios.treinamentos.pdf') }}{{ request()->getQueryString() ? ('?' . request()->getQueryString()) : '' }}" class="flex-1 md:flex-none bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-500 transition text-center">
                         <i class="fas fa-file-pdf mr-2"></i>Baixar PDF
                     </a>
+                    @if(auth()->user()?->hasPermission('lembretes_whatsapp', 'view'))
+                        <a href="{{ route('admin.lembretes.index') }}" class="flex-1 md:flex-none bg-emerald-700 text-white py-2 px-4 rounded-lg hover:bg-emerald-600 transition text-center">
+                            <i class="fab fa-whatsapp mr-2"></i>Lembretes
+                        </a>
+                    @endif
                 </div>
         </form>
     </div>
@@ -372,9 +377,17 @@
                             @endif
                         </p>
                     </div>
-                    <a href="{{ route('relatorios.treinamentos') }}" class="bg-white border border-purple-300 text-purple-800 px-4 py-2 rounded-lg hover:bg-purple-100 transition text-sm font-semibold">
-                        <i class="fas fa-times mr-1"></i>Fechar foco
-                    </a>
+                    <div class="flex items-center gap-2">
+                        @if(auth()->user()?->hasPermission('lembretes_whatsapp', 'edit'))
+                            <a href="{{ route('admin.lembretes.disparo', ['training_id' => $focoTreinamento->id]) }}"
+                               class="bg-emerald-700 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition text-sm font-semibold">
+                                <i class="fab fa-whatsapp mr-1"></i>Lembrar pendentes
+                            </a>
+                        @endif
+                        <a href="{{ route('relatorios.treinamentos') }}" class="bg-white border border-purple-300 text-purple-800 px-4 py-2 rounded-lg hover:bg-purple-100 transition text-sm font-semibold">
+                            <i class="fas fa-times mr-1"></i>Fechar foco
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -546,8 +559,19 @@
                         @endphp
                         <tr class="border-b hover:bg-gray-50 transition">
                             <td class="px-4 py-3">
-                                <div class="font-semibold text-gray-800">{{ optional($resumo->training)->titulo ?? 'Conteúdo removido' }}</div>
-                                <div class="text-xs text-gray-500">{{ optional($resumo->training)->tipo ? ucfirst(optional($resumo->training)->tipo) : 'Sem tipo' }}</div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <div>
+                                        <div class="font-semibold text-gray-800">{{ optional($resumo->training)->titulo ?? 'Conteúdo removido' }}</div>
+                                        <div class="text-xs text-gray-500">{{ optional($resumo->training)->tipo ? ucfirst(optional($resumo->training)->tipo) : 'Sem tipo' }}</div>
+                                    </div>
+                                    @if($resumo->training && auth()->user()?->hasPermission('lembretes_whatsapp', 'edit'))
+                                        <a href="{{ route('admin.lembretes.disparo', ['training_id' => $resumo->training_id]) }}"
+                                           class="shrink-0 text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-100 transition font-semibold"
+                                           title="Lembrar pendentes deste treinamento no WhatsApp">
+                                            <i class="fab fa-whatsapp mr-1"></i>Lembrar
+                                        </a>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-4 py-3 text-center text-gray-700">{{ $resumo->assistencias }}</td>
                             <td class="px-4 py-3 text-center text-gray-700">{{ $resumo->concluidas }}</td>
