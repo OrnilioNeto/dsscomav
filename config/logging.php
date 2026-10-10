@@ -1,13 +1,16 @@
 <?php
 
 use Monolog\Handler\NullHandler;
-use Monolog\Handler\StreamHandler;
-use Monolog\Handler\SyslogUdpHandler;
-use Monolog\Processor\PsrLogMessageProcessor;
 
 return [
 
     'default' => env('LOG_CHANNEL', 'stack'),
+
+    /*
+     * Log de cada request (LogSystemRequests). Desligue em desenvolvimento
+     * para evitar I/O de log em toda navegação; em produção mantenha ligado.
+     */
+    'system_requests' => env('SYSTEM_REQUEST_LOG', true),
 
     'deprecations' => [
         'channel' => env('LOG_DEPRECATIONS_CHANNEL', 'null'),

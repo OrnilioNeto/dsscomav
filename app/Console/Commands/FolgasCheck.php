@@ -36,6 +36,7 @@ class FolgasCheck extends Command
 
             $motoristas = User::where('tipo_usuario', 'motorista')
                 ->where('status', 'ativo')
+                ->where('usuario_teste', false)
                 ->get();
 
             $problemas = 0;

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
+use App\Support\RolePermissionCache;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -24,6 +25,16 @@ class RolePermission extends Model
         'can_view' => 'boolean',
         'can_edit' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        $flush = function (self $permission) {
+            app(RolePermissionCache::class)->forget((int) $permission->role_id);
+        };
+
+        static::saved($flush);
+        static::deleted($flush);
+    }
 
     public function role()
     {

@@ -6,6 +6,7 @@ use App\Models\Certificate;
 use App\Models\PersonalAccessToken;
 use App\Observers\CertificateObserver;
 use App\Services\AuditLogger;
+use App\Support\RolePermissionCache;
 use App\Support\TenantManager;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
@@ -20,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TenantManager::class);
+        $this->app->singleton(RolePermissionCache::class);
     }
 
     public function boot(): void

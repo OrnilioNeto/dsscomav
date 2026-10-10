@@ -67,17 +67,32 @@
 <body class="bg-gray-50" style="--primary: {{ $brandPrimary }}; --primary-700:{{ $brandPrimaryDark }}; --accent:{{ $brandAccent }};">
     @if(Auth::check())
         @php
+            $tenantCacheKey = app(\App\Support\TenantManager::class)->id() ?? 0;
+
             $epiAlertaCount = 0;
-            if (Auth::check() && (Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('epi'))) {
+            if (Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('epi')) {
                 try {
-                    if (\Illuminate\Support\Facades\Schema::hasTable('ss_epi')) {
-                        $epiAlertaCount = \App\Models\Epi::contarCaCriticos(30)['total'];
-                    }
+                    $epiAlertaCount = \Illuminate\Support\Facades\Cache::remember(
+                        "menu_epi_alerta_{$tenantCacheKey}",
+                        now()->addMinutes(5),
+                        function () {
+                            if (! \Illuminate\Support\Facades\Schema::hasTable('ss_epi')) {
+                                return 0;
+                            }
+
+                            return \App\Models\Epi::contarCaCriticos(30)['total'];
+                        }
+                    );
                 } catch (\Throwable $e) {}
             }
+
             $treinamentosAlertaCount = 0;
-            if (Auth::check() && (Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view'))) {
-                $treinamentosAlertaCount = \App\Models\Certificate::contarValidadesCriticas(30);
+            if (Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('trainings', 'view')) {
+                $treinamentosAlertaCount = \Illuminate\Support\Facades\Cache::remember(
+                    "menu_certificados_alerta_{$tenantCacheKey}",
+                    now()->addMinutes(5),
+                    fn () => \App\Models\Certificate::contarValidadesCriticas(30)
+                );
             }
         @endphp
         <nav class="site-nav shadow-lg">

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
+use App\Support\RolePermissionCache;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -153,7 +154,7 @@ class User extends Authenticatable
             return false;
         }
 
-        $permission = $this->role->permissions()->where('module', $module)->first();
+        $permission = app(RolePermissionCache::class)->mapFor((int) $this->role->id)[$module] ?? null;
         if (! $permission) {
             return false;
         }

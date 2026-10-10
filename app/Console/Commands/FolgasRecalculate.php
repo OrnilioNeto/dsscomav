@@ -42,6 +42,7 @@ class FolgasRecalculate extends Command
 
             $motoristas = User::where('tipo_usuario', 'motorista')
                 ->where('status', 'ativo')
+                ->where('usuario_teste', false)
                 ->orderBy('nome')
                 ->get();
 

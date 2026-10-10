@@ -28,6 +28,7 @@ class FolgaRelatorioController extends Controller
 
         $motoristas = User::where('tipo_usuario', 'motorista')
             ->where('status', 'ativo')
+            ->where('usuario_teste', false)
             ->when($userId, fn ($q) => $q->where('id', $userId))
             ->orderBy('nome')
             ->get();
@@ -81,6 +82,7 @@ class FolgaRelatorioController extends Controller
 
         $motoristas = User::where('tipo_usuario', 'motorista')
             ->where('status', 'ativo')
+            ->where('usuario_teste', false)
             ->orderBy('nome')
             ->get();
 
@@ -119,6 +121,7 @@ class FolgaRelatorioController extends Controller
 
         $motoristas = User::where('tipo_usuario', 'motorista')
             ->where('status', 'ativo')
+            ->where('usuario_teste', false)
             ->orderBy('nome')
             ->get();
 
