@@ -19,6 +19,7 @@ use App\Models\Training;
 use App\Models\TrainingMaterial;
 use App\Models\User;
 use App\Models\UserVacation;
+use App\Modules\LembretesWhatsapp\Models\TrainingReminder;
 use App\Support\TenantManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -52,6 +53,7 @@ class AuditLogger
         Tenant::class => 'plataforma',
         Training::class => 'trainings',
         TrainingMaterial::class => 'trainings',
+        TrainingReminder::class => 'lembretes_whatsapp',
         Certificate::class => 'certificates',
         UserVacation::class => 'users',
         EmployeeTraining::class => 'users',

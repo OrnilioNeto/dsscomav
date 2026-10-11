@@ -63,7 +63,7 @@
                             </div>
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo de usuário</p>
-                                <p class="text-lg font-semibold">{{ ucfirst($certificate->user->tipo_usuario ?? 'Não informado') }}</p>
+                                <p class="text-lg font-semibold">{{ tipo_usuario_label($certificate->user->tipo_usuario) }}</p>
                             </div>
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Telefone</p>

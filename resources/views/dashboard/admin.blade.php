@@ -180,7 +180,7 @@ Dashboard Administrador
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
                             <div>
                                 <p class="font-semibold text-gray-800">{{ $usuario->nome }}</p>
-                                <p class="text-sm text-gray-600">{{ ucfirst($usuario->tipo_usuario) }}</p>
+                                <p class="text-sm text-gray-600">{{ tipo_usuario_label($usuario->tipo_usuario) }}</p>
                             </div>
                             <span class="bg-{{ $usuario->status === 'ativo' ? 'green' : 'red' }}-100 text-{{ $usuario->status === 'ativo' ? 'green' : 'red' }}-900 px-3 py-1 rounded-full text-sm">
                                 {{ ucfirst($usuario->status) }}

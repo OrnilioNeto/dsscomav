@@ -97,13 +97,15 @@
                                     <span class="px-3 py-1 rounded-full text-sm font-semibold
                                         @if($usuario->tipo_usuario === 'motorista')
                                             bg-blue-100 text-blue-900
+                                        @elseif($usuario->tipo_usuario === 'motorista_monitor')
+                                            bg-indigo-100 text-indigo-900
                                         @elseif($usuario->tipo_usuario === 'funcionario')
                                             bg-green-100 text-green-900
                                         @else
                                             bg-orange-100 text-orange-900
                                         @endif
                                     ">
-                                        {{ ucfirst($usuario->tipo_usuario) }}
+                                        {{ tipo_usuario_label($usuario->tipo_usuario) }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4">
@@ -159,13 +161,15 @@
                                     <span class="px-3 py-1 rounded-full text-sm font-semibold
                                         @if($usuario->tipo_usuario === 'motorista')
                                             bg-blue-100 text-blue-900
+                                        @elseif($usuario->tipo_usuario === 'motorista_monitor')
+                                            bg-indigo-100 text-indigo-900
                                         @elseif($usuario->tipo_usuario === 'funcionario')
                                             bg-green-100 text-green-900
                                         @else
                                             bg-orange-100 text-orange-900
                                         @endif
                                     ">
-                                        {{ ucfirst($usuario->tipo_usuario) }}
+                                        {{ tipo_usuario_label($usuario->tipo_usuario) }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4">
@@ -336,13 +340,15 @@
                                     <span class="px-3 py-1 rounded-full text-sm font-semibold
                                         @if($usuario->tipo_usuario === 'motorista')
                                             bg-blue-100 text-blue-900
+                                        @elseif($usuario->tipo_usuario === 'motorista_monitor')
+                                            bg-indigo-100 text-indigo-900
                                         @elseif($usuario->tipo_usuario === 'funcionario')
                                             bg-green-100 text-green-900
                                         @else
                                             bg-orange-100 text-orange-900
                                         @endif
                                     ">
-                                        {{ ucfirst($usuario->tipo_usuario) }}
+                                        {{ tipo_usuario_label($usuario->tipo_usuario) }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4">

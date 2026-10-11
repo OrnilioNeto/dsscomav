@@ -38,11 +38,7 @@
                 <p class="block text-sm font-semibold text-gray-700 mb-2">Filtrar por tipo (selecione 1 ou mais)</p>
                 <div class="flex flex-wrap gap-4">
                     @php
-                        $tipos = [
-                            'motorista' => 'Motorista',
-                            'funcionario' => 'Funcionário',
-                            'terceirizado' => 'Terceirizado',
-                        ];
+                        $tipos = \App\Models\User::tipoUsuarioLabels();
                     @endphp
 
                     @foreach($tipos as $valor => $label)
@@ -93,13 +89,15 @@
                             <span class="px-3 py-1 rounded-full text-sm font-semibold
                                 @if($usuario->tipo_usuario === 'motorista')
                                     bg-blue-100 text-blue-900
+                                @elseif($usuario->tipo_usuario === 'motorista_monitor')
+                                    bg-indigo-100 text-indigo-900
                                 @elseif($usuario->tipo_usuario === 'funcionario')
                                     bg-green-100 text-green-900
                                 @else
                                     bg-orange-100 text-orange-900
                                 @endif
                             ">
-                                {{ ucfirst($usuario->tipo_usuario) }}
+                                {{ tipo_usuario_label($usuario->tipo_usuario) }}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-gray-600">{{ $usuario->email }}</td>

@@ -41,6 +41,7 @@
                     <label class="block text-gray-700 font-semibold mb-2">Tipo de Usuário *</label>
                     <select name="tipo_usuario" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                         <option value="motorista">Motorista</option>
+                        <option value="motorista_monitor">Motorista Monitor</option>
                         <option value="funcionario">Funcionário</option>
                         <option value="terceirizado">Terceirizado</option>
                     </select>
@@ -162,7 +163,7 @@ document.querySelector('select[name="tipo_usuario"]').addEventListener('change',
     document.getElementById('motorista-fields').classList.add('hidden');
     document.getElementById('funcionario-fields').classList.add('hidden');
     
-    if (this.value === 'motorista') {
+    if (this.value === 'motorista' || this.value === 'motorista_monitor') {
         document.getElementById('motorista-fields').classList.remove('hidden');
     } else if (this.value === 'funcionario') {
         document.getElementById('funcionario-fields').classList.remove('hidden');

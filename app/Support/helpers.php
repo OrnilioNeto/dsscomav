@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Tenant;
+use App\Models\User;
 use App\Support\TenantManager;
 use Carbon\Carbon;
 
@@ -127,6 +128,63 @@ if (! function_exists('mask_phone')) {
         }
 
         return '(**) *****-'.substr($digits, -4);
+    }
+}
+
+if (! function_exists('tipo_usuario_label')) {
+    /**
+     * Rótulo amigável do tipo de usuário (ex.: motorista_monitor => "Motorista Monitor").
+     */
+    function tipo_usuario_label(?string $tipo): string
+    {
+        return User::tipoUsuarioLabel($tipo);
+    }
+}
+
+if (! function_exists('phone_to_jid')) {
+    /**
+     * Normaliza um telefone brasileiro e devolve o JID do WhatsApp
+     * (ex.: "5511999999999@s.whatsapp.net"). Retorna null quando o número
+     * é inválido/incompleto — nesse caso o lembrete não deve ser enviado.
+     *
+     * Aceita: (11) 99999-9999, 11999999999, 5511999999999, +55 11 99999-9999.
+     * Números de outros países devem vir com DDI e 12/13 dígitos; sem DDI,
+     * assume-se Brasil (55).
+     */
+    function phone_to_jid(?string $phone, string $country = '55'): ?string
+    {
+        $digits = preg_replace('/\D/', '', (string) $phone);
+
+        if ($digits === null || $digits === '') {
+            return null;
+        }
+
+        $digits = ltrim($digits, '0');
+
+        if ($digits === '') {
+            return null;
+        }
+
+        // Já contém DDI brasileiro (55 + DDD + número).
+        if (str_starts_with($digits, $country) && strlen($digits) >= 12) {
+            $national = substr($digits, strlen($country));
+        } elseif (strlen($digits) === 10 || strlen($digits) === 11) {
+            $national = $digits;
+        } else {
+            return null;
+        }
+
+        // Brasil: 10 dígitos (fixo/antigo) ou 11 (celular com o nono dígito).
+        if (strlen($national) === 11 && $national[2] !== '9') {
+            return null;
+        }
+
+        $ddd = (int) substr($national, 0, 2);
+        if ($ddd < 11 || $ddd > 99) {
+            return null;
+        }
+
+        return $country.$national.'@s.whatsapp.net';
     }
 }
 

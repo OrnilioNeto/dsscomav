@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Certificate;
 use App\Models\PlatformSetting;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use TCPDF;
 
@@ -274,7 +275,7 @@ class CertificatePdfService
 
         $campos = [
             ['Empresa', $user->empresa ?: plataforma_nome()],
-            ['Tipo de usuário', ucfirst((string) ($user->tipo_usuario ?: 'Não informado'))],
+            ['Tipo de usuário', $user->tipo_usuario ? User::tipoUsuarioLabel($user->tipo_usuario) : 'Não informado'],
             ['Telefone', $user->telefone ?: 'Não informado'],
             ['E-mail', $user->email ?: 'Não informado'],
             ['Carga horária', $training->carga_horaria_formatada_extenso],

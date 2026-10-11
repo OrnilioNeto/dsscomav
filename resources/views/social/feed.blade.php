@@ -107,7 +107,7 @@
                                         <a href="{{ route('social.user.profile', $post->user->id) }}" class="font-bold text-gray-800 hover:underline text-sm sm:text-base">
                                             {{ $post->user->nome }}
                                         </a>
-                                        <span class="text-xs text-gray-400 capitalize">• {{ $post->user->tipo_usuario }}</span>
+                                        <span class="text-xs text-gray-400 capitalize">• {{ tipo_usuario_label($post->user->tipo_usuario) }}</span>
                                     </div>
                                     <div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                                         <span>{{ $post->created_at->diffForHumans() }}</span>
@@ -296,7 +296,7 @@
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 text-center">
                 <img src="{{ auth()->user()->getFotoPerfilUrl() }}" alt="{{ auth()->user()->nome }}" class="w-20 h-20 rounded-full object-cover border-4 border-orange-500/20 mx-auto shadow-sm">
                 <h3 class="font-bold text-gray-800 text-lg mt-3">{{ auth()->user()->nome }}</h3>
-                <p class="text-xs text-gray-400 capitalize mt-0.5">{{ auth()->user()->tipo_usuario }}</p>
+                <p class="text-xs text-gray-400 capitalize mt-0.5">{{ tipo_usuario_label(auth()->user()->tipo_usuario) }}</p>
                 
                 <div class="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-gray-100">
                     <div>
@@ -327,7 +327,7 @@
                                     <a href="{{ route('social.user.profile', $suggested->id) }}" class="text-xs font-bold text-gray-800 hover:underline block truncate">
                                         {{ $suggested->nome }}
                                     </a>
-                                    <span class="text-[10px] text-gray-400 block capitalize">{{ $suggested->tipo_usuario }}</span>
+                                    <span class="text-[10px] text-gray-400 block capitalize">{{ tipo_usuario_label($suggested->tipo_usuario) }}</span>
                                 </div>
                             </div>
                             <button 

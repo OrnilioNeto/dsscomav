@@ -39,6 +39,13 @@ return [
 
     'asset_prefix' => env('APP_ASSET_PREFIX', ''),
 
+    /*
+     * Comprime respostas HTML/JSON com gzip na aplicação. Útil no Docker local
+     * (port-forward do Windows é lento com páginas grandes). Deixe false em
+     * produção se o servidor web já comprime (mod_deflate/nginx gzip).
+     */
+    'compress_responses' => env('RESPONSE_GZIP', false),
+
     'trusted_proxies' => env('TRUSTED_PROXIES', ''),
 
     'timezone' => 'America/Sao_Paulo',

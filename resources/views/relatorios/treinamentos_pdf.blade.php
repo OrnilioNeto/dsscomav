@@ -203,6 +203,8 @@
                         <td class="col-funcao">
                             @if(optional($p->user)->tipo_usuario === 'motorista')
                                 Motorista
+                            @elseif(optional($p->user)->tipo_usuario === 'motorista_monitor')
+                                Motorista Monitor
                             @elseif(optional($p->user)->tipo_usuario === 'funcionario')
                                 {{ optional($p->user)->cargo ?? '—' }}
                             @else

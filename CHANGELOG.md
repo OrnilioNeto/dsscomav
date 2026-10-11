@@ -5,6 +5,92 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+## [2.0.72] - 2026-10-04
+
+### Adicionado
+- Validação do número no WhatsApp antes de enfileirar (gateway
+  `POST /api/chat/{sessionId}/check`): grava o **JID canônico** retornado, o que
+  corrige os casos em que o número só entrega no formato antigo (sem o nono
+  dígito). Números que não existem no WhatsApp viram `pulado` com o motivo,
+  em vez de mensagem que fica presa em "enviado".
+- Webhook de status de entrega `message.status` do WA-AKG → DSS
+  (`POST /api/lembretes-whatsapp/status`, assinatura HMAC via `WA_WEBHOOK_SECRET`)
+  com as colunas `delivery_status`/`delivered_at` e coluna **Entrega** no
+  histórico (`enviado` ≠ `entregue`).
+- Diagnóstico mostra se o segredo do webhook está configurado.
+
+## [2.0.71] - 2026-10-04
+
+### Adicionado
+- Comando `php artisan lembretes:diagnostico`: mostra a configuração da
+  integração (flag, URL, sessão, API key mascarada, janela, cache de config),
+  o status real da sessão no WA-AKG e as contagens da fila por tenant.
+- Badge ao vivo do status da sessão (reutilizável) na tela de **Disparo**; o
+  botão **Enviar agora** fica desabilitado com explicação no tooltip quando a
+  integração está desativada ou a sessão desconectada.
+- Dicas de rede Docker (`host.docker.internal`) e porta do WA-AKG (`PORT`) na
+  documentação do módulo.
+
+## [2.0.70] - 2026-10-04
+
+### Adicionado
+- Botão **Enviar agora** na tela de disparo dos Lembretes WhatsApp: envia a
+  seleção imediatamente (`lembretes:processar --force` na mesma requisição,
+  ignorando agendamento e janela), útil para testes locais e urgências. Exige
+  integração ativa e sessão conectada (senão nada é enfileirado) e mantém o
+  teto diário; o flash informa enviados/falhas/na fila.
+
+## [2.0.69] - 2026-10-04
+
+### Adicionado
+- Tela **Disparo** no módulo Lembretes WhatsApp
+  (`/admin/lembretes-whatsapp/disparo`): panorama de **todos os treinamentos**
+  com elegíveis, concluídos e pendentes (contagens em cache por 10 min, com
+  atualização manual) e lista completa dos pendentes do treinamento escolhido,
+  com filtros (tipo de usuário, nome/CPF), seleção em massa e envio em lote.
+- Navegação por abas **Disparo | Histórico** no módulo.
+
+### Alterado
+- Atalhos "Lembrar pendentes" (Foco no Treinamento) e "Lembrar" (Desempenho por
+  Conteúdo) do relatório agora abrem a tela de disparo já com o treinamento
+  selecionado (modal removido).
+- Disparo em lote passa a recusar treinamentos inativos ou ainda não liberados e
+  usa formulário padrão com redirect + mensagem de sucesso (mantém resposta JSON
+  para chamadas assíncronas).
+
+## [2.0.68] - 2026-10-04
+
+### Alterado
+- Processador de lembretes WhatsApp (`lembretes:processar`) passa a rodar a cada
+  **5 minutos** e somente na janela configurada (padrão 08:00–18:00), reduzindo de
+  1.440 para ~120 execuções/dia.
+- O comando verifica a fila antes de qualquer consulta pesada: com a fila vazia,
+  encerra sem contar teto/falhas e **sem consultar a sessão no gateway**.
+- Intervalo padrão entre lembretes ajustado para 300–600s (`WA_DELAY_MIN`/
+  `WA_DELAY_MAX`), coerente com a nova cadência do processador (textos do modal,
+  histórico e documentação atualizados).
+
+## [2.0.67] - 2026-10-04
+
+### Adicionado
+- Módulo **Lembretes WhatsApp** (`lembretes_whatsapp`, `app/Modules/LembretesWhatsapp`):
+  botão "Lembrar pendentes" no relatório de treinamentos que lista os colaboradores
+  que não concluíram o conteúdo, permite selecionar quem recebe, editar a mensagem
+  (placeholders `{nome}` e `{treinamento}`) e enfileira envios personalizados.
+- Integração com o gateway **WA-AKG** (Baileys) por envio unitário
+  (`POST /api/messages/{sessionId}/{jid}/send`), com cURL nativo e configuração
+  em `config/whatsapp.php` (`.env`: `WA_GATEWAY_URL`, `WA_GATEWAY_API_KEY`,
+  `WA_GATEWAY_SESSION` etc.).
+- Comando `lembretes:processar` (agendado a cada minuto) que envia um a um, com
+  intervalo aleatório de 45–180s, janela 08:00–18:00 em dias úteis, teto diário,
+  checagem da sessão e pausa automática após falhas consecutivas.
+- Histórico em `/admin/lembretes-whatsapp` (filtros, KPI, cancelamento de itens
+  na fila, indicador da sessão do gateway) e tabela `training_reminders`.
+- Helper `phone_to_jid()` (normalização de telefone brasileiro para JID) e aviso
+  no modal de quem já recebeu lembrete no dia (reenvio fica a critério do gestor).
+- Documentação em `docs/modulos/LEMBRETES_WHATSAPP.md` (inclui boas práticas
+  anti-ban e operação do gateway).
+
 ## [2.0.66] - 2026-10-03
 
 ### Adicionado

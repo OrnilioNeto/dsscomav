@@ -14,7 +14,7 @@
     @if($showInfo ?? false)
     <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold text-gray-900 truncate">{{ $user->nome }}</p>
-        <p class="text-xs text-gray-500 truncate capitalize">{{ $user->tipo_usuario }}</p>
+        <p class="text-xs text-gray-500 truncate capitalize">{{ tipo_usuario_label($user->tipo_usuario) }}</p>
     </div>
     @endif
 </div>

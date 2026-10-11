@@ -512,6 +512,7 @@ class TrainingAnalyzer
 
         $labels = [
             'motorista' => 'Motoristas',
+            'motorista_monitor' => 'Motoristas Monitores',
             'funcionario' => 'Funcionários',
             'terceirizado' => 'Terceirizados',
         ];

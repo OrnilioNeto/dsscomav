@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
+use App\Support\RolePermissionCache;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -14,6 +15,12 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     use Auditable, BelongsToTenant, HasApiTokens, HasFactory, Notifiable;
+
+    /** Tipos de usuário aceitos pelo sistema. */
+    public const TIPOS_USUARIO = ['motorista', 'motorista_monitor', 'funcionario', 'terceirizado'];
+
+    /** Tipos tratados como motorista nas regras de negócio. */
+    public const TIPOS_MOTORISTA = ['motorista', 'motorista_monitor'];
 
     protected $fillable = [
         'nome',
@@ -153,7 +160,7 @@ class User extends Authenticatable
             return false;
         }
 
-        $permission = $this->role->permissions()->where('module', $module)->first();
+        $permission = app(RolePermissionCache::class)->mapFor((int) $this->role->id)[$module] ?? null;
         if (! $permission) {
             return false;
         }
@@ -196,7 +203,7 @@ class User extends Authenticatable
             ? $training->tipo_usuario_permitido
             : json_decode($training->tipo_usuario_permitido, true) ?? [];
 
-        return in_array($this->tipo_usuario, $permitidos);
+        return in_array($this->tipo_usuario, self::expandirTiposUsuario($permitidos), true);
     }
 
     public function getTrainingCutoffDate(): ?Carbon
@@ -253,7 +260,7 @@ class User extends Authenticatable
             }
 
             if (is_array($permitidos) && ! in_array('todos', $permitidos, true)) {
-                $query->whereIn('tipo_usuario', $permitidos);
+                $query->whereIn('tipo_usuario', self::expandirTiposUsuario($permitidos));
             }
         }
 
@@ -308,7 +315,7 @@ class User extends Authenticatable
                 $permitidos = json_decode($permitidos, true);
             }
 
-            if (is_array($permitidos) && ! in_array('todos', $permitidos, true) && ! in_array($this->tipo_usuario, $permitidos, true)) {
+            if (is_array($permitidos) && ! in_array('todos', $permitidos, true) && ! in_array($this->tipo_usuario, self::expandirTiposUsuario($permitidos), true)) {
                 return false;
             }
         }
@@ -336,6 +343,60 @@ class User extends Authenticatable
     public function isTestUser(): bool
     {
         return (bool) $this->usuario_teste;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function tipoUsuarioLabels(): array
+    {
+        return [
+            'motorista' => 'Motorista',
+            'motorista_monitor' => 'Motorista Monitor',
+            'funcionario' => 'Funcionário',
+            'terceirizado' => 'Terceirizado',
+        ];
+    }
+
+    public static function tipoUsuarioLabel(?string $tipo): string
+    {
+        if ($tipo === null || $tipo === '') {
+            return '—';
+        }
+
+        return self::tipoUsuarioLabels()[$tipo] ?? ucfirst(str_replace('_', ' ', $tipo));
+    }
+
+    public function isMotorista(): bool
+    {
+        return in_array($this->tipo_usuario, self::TIPOS_MOTORISTA, true);
+    }
+
+    /**
+     * Normaliza o tipo para as regras legadas: "motorista_monitor" é
+     * equivalente a "motorista" em acessos e permissões de conteúdo.
+     */
+    public static function normalizarTipoUsuario(?string $tipo): ?string
+    {
+        return $tipo === 'motorista_monitor' ? 'motorista' : $tipo;
+    }
+
+    /**
+     * Expande uma lista de públicos-alvo incluindo os tipos equivalentes
+     * (ex.: "motorista" passa a cobrir "motorista_monitor").
+     *
+     * @param  array<int, string>  $tipos
+     * @return array<int, string>
+     */
+    public static function expandirTiposUsuario(array $tipos): array
+    {
+        $tipos = array_values(array_unique($tipos));
+
+        if (in_array('motorista', $tipos, true) && ! in_array('motorista_monitor', $tipos, true)) {
+            $tipos[] = 'motorista_monitor';
+        }
+
+        return $tipos;
     }
 
     public function isAtivo(): bool

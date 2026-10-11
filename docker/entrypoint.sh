@@ -29,7 +29,10 @@ if [ -f /var/www/app/public/images-source/logo-comav-transportes.png ]; then
     cp /var/www/app/public/images-source/logo-comav-transportes.png /var/www/app/public/images/
 fi
 
-php artisan key:generate --force
+# Só gera a chave se ainda não existir (evita deslogar todos a cada restart)
+if ! grep -q '^APP_KEY=base64:' /var/www/app/.env 2>/dev/null; then
+    php artisan key:generate --force
+fi
 php artisan migrate --force
 
 ROLE_COUNT=$(php -r "require '/var/www/app/vendor/autoload.php'; \$app = require_once '/var/www/app/bootstrap/app.php'; \$kernel = \$app->make(Illuminate\Contracts\Console\Kernel::class); \$kernel->bootstrap(); try { echo \Illuminate\Support\Facades\DB::table('roles')->count(); } catch (\Throwable \$e) { echo 0; }" 2>/dev/null || echo 0)

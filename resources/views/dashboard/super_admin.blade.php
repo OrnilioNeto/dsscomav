@@ -94,6 +94,8 @@
                         <span class="text-gray-700">
                             @if($tipo->tipo_usuario === 'motorista')
                                 <i class="fas fa-truck mr-2"></i>Motorista
+                            @elseif($tipo->tipo_usuario === 'motorista_monitor')
+                                <i class="fas fa-user-shield mr-2"></i>Motorista Monitor
                             @elseif($tipo->tipo_usuario === 'funcionario')
                                 <i class="fas fa-briefcase mr-2"></i>Funcionário
                             @else

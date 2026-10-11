@@ -347,7 +347,7 @@
                     <td class="left">{{ $u['nome'] }}</td>
                     <td>
                         @php
-                            $tipos = ['motorista' => 'Motorista', 'funcionario' => 'Funcionário', 'terceirizado' => 'Terceirizado'];
+                            $tipos = ['motorista' => 'Motorista', 'motorista_monitor' => 'Motorista Monitor', 'funcionario' => 'Funcionário', 'terceirizado' => 'Terceirizado'];
                         @endphp
                         {{ $tipos[$u['tipo_usuario']] ?? ($u['tipo_usuario'] ? ucfirst($u['tipo_usuario']) : '—') }}
                     </td>
@@ -389,7 +389,7 @@
             </thead>
             <tbody>
                 @php
-                    $tiposLabel = ['motorista' => 'Motorista', 'funcionario' => 'Funcionário', 'terceirizado' => 'Terceirizado'];
+                    $tiposLabel = ['motorista' => 'Motorista', 'motorista_monitor' => 'Motorista Monitor', 'funcionario' => 'Funcionário', 'terceirizado' => 'Terceirizado'];
                 @endphp
                 @foreach($nc as $u)
                     <tr nobr="true">

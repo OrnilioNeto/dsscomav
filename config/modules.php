@@ -55,6 +55,10 @@ return [
         'label' => 'Reassistir Treinamentos',
         'description' => 'Liberação de conteúdo para reassistir',
     ],
+    'lembretes_whatsapp' => [
+        'label' => 'Lembretes WhatsApp',
+        'description' => 'Disparo de lembretes de treinamento via WhatsApp',
+    ],
     'auditoria' => [
         'label' => 'Auditoria',
         'description' => 'Trilha de ações, acessos e alterações do sistema',

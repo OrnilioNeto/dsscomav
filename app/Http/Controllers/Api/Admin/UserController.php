@@ -15,8 +15,6 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
-    private const TIPOS_USUARIO_VALIDOS = ['motorista', 'funcionario', 'terceirizado'];
-
     private function roleExistsRule(): array
     {
         $rule = Rule::exists('roles', 'id');
@@ -40,7 +38,7 @@ class UserController extends Controller
             $query->where('nome', 'like', '%'.$nome.'%');
         }
 
-        if ($tipo && in_array($tipo, self::TIPOS_USUARIO_VALIDOS, true)) {
+        if ($tipo && in_array($tipo, User::TIPOS_USUARIO, true)) {
             $query->where('tipo_usuario', $tipo);
         }
 
@@ -69,6 +67,7 @@ class UserController extends Controller
             'telefone' => $user->telefone,
             'data_nascimento' => $user->data_nascimento?->format('Y-m-d'),
             'tipo_usuario' => $user->tipo_usuario,
+            'tipo_usuario_label' => User::tipoUsuarioLabel($user->tipo_usuario),
             'status' => $user->status,
             'role_id' => $user->role_id,
             'role' => $user->role?->nome,
@@ -98,7 +97,7 @@ class UserController extends Controller
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:8',
             'telefone' => 'nullable|string',
-            'tipo_usuario' => 'required|in:motorista,funcionario,terceirizado',
+            'tipo_usuario' => ['required', Rule::in(User::TIPOS_USUARIO)],
             'empresa' => 'nullable|string|max:255',
             'cargo' => 'nullable|string|max:255',
             'setor' => 'nullable|string|max:255',
@@ -191,7 +190,7 @@ class UserController extends Controller
             'nome' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,'.$id,
             'telefone' => 'nullable|string',
-            'tipo_usuario' => 'required|in:motorista,funcionario,terceirizado',
+            'tipo_usuario' => ['required', Rule::in(User::TIPOS_USUARIO)],
             'empresa' => 'nullable|string|max:255',
             'cargo' => 'nullable|string|max:255',
             'setor' => 'nullable|string|max:255',

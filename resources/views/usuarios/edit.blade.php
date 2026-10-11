@@ -72,8 +72,19 @@
 
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">Tipo de Usuário *</label>
-                    <input type="text" value="{{ ucfirst($usuario->tipo_usuario) }}" disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100">
-                    <input type="hidden" name="tipo_usuario" value="{{ $usuario->tipo_usuario }}">
+                    @if($usuario->isSuperAdmin())
+                        <input type="text" value="{{ tipo_usuario_label($usuario->tipo_usuario) }}" disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                        <input type="hidden" name="tipo_usuario" value="{{ $usuario->tipo_usuario }}">
+                    @else
+                        <select name="tipo_usuario" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                            @foreach(\App\Models\User::tipoUsuarioLabels() as $valor => $label)
+                                <option value="{{ $valor }}" {{ old('tipo_usuario', $usuario->tipo_usuario) === $valor ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('tipo_usuario')
+                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    @endif
                 </div>
 
                 <div>

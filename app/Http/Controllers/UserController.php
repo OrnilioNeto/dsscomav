@@ -19,8 +19,6 @@ class UserController extends Controller
         $this->middleware('permission:users,edit')->except(['index', 'show', 'relatorioExcluidosKPI']);
     }
 
-    private const TIPOS_USUARIO_VALIDOS = ['motorista', 'funcionario', 'terceirizado'];
-
     private function roleExistsRule(): array
     {
         $rule = Rule::exists('roles', 'id');
@@ -49,7 +47,7 @@ class UserController extends Controller
     {
         $nome = trim((string) $request->input('nome', ''));
         $tiposSelecionados = collect($request->input('tipos', []))
-            ->filter(fn ($tipo) => in_array($tipo, self::TIPOS_USUARIO_VALIDOS, true))
+            ->filter(fn ($tipo) => in_array($tipo, User::TIPOS_USUARIO, true))
             ->values()
             ->all();
 
@@ -90,7 +88,7 @@ class UserController extends Controller
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:8',
             'telefone' => 'nullable|string',
-            'tipo_usuario' => 'required|in:motorista,funcionario,terceirizado',
+            'tipo_usuario' => ['required', Rule::in(User::TIPOS_USUARIO)],
             'empresa' => 'nullable|string|max:255',
             'cargo' => 'nullable|string|max:255',
             'camisa_tamanho' => 'nullable|string|max:20',
@@ -172,7 +170,7 @@ class UserController extends Controller
             'nome' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,'.$id,
             'telefone' => 'nullable|string',
-            'tipo_usuario' => 'required|in:motorista,funcionario,terceirizado',
+            'tipo_usuario' => ['required', Rule::in(User::TIPOS_USUARIO)],
             'empresa' => 'nullable|string|max:255',
             'cargo' => 'nullable|string|max:255',
             'camisa_tamanho' => 'nullable|string|max:20',

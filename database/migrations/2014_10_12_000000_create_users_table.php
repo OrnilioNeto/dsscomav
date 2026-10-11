@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('password');
             $table->string('telefone')->nullable();
             $table->date('data_nascimento')->nullable();
-            $table->enum('tipo_usuario', ['motorista', 'funcionario', 'terceirizado'])->default('motorista');
+            $table->enum('tipo_usuario', ['motorista', 'motorista_monitor', 'funcionario', 'terceirizado'])->default('motorista');
             $table->enum('status', ['ativo', 'inativo'])->default('ativo');
             // FK para roles é adicionada em 2026_09_16_000001_add_role_id_foreign_to_users_table
             // (a tabela roles é criada depois, em 2024_01_01_000001).

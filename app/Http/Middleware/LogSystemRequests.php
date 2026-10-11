@@ -33,6 +33,10 @@ class LogSystemRequests
         $status = $response->getStatusCode();
         $level = $status >= 500 ? 'error' : ($status >= 400 ? 'warning' : 'info');
 
+        if (! config('logging.system_requests', true)) {
+            return $response;
+        }
+
         Log::channel('system')->{$level}('request_completed', $this->context($request, $requestId) + [
             'status' => $status,
             'duration_ms' => (int) ((microtime(true) - $startedAt) * 1000),

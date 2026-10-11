@@ -4,12 +4,15 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: app-dss
+    entrypoint: ["/bin/sh", "/var/www/app/docker/entrypoint.sh"]
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
     ports:
       - "9000:8000"
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
       APP_URL: http://localhost:9000
+      PHP_CLI_SERVER_WORKERS: "4"
     depends_on:
       - db
     volumes:
@@ -17,6 +20,7 @@ services:
       - app_storage:/var/www/app/storage
       - ./storage/logs:/var/www/app/storage/logs
       - ./public/images:/var/www/app/public/images
+      - ./docker/php/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
 
   db:
     image: mariadb:11

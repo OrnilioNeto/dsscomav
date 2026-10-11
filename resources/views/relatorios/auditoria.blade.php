@@ -236,7 +236,7 @@
                             @endphp
                             <div>
                                 <div class="mb-1 flex justify-between text-sm">
-                                    <span class="font-medium text-slate-700">{{ ucfirst(str_replace('_', ' ', $tipo->tipo_usuario)) }}</span>
+                                    <span class="font-medium text-slate-700">{{ tipo_usuario_label($tipo->tipo_usuario) }}</span>
                                     <span class="font-bold text-slate-900">{{ $tipo->total }}</span>
                                 </div>
                                 <div class="h-2.5 rounded-full bg-white">
@@ -300,7 +300,7 @@
                     <select name="tipo_usuario" onchange="this.form.submit()" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none ring-0 focus:border-purple-400 focus:ring-2 focus:ring-purple-200">
                         <option value="">Todos</option>
                         @foreach($userTypes as $type)
-                            <option value="{{ $type }}" @if(request('tipo_usuario') === $type) selected @endif>{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
+                            <option value="{{ $type }}" @if(request('tipo_usuario') === $type) selected @endif>{{ tipo_usuario_label($type) }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -450,7 +450,7 @@
                             <tr class="border-b border-slate-100">
                                 <td class="px-3 py-4 align-top">
                                     <div class="font-semibold text-slate-900">{{ optional($item->user)->nome ?? 'Usuário removido' }}</div>
-                                    <div class="mt-1 text-xs text-slate-500">{{ optional($item->user)->tipo_usuario ? ucfirst(str_replace('_', ' ', optional($item->user)->tipo_usuario)) : 'Sem tipo' }}</div>
+                                    <div class="mt-1 text-xs text-slate-500">{{ optional($item->user)->tipo_usuario ? tipo_usuario_label(optional($item->user)->tipo_usuario) : 'Sem tipo' }}</div>
                                     <div class="text-xs text-slate-400">{{ $item->user ? $item->user->getCpfFormatted() : '—' }}</div>
                                 </td>
                                 <td class="px-3 py-4 text-center font-semibold text-slate-800">{{ $item->assistencias }}</td>
@@ -532,7 +532,7 @@
                     <div class="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
                         <div>
                             <div class="font-semibold text-slate-900">{{ $usuario->nome }}</div>
-                            <div class="text-xs text-slate-500">{{ $usuario->getCpfFormatted() }} • {{ ucfirst(str_replace('_', ' ', $usuario->tipo_usuario ?? 'sem_tipo')) }}</div>
+                            <div class="text-xs text-slate-500">{{ $usuario->getCpfFormatted() }} • {{ $usuario->tipo_usuario ? tipo_usuario_label($usuario->tipo_usuario) : 'Sem tipo' }}</div>
                         </div>
                         <span class="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-800">Sem progresso</span>
                     </div>

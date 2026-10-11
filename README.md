@@ -7,7 +7,7 @@ Sistema web de treinamentos corporativos e DSS (Diálogo Semanal de Segurança) 
 - Autenticação por CPF (web + API mobile via Sanctum)
 - RBAC customizada (roles + permissões por módulo)
 - Treinamentos em vídeo (YouTube/Vimeo/upload), progresso, avaliação e certificados TCPDF com QR Code
-- Módulos: EPI, banco de folgas, ranking/gamificação, rede social, splash, projeto pedagógico (NR-01), relatórios
+- Módulos: EPI, banco de folgas, ranking/gamificação, rede social, splash, projeto pedagógico (NR-01), relatórios, lembretes de treinamento via WhatsApp (gateway WA-AKG — `docs/modulos/LEMBRETES_WHATSAPP.md`)
 - **Segurança**: uploads com allowlist/UUID, rate limit no login, headers de segurança, mascaramento de PII (LGPD)
 - **Auditoria**: trilha de logins, CRUD e downloads em `audit_logs` + tela `/admin/auditoria` com filtros e CSV
 - **Modular**: novos módulos autocontidos em `app/Modules/<Nome>` (descoberta automática, rotas/views/migrations próprias) — `docs/modulos/GUIA_MODULOS.md`

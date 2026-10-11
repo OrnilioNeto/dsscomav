@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class Epi extends Model
@@ -157,10 +158,104 @@ class Epi extends Model
     }
 
     /**
+     * Saldos agregados do estoque deste EPI, quando pré-carregados
+     * (evita N+1: 2 queries por chamada de saldo).
+     *
+     * Estrutura: [variacaoKey|null => [empresaId => [tipo => quantidade]]]
+     *
+     * @var array<string, array<int, array<string, int>>>|null
+     */
+    protected ?array $saldoMap = null;
+
+    /**
+     * Pré-carrega os saldos de uma coleção de EPIs em uma única query.
+     *
+     * @param  iterable<int, Epi>  $epis
+     */
+    public static function preloadSaldosFor(iterable $epis): void
+    {
+        $collection = $epis instanceof Collection ? $epis : collect($epis);
+
+        $ids = $collection->pluck('ss_e_nb_id')->filter()->unique()->values()->all();
+
+        if ($ids === []) {
+            return;
+        }
+
+        $rows = DB::table('ss_epi_estoque')
+            ->whereTenant('ss_epi_estoque')
+            ->whereIn('ss_e_nb_epi_id', $ids)
+            ->selectRaw('ss_e_nb_epi_id, ss_e_nb_variacao_id, ss_e_nb_empresa_id, ss_e_tx_tipo, SUM(ss_e_nb_quantidade) as total')
+            ->groupBy('ss_e_nb_epi_id', 'ss_e_nb_variacao_id', 'ss_e_nb_empresa_id', 'ss_e_tx_tipo')
+            ->get()
+            ->groupBy('ss_e_nb_epi_id');
+
+        foreach ($collection as $epi) {
+            if ($epi instanceof self) {
+                $epi->saldoMap = self::buildSaldoMap($rows->get($epi->ss_e_nb_id) ?? collect());
+            }
+        }
+    }
+
+    private static function buildSaldoMap(Collection $rows): array
+    {
+        $map = [];
+
+        foreach ($rows as $row) {
+            $variacaoKey = $row->ss_e_nb_variacao_id === null ? 'null' : (string) $row->ss_e_nb_variacao_id;
+            $empresaKey = (int) ($row->ss_e_nb_empresa_id ?? 0);
+
+            $map[$variacaoKey][$empresaKey][$row->ss_e_tx_tipo] =
+                ($map[$variacaoKey][$empresaKey][$row->ss_e_tx_tipo] ?? 0) + (int) $row->total;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Calcula o saldo a partir do mapa pré-carregado, respeitando a mesma
+     * semântica de getSaldoPorFilial()/getSaldoTotalRede().
+     */
+    private function saldoDoMapa($empresaId, $variacaoId): int
+    {
+        $variacoes = $variacaoId === null
+            ? $this->saldoMap
+            : [(string) $variacaoId => $this->saldoMap[(string) $variacaoId] ?? []];
+
+        $entradas = 0;
+        $saidas = 0;
+
+        foreach ($variacoes as $porEmpresa) {
+            foreach ($porEmpresa as $empresa => $tipos) {
+                if ($empresaId !== null && $empresaId !== '') {
+                    $empresaInt = (int) $empresaId;
+
+                    if ($empresaInt === 0) {
+                        if ($empresa !== 0) {
+                            continue;
+                        }
+                    } elseif ($empresa !== $empresaInt) {
+                        continue;
+                    }
+                }
+
+                $entradas += ($tipos['entrada'] ?? 0) + ($tipos['devolucao'] ?? 0);
+                $saidas += ($tipos['saida'] ?? 0) + ($tipos['substituicao'] ?? 0);
+            }
+        }
+
+        return max(0, $entradas - $saidas);
+    }
+
+    /**
      * Calcula o saldo do EPI para uma filial específica (0/null = Matriz) ou consolidado.
      */
     public function getSaldoPorFilial($empresaId = null, $variacaoId = null): int
     {
+        if ($this->saldoMap !== null) {
+            return $this->saldoDoMapa($empresaId, $variacaoId);
+        }
+
         $query = DB::table('ss_epi_estoque')
             ->whereTenant('ss_epi_estoque')
             ->where('ss_e_nb_epi_id', $this->ss_e_nb_id);
@@ -192,6 +287,10 @@ class Epi extends Model
      */
     public function getSaldoTotalRede($variacaoId = null): int
     {
+        if ($this->saldoMap !== null) {
+            return $this->saldoDoMapa(null, $variacaoId);
+        }
+
         $query = DB::table('ss_epi_estoque')
             ->whereTenant('ss_epi_estoque')
             ->where('ss_e_nb_epi_id', $this->ss_e_nb_id);

@@ -47,6 +47,17 @@
             </label>
         </div>
 
+        <div class="border-t pt-4">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" name="incluir_motorista_monitor" value="1" {{ $settings->incluir_motorista_monitor ? 'checked' : '' }}
+                       class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-5 h-5">
+                <div>
+                    <span class="text-sm font-bold text-gray-700">Controlar folgas dos Motoristas Monitores</span>
+                    <p class="text-xs text-gray-500">Inclui os motoristas monitores no painel, relatórios, importação e recálculo de folgas, junto com os demais motoristas.</p>
+                </div>
+            </label>
+        </div>
+
         <div class="border-t pt-4 flex justify-end">
             <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition font-bold">
                 <i class="fas fa-save mr-2"></i>Salvar Configurações

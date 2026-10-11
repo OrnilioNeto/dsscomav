@@ -10,9 +10,11 @@ use App\Http\Middleware\CheckModule;
 use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\CheckSplashContent;
+use App\Http\Middleware\CompressResponse;
 use App\Http\Middleware\EncryptCookies;
 use App\Http\Middleware\ForceApiRootUrl;
 use App\Http\Middleware\LogSystemRequests;
+use App\Http\Middleware\MergeStrayOutput;
 use App\Http\Middleware\PreventRequestsDuringMaintenance;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\ResolveTenant;
@@ -56,6 +58,8 @@ class Kernel extends HttpKernel
         ValidatePostSize::class,
         TrimStrings::class,
         ConvertEmptyStringsToNull::class,
+        CompressResponse::class,
+        MergeStrayOutput::class,
     ];
 
     /**

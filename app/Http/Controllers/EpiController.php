@@ -145,7 +145,7 @@ class EpiController extends Controller
             ->where('ss_e_tx_vencimento', '<=', $vencimentoLimite)
             ->count();
 
-        $entregasAlerta = EpiEntrega::with(['colaborador', 'epi'])
+        $entregasAlerta = EpiEntrega::with(['colaborador', 'epi', 'variacao'])
             ->whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])
             ->whereNotNull('ss_e_tx_vencimento')
             ->where('ss_e_tx_vencimento', '<=', $vencimentoLimite)
@@ -184,6 +184,7 @@ class EpiController extends Controller
             $queryCatalogo->where('ss_e_tx_status', $statusCatalogo);
         }
         $episCatalogo = $queryCatalogo->with('variacoes')->orderBy('ss_e_tx_grupo')->orderBy('ss_e_tx_item')->get();
+        Epi::preloadSaldosFor($episCatalogo);
 
         // Grupos únicos para os filtros
         $gruposUnicos = Epi::distinct()->pluck('ss_e_tx_grupo')->filter()->values();
@@ -241,7 +242,7 @@ class EpiController extends Controller
         // 6. Entregas Recentes (Omitindo inativos e devolvidos conforme regra)
         // Ordenado pela data de LANÇAMENTO (cadastro), mais recentes no topo,
         // independentemente da data da entrega informada
-        $entregasRecentes = EpiEntrega::with(['colaborador', 'epi'])
+        $entregasRecentes = EpiEntrega::with(['colaborador', 'epi', 'variacao'])
             ->whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])
             ->orderBy('ss_e_tx_dataCadastro', 'desc')
             ->orderBy('ss_e_nb_id', 'desc')
@@ -279,6 +280,7 @@ class EpiController extends Controller
             ->orderBy('ss_e_tx_grupo')
             ->orderBy('ss_e_tx_item')
             ->get();
+        Epi::preloadSaldosFor($fardamentoEpis);
 
         $fardamentoEstoqueLinhas = [];
         $fardamentoSaldoPorTipo = ['camisa' => 0, 'calca' => 0, 'bota' => 0];

@@ -67,7 +67,7 @@
                         </div>
                         <div>
                             <p class="text-gray-600 text-sm font-semibold">Tipo de usuário</p>
-                            <p class="text-lg font-semibold text-gray-800">{{ ucfirst($certificate->user->tipo_usuario ?? 'Não informado') }}</p>
+                            <p class="text-lg font-semibold text-gray-800">{{ tipo_usuario_label($certificate->user->tipo_usuario) }}</p>
                         </div>
                     </div>
 

@@ -162,6 +162,7 @@
                 <select name="type" class="bg-gray-700 border-none text-white text-sm rounded-lg focus:ring-blue-500" onchange="this.form.submit()">
                     <option value="all" {{ ($type ?? 'all') === 'all' ? 'selected' : '' }}>Todos os Perfis</option>
                     <option value="motorista" {{ ($type ?? 'all') === 'motorista' ? 'selected' : '' }}>Motoristas</option>
+                    <option value="motorista_monitor" {{ ($type ?? 'all') === 'motorista_monitor' ? 'selected' : '' }}>Motoristas Monitores</option>
                     <option value="funcionario" {{ ($type ?? 'all') === 'funcionario' ? 'selected' : '' }}>Funcionários</option>
                 </select>
             </form>
@@ -189,7 +190,7 @@
                                     <span class="user-name font-bold text-gray-900 cursor-help" data-user-id="{{ $r->user_id ?? $r->user?->id }}" data-month="{{ $month }}" data-year="{{ $year }}">
                                         {{ $r->user->nome ?? $r->user?->nome ?? '—' }}
                                     </span>
-                                    <span class="text-xs text-gray-500 uppercase tracking-tighter">{{ $r->user->tipo_usuario ?? '—' }}</span>
+                                    <span class="text-xs text-gray-500 uppercase tracking-tighter">{{ tipo_usuario_label($r->user->tipo_usuario ?? null) }}</span>
                                 </div>
                             </td>
                             <td class="px-8 py-5 text-center">
