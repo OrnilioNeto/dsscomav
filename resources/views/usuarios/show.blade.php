@@ -63,13 +63,15 @@
                         <span class="px-3 py-1 rounded-full text-sm font-semibold
                             @if($usuario->tipo_usuario === 'motorista')
                                 bg-blue-100 text-blue-900
+                            @elseif($usuario->tipo_usuario === 'motorista_monitor')
+                                bg-indigo-100 text-indigo-900
                             @elseif($usuario->tipo_usuario === 'funcionario')
                                 bg-green-100 text-green-900
                             @else
                                 bg-orange-100 text-orange-900
                             @endif
                         ">
-                            {{ ucfirst($usuario->tipo_usuario) }}
+                            {{ tipo_usuario_label($usuario->tipo_usuario) }}
                         </span>
                     </p>
                 </div>
@@ -128,7 +130,7 @@
     </div>
 
     <!-- Dados Específicos -->
-    @if($usuario->tipo_usuario === 'motorista' && $usuario->cnh)
+    @if($usuario->isMotorista() && $usuario->cnh)
         <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
             <h2 class="text-xl font-bold mb-4">Dados do Motorista</h2>
             <div class="grid md:grid-cols-3 gap-4">

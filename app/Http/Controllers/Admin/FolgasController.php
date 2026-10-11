@@ -39,7 +39,7 @@ class FolgasController extends Controller
         $ano = (int) $request->input('year', now()->year);
         $busca = $request->input('busca', '');
 
-        $motoristas = User::where('tipo_usuario', 'motorista')
+        $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())
             ->where('status', 'ativo')
             ->where('usuario_teste', false)
             ->when($busca, fn ($q, $b) => $q->where(function ($q2) use ($b) {
@@ -203,7 +203,9 @@ class FolgasController extends Controller
         $mes = (int) $request->input('month', now()->month);
         $ano = (int) $request->input('year', now()->year);
 
-        $user = User::where('usuario_teste', false)->findOrFail($userId);
+        $user = User::where('usuario_teste', false)
+            ->whereIn('tipo_usuario', FolgaSetting::tiposMotorista())
+            ->findOrFail($userId);
         $snapshot = $this->rules->computeSnapshot($user, $mes, $ano);
 
         $dias = FolgaDia::where('user_id', $userId)
@@ -699,7 +701,7 @@ class FolgasController extends Controller
         $mes = (int) $request->input('month', now()->month);
         $ano = (int) $request->input('year', now()->year);
 
-        $motoristas = User::where('tipo_usuario', 'motorista')->where('status', 'ativo')->where('usuario_teste', false)->get();
+        $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())->where('status', 'ativo')->where('usuario_teste', false)->get();
 
         foreach ($motoristas as $motorista) {
             $this->bank->recalcularMes($motorista, $mes, $ano, auth()->id());
@@ -750,7 +752,7 @@ class FolgasController extends Controller
                 continue;
             }
 
-            $user = User::where('cpf', $cpf)->where('tipo_usuario', 'motorista')->where('usuario_teste', false)->first();
+            $user = User::where('cpf', $cpf)->whereIn('tipo_usuario', FolgaSetting::tiposMotorista())->where('usuario_teste', false)->first();
             if (! $user) {
                 $erros[] = 'Linha '.($i + 2).": Motorista com CPF {$cpf} não encontrado";
 
@@ -815,7 +817,7 @@ class FolgasController extends Controller
     public function configuracoes()
     {
         $settings = FolgaSetting::firstOrCreateDefault();
-        $motoristas = User::where('tipo_usuario', 'motorista')
+        $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())
             ->where('status', 'ativo')
             ->where('usuario_teste', false)
             ->orderBy('nome')
@@ -830,6 +832,7 @@ class FolgasController extends Controller
             'dias_para_folga' => 'required|integer|min:1|max:30',
             'exige_domingo' => 'nullable',
             'bloquear_sem_domingo' => 'nullable',
+            'incluir_motorista_monitor' => 'nullable',
         ]);
 
         $settings = FolgaSetting::firstOrCreateDefault();
@@ -837,6 +840,7 @@ class FolgasController extends Controller
             'dias_para_folga' => $request->dias_para_folga,
             'exige_domingo' => $request->has('exige_domingo'),
             'bloquear_sem_domingo' => $request->has('bloquear_sem_domingo'),
+            'incluir_motorista_monitor' => $request->has('incluir_motorista_monitor'),
         ]);
 
         return redirect()->back()->with('success', 'Configurações atualizadas com sucesso!');
@@ -861,7 +865,7 @@ class FolgasController extends Controller
 
         $saldos = (array) $request->input('saldos', []);
 
-        $motoristas = User::where('tipo_usuario', 'motorista')
+        $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())
             ->where('status', 'ativo')
             ->where('usuario_teste', false)
             ->orderBy('nome')
@@ -919,6 +923,7 @@ class FolgasController extends Controller
     {
         $logs = FolgaLog::with(['user', 'creator'])
             ->whereDoesntHave('user', fn ($q) => $q->where('usuario_teste', true))
+            ->when(! FolgaSetting::firstOrCreateDefault()->incluir_motorista_monitor, fn ($q) => $q->whereDoesntHave('user', fn ($q2) => $q2->where('tipo_usuario', 'motorista_monitor')))
             ->when($request->input('user_id'), fn ($q, $id) => $q->where('user_id', $id))
             ->when($request->input('acao'), fn ($q, $a) => $q->where('acao', $a))
             ->when($request->input('de'), fn ($q, $d) => $q->whereDate('created_at', '>=', $d))
@@ -927,7 +932,7 @@ class FolgasController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        $motoristas = User::where('tipo_usuario', 'motorista')->where('status', 'ativo')->where('usuario_teste', false)->orderBy('nome')->get();
+        $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())->where('status', 'ativo')->where('usuario_teste', false)->orderBy('nome')->get();
 
         return view('admin.folgas.auditoria', compact('logs', 'motoristas'));
     }

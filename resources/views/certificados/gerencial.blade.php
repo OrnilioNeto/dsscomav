@@ -35,7 +35,7 @@
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
                         <option value="">Todos</option>
                         @foreach($userTypes as $type)
-                            <option value="{{ $type }}" @if(request('tipo_usuario') === $type) selected @endif>{{ $type }}</option>
+                            <option value="{{ $type }}" @if(request('tipo_usuario') === $type) selected @endif>{{ tipo_usuario_label($type) }}</option>
                         @endforeach
                     </select>
                 </div>

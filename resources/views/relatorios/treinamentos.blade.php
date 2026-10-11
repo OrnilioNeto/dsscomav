@@ -112,7 +112,7 @@
                     <select name="tipo_usuario" id="tipo_usuario" onchange="this.form.submit()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todos</option>
                         @foreach($userTypes as $type)
-                            <option value="{{ $type }}" @if(request('tipo_usuario') === $type) selected @endif>{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
+                            <option value="{{ $type }}" @if(request('tipo_usuario') === $type) selected @endif>{{ tipo_usuario_label($type) }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -450,7 +450,7 @@
                                     {{ $item->user->getCpfFormatted() }}
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-600">
-                                    {{ $item->user->tipo_usuario ? ucfirst(str_replace('_', ' ', $item->user->tipo_usuario)) : '—' }}
+                                    {{ $item->user->tipo_usuario ? tipo_usuario_label($item->user->tipo_usuario) : '—' }}
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     @if($item->tem_progresso)
@@ -633,7 +633,7 @@
                             <tr class="border-b">
                                 <td class="px-3 py-2">
                                     <div class="font-semibold text-gray-800">{{ optional($item->user)->nome ?? 'Usuário removido' }}</div>
-                                    <div class="text-xs text-gray-500">{{ optional($item->user)->tipo_usuario ? ucfirst(str_replace('_', ' ', optional($item->user)->tipo_usuario)) : '—' }}</div>
+                                    <div class="text-xs text-gray-500">{{ optional($item->user)->tipo_usuario ? tipo_usuario_label(optional($item->user)->tipo_usuario) : '—' }}</div>
                                 </td>
                                 <td class="px-3 py-2 text-center text-gray-700">{{ $item->assistencias }}</td>
                                 <td class="px-3 py-2 text-center text-gray-700">{{ gmdate('H:i:s', (int) ($item->tempo_total_assistido ?? 0)) }}</td>
@@ -697,7 +697,7 @@
                                 <div class="text-sm text-gray-600">{{ $progresso->user->getCpfFormatted() }}</div>
                             </td>
                             <td class="px-4 py-3 text-gray-700">
-                                {{ $progresso->user->tipo_usuario ? ucfirst(str_replace('_', ' ', $progresso->user->tipo_usuario)) : '—' }}
+                                {{ $progresso->user->tipo_usuario ? tipo_usuario_label($progresso->user->tipo_usuario) : '—' }}
                             </td>
                             <td class="px-4 py-3 text-gray-700">
                                 <div class="font-semibold">{{ optional($progresso->training)->titulo ?? 'Nenhum treinamento iniciado' }}</div>

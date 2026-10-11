@@ -164,7 +164,7 @@ class Training extends Model
             ? $this->tipo_usuario_permitido
             : json_decode($this->tipo_usuario_permitido, true) ?? [];
 
-        return in_array($tipoUsuario, $permitidos);
+        return in_array($tipoUsuario, User::expandirTiposUsuario($permitidos), true);
     }
 
     public function getTaxaConclusao()

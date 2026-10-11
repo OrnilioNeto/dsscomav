@@ -67,7 +67,7 @@
             </div>
             
             <!-- CNH Info (para motoristas) -->
-            @if($usuario->tipo_usuario === 'motorista' && $usuario->cnh)
+            @if($usuario->isMotorista() && $usuario->cnh)
                 <div class="bg-gray-50 border-b border-gray-100 px-6 py-4 flex flex-wrap gap-6 text-sm text-gray-700">
                     <div>
                         <span class="text-gray-500 font-medium block text-xs">CNH</span>

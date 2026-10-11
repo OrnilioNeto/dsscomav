@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Tenant;
+use App\Models\User;
 use App\Support\TenantManager;
 use Carbon\Carbon;
 
@@ -127,6 +128,16 @@ if (! function_exists('mask_phone')) {
         }
 
         return '(**) *****-'.substr($digits, -4);
+    }
+}
+
+if (! function_exists('tipo_usuario_label')) {
+    /**
+     * Rótulo amigável do tipo de usuário (ex.: motorista_monitor => "Motorista Monitor").
+     */
+    function tipo_usuario_label(?string $tipo): string
+    {
+        return User::tipoUsuarioLabel($tipo);
     }
 }
 

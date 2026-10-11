@@ -171,7 +171,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de Usuário</label>
                     <div class="bg-gray-100 px-4 py-2 rounded-lg text-gray-700">
-                        <span class="capitalize">{{ auth()->user()->tipo_usuario }}</span>
+                        <span class="capitalize">{{ tipo_usuario_label(auth()->user()->tipo_usuario) }}</span>
                     </div>
                 </div>
             </div>

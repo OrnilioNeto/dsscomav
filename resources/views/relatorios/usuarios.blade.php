@@ -108,7 +108,7 @@
                     <select name="tipo_usuario" id="tipo_usuario" onchange="this.form.submit()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Todos</option>
                         @foreach($userTypes as $type)
-                            <option value="{{ $type }}" @if(request('tipo_usuario') === $type) selected @endif>{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
+                            <option value="{{ $type }}" @if(request('tipo_usuario') === $type) selected @endif>{{ tipo_usuario_label($type) }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -183,7 +183,7 @@
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <span class="bg-blue-100 text-blue-900 px-3 py-1 rounded-full text-sm font-semibold">
-                                    {{ ucfirst(str_replace('_', ' ', $usuario->tipo_usuario ?? 'sem_tipo')) }}
+                                    {{ $usuario->tipo_usuario ? tipo_usuario_label($usuario->tipo_usuario) : 'Sem tipo' }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center">

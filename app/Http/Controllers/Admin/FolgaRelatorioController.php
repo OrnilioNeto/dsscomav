@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\FolgaDia;
+use App\Models\FolgaSetting;
 use App\Models\User;
 use App\Services\FolgaRulesService;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class FolgaRelatorioController extends Controller
         $ano = (int) $request->input('year', now()->year);
         $userId = $request->input('user_id');
 
-        $motoristas = User::where('tipo_usuario', 'motorista')
+        $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())
             ->where('status', 'ativo')
             ->where('usuario_teste', false)
             ->when($userId, fn ($q) => $q->where('id', $userId))
@@ -80,7 +81,7 @@ class FolgaRelatorioController extends Controller
         $mes = (int) $request->input('month', now()->month);
         $ano = (int) $request->input('year', now()->year);
 
-        $motoristas = User::where('tipo_usuario', 'motorista')
+        $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())
             ->where('status', 'ativo')
             ->where('usuario_teste', false)
             ->orderBy('nome')
@@ -119,7 +120,7 @@ class FolgaRelatorioController extends Controller
         $mes = (int) $request->input('month', now()->month);
         $ano = (int) $request->input('year', now()->year);
 
-        $motoristas = User::where('tipo_usuario', 'motorista')
+        $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())
             ->where('status', 'ativo')
             ->where('usuario_teste', false)
             ->orderBy('nome')

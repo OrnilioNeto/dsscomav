@@ -180,7 +180,7 @@
                         <label class="flex items-center funcionario-item">
                             <input type="checkbox" name="funcionarios[]" value="{{ $funcionario->id }}" {{ in_array($funcionario->id, old('funcionarios', [])) ? 'checked' : '' }} class="mr-2 funcionario-check">
                             <span class="text-gray-700">{{ $funcionario->nome }}</span>
-                            <span class="text-xs text-gray-500 ml-2">{{ ucfirst($funcionario->tipo_usuario) }}</span>
+                            <span class="text-xs text-gray-500 ml-2">{{ tipo_usuario_label($funcionario->tipo_usuario) }}</span>
                         </label>
                     @empty
                         <p class="text-gray-500 text-sm italic">Nenhum funcionário disponível.</p>

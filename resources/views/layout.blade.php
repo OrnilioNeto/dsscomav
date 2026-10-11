@@ -256,7 +256,7 @@
                                         >
                                         <div class="flex-1 min-w-0">
                                             <p class="text-sm font-semibold text-gray-900 truncate">{{ Auth::user()->nome }}</p>
-                                            <p class="text-xs text-gray-500 truncate capitalize">{{ Auth::user()->tipo_usuario }}</p>
+                                            <p class="text-xs text-gray-500 truncate capitalize">{{ tipo_usuario_label(Auth::user()->tipo_usuario) }}</p>
                                         </div>
                                     </div>
                                 </div>

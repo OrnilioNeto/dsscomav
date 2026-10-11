@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\FolgaSetting;
 use App\Models\User;
 use App\Services\FolgaBankService;
 use App\Support\TenantManager;
@@ -40,7 +41,7 @@ class FolgasRecalculate extends Command
                 $this->info("  -> Tenant: {$tenant->nome} (#{$tenant->id})");
             }
 
-            $motoristas = User::where('tipo_usuario', 'motorista')
+            $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())
                 ->where('status', 'ativo')
                 ->where('usuario_teste', false)
                 ->orderBy('nome')

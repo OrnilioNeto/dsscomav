@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\FolgaDia;
 use App\Models\FolgaMovimento;
 use App\Models\FolgaSaldoMensal;
+use App\Models\FolgaSetting;
 use App\Models\User;
 use App\Services\FolgaRulesService;
 use App\Support\TenantManager;
@@ -34,7 +35,7 @@ class FolgasCheck extends Command
                 $this->info("-> Tenant: {$tenant->nome} (#{$tenant->id})");
             }
 
-            $motoristas = User::where('tipo_usuario', 'motorista')
+            $motoristas = User::whereIn('tipo_usuario', FolgaSetting::tiposMotorista())
                 ->where('status', 'ativo')
                 ->where('usuario_teste', false)
                 ->get();

@@ -230,10 +230,11 @@ let currentSource = null;
 const fmtData = (v) => v || '—';
 const badgeCss = (bg, color) => `padding: 6px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; background: ${bg}; color: ${color};`;
 
-const tipoLabel = (t) => ({motorista: 'Motorista', funcionario: 'Funcionário', terceirizado: 'Terceirizado'}[t] || (t ? t.charAt(0).toUpperCase() + t.slice(1) : '—'));
+const tipoLabel = (t) => ({motorista: 'Motorista', motorista_monitor: 'Motorista Monitor', funcionario: 'Funcionário', terceirizado: 'Terceirizado'}[t] || (t ? t.charAt(0).toUpperCase() + t.slice(1) : '—'));
 const tipoBadge = (t) => {
     const map = {
         motorista: {bg: '#dbeafe', color: '#1e40af'},
+        motorista_monitor: {bg: '#e0e7ff', color: '#3730a3'},
         funcionario: {bg: '#ecfdf5', color: '#059669'},
         terceirizado: {bg: '#f3f4f6', color: '#374151'},
     };
@@ -632,7 +633,7 @@ function buildTxt(r, parecer, source) {
     const t = r.training || {};
     const k = r.kpis || {};
     const a = r.avaliacao || {};
-    const tipoLabel = {motorista: 'Motorista', funcionario: 'Funcionario', terceirizado: 'Terceirizado'};
+    const tipoLabel = {motorista: 'Motorista', motorista_monitor: 'Motorista Monitor', funcionario: 'Funcionario', terceirizado: 'Terceirizado'};
     const linhas = [];
 
     linhas.push('RELATORIO ANALITICO DE TREINAMENTO');

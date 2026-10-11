@@ -33,7 +33,7 @@
                     <div class="flex flex-wrap items-center justify-center sm:justify-start gap-3">
                         <h2 class="text-2xl sm:text-3xl font-black text-gray-800">{{ $user->nome }}</h2>
                         <span class="px-3 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs font-semibold uppercase tracking-wider capitalize">
-                            {{ $user->tipo_usuario }}
+                            {{ tipo_usuario_label($user->tipo_usuario) }}
                         </span>
                     </div>
                     <p class="text-sm text-gray-500 mt-1 font-mono">ID Colaborador: #{{ $user->id }}</p>
@@ -93,7 +93,7 @@
                         <div>
                             <div class="flex items-center gap-1.5">
                                 <span class="font-bold text-gray-800">{{ $post->user->nome }}</span>
-                                <span class="text-xs text-gray-400 capitalize">• {{ $post->user->tipo_usuario }}</span>
+                                <span class="text-xs text-gray-400 capitalize">• {{ tipo_usuario_label($post->user->tipo_usuario) }}</span>
                             </div>
                             <div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                                 <span>{{ $post->created_at->diffForHumans() }}</span>

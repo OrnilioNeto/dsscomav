@@ -323,7 +323,7 @@
                     </div>
                     <div class="info-item">
                         <div class="info-label">TIPO DE USUÁRIO</div>
-                        <div class="info-value">{{ ucfirst($certificate->user->tipo_usuario ?? 'Não informado') }}</div>
+                        <div class="info-value">{{ tipo_usuario_label($certificate->user->tipo_usuario) }}</div>
                     </div>
                 </div>
             </div>

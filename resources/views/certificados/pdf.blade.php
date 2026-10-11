@@ -98,7 +98,7 @@
                         </tr>
                         <tr>
                             <td style="padding-bottom: 6px;"><strong>Empresa:</strong> {{ $certificate->user->empresa ?? plataforma_nome() }}</td>
-                            <td style="padding-bottom: 6px;"><strong>Tipo de usuário:</strong> {{ ucfirst($certificate->user->tipo_usuario ?? 'Não informado') }}</td>
+                            <td style="padding-bottom: 6px;"><strong>Tipo de usuário:</strong> {{ tipo_usuario_label($certificate->user->tipo_usuario) }}</td>
                         </tr>
                         <tr>
                             <td style="padding-bottom: 6px;" colspan="2"><strong>Telefone:</strong> {{ $certificate->user->telefone ?? 'Não informado' }}</td>
