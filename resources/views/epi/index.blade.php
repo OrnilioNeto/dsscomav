@@ -1811,7 +1811,7 @@
                 <div>
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Validade do Lote *</label>
                     <input type="date" name="ss_e_tx_validade" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
-                    <div class="text-[10px] text-gray-400 mt-0.5">A validade informada aqui define o vencimento das entregas deste EPI (tem prioridade sobre a vida útil do cadastro).</div>
+                    <div class="text-[10px] text-gray-400 mt-0.5">Registro de referência do lote recebido. O vencimento das entregas é calculado pela vida útil do cadastro, contada a partir da data da entrega.</div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Chave / Nº Nota Fiscal</label>

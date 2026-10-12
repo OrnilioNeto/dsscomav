@@ -1,0 +1,2 @@
+# Scripts shell rodam em ambientes Linux (Docker/cPanel): manter sempre LF
+*.sh text eol=lf
