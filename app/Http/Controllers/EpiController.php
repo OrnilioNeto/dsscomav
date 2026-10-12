@@ -11,6 +11,7 @@ use App\Models\EpiKit;
 use App\Models\EpiKitItem;
 use App\Models\EpiVariacao;
 use App\Models\User;
+use App\Services\EpiVencimentoService;
 use App\Support\SafeUpload;
 use App\Support\TenantManager;
 use Illuminate\Http\Request;
@@ -24,6 +25,8 @@ class EpiController extends Controller
     private const FOTO_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 
     private static $tablesEnsured = false;
+
+    public function __construct(private EpiVencimentoService $vencimentos) {}
 
     /**
      * Garante auto-criação e seeder automatizado das 6 tabelas em qualquer ambiente/banco.
@@ -648,8 +651,20 @@ class EpiController extends Controller
         }
 
         if (! empty($id)) {
-            Epi::where('ss_e_nb_id', $id)->update($dados);
+            $novaVidaUtil = (int) $dados['ss_e_nb_vida_util_dias'];
+            $entregasRecalculadas = 0;
+
+            DB::transaction(function () use ($id, $dados, $novaVidaUtil, &$entregasRecalculadas) {
+                Epi::where('ss_e_nb_id', $id)->update($dados);
+
+                $entregasRecalculadas = $this->vencimentos->recalcularPorEpi($id, $novaVidaUtil);
+            });
+
             $msg = 'EPI atualizado com sucesso!';
+
+            if ($entregasRecalculadas > 0) {
+                $msg .= " {$entregasRecalculadas} entrega(s) ativa(s) tiveram o vencimento sincronizado com a vida útil.";
+            }
         } else {
             $dados['ss_e_tx_cadastro_tipo'] = 'estoque';
             $dados['ss_e_nb_userCadastro'] = Auth::id();
@@ -945,7 +960,7 @@ class EpiController extends Controller
                         $filialOrigem = isset($itemData['empresa_origem_id']) ? (int) $itemData['empresa_origem_id'] : (int) $empId;
                         $variacaoId = isset($itemData['variacao_id']) ? (int) $itemData['variacao_id'] : null;
 
-                        $vencimento = $this->calcularVencimentoEntrega($epi->ss_e_nb_id, $variacaoId, $dtEntrega);
+                        $vencimento = $this->vencimentos->calcular($dtEntrega, (int) $epi->ss_e_nb_vida_util_dias);
 
                         $requerAssinatura = $sig ? false : true;
 
@@ -1062,7 +1077,7 @@ class EpiController extends Controller
                 $filialOrigem = isset($itemData['empresa_origem_id']) ? (int) $itemData['empresa_origem_id'] : (int) $empresaId;
                 $variacaoId = isset($itemData['variacao_id']) ? (int) $itemData['variacao_id'] : null;
 
-                $vencimento = $this->calcularVencimentoEntrega($epi->ss_e_nb_id, $variacaoId, $dataEntrega);
+                $vencimento = $this->vencimentos->calcular($dataEntrega, (int) $epi->ss_e_nb_vida_util_dias);
 
                 $reqAss = $assinatura ? false : true;
 
@@ -1171,38 +1186,6 @@ class EpiController extends Controller
         $entrega->update(['ss_e_tx_vencimento' => $request->input('ss_e_tx_vencimento')]);
 
         return redirect()->back()->with('success', "Vencimento da entrega #{$entrega->ss_e_nb_id} atualizado para {$novaData}!");
-    }
-
-    /**
-     * Calcula o vencimento de uma entrega:
-     * 1) Validade do lote (última entrada com validade informada, por variação quando aplicável);
-     * 2) Fallback: data da entrega + vida útil em dias do catálogo.
-     * Retorna 'Y-m-d' ou null.
-     */
-    private function calcularVencimentoEntrega(int $epiId, ?int $variacaoId, string $dataEntrega): ?string
-    {
-        $validadeLote = DB::table('ss_epi_estoque')
-            ->whereTenant('ss_epi_estoque')
-            ->where('ss_e_nb_epi_id', $epiId)
-            ->where('ss_e_tx_tipo', 'entrada')
-            ->whereNotNull('ss_e_tx_validade')
-            ->when($variacaoId, function ($q) use ($variacaoId) {
-                return $q->where('ss_e_nb_variacao_id', $variacaoId);
-            })
-            ->max('ss_e_tx_validade');
-
-        if ($validadeLote) {
-            return $validadeLote;
-        }
-
-        $epi = Epi::find($epiId);
-        $diasVidaUtil = $epi ? (int) $epi->ss_e_nb_vida_util_dias : 0;
-
-        if ($diasVidaUtil > 0) {
-            return date('Y-m-d', strtotime("{$dataEntrega} + {$diasVidaUtil} days"));
-        }
-
-        return null;
     }
 
     /**
@@ -1957,6 +1940,7 @@ class EpiController extends Controller
         $atualizados = 0;
         $erros = 0;
         $linha = 0;
+        $vencimentosRecalculados = 0;
 
         // Detectar delimitador (ponto e vírgula ou vírgula)
         $primeiraLinha = fgets($handle);
@@ -2011,6 +1995,7 @@ class EpiController extends Controller
             if ($existente) {
                 $existente->update($dados);
                 $atualizados++;
+                $vencimentosRecalculados += $this->vencimentos->recalcularPorEpi((int) $existente->ss_e_nb_id, $vidaUtil);
             } else {
                 $dados['ss_e_tx_cadastro_tipo'] = 'estoque';
                 $dados['ss_e_nb_userCadastro'] = Auth::id();
@@ -2022,7 +2007,9 @@ class EpiController extends Controller
 
         fclose($handle);
 
-        $msg = "Importação CSV concluída! Inseridos: {$inseridos}, Atualizados: {$atualizados}".($erros > 0 ? ", Erros: {$erros}" : '');
+        $msg = "Importação CSV concluída! Inseridos: {$inseridos}, Atualizados: {$atualizados}"
+            .($vencimentosRecalculados > 0 ? ", Vencimentos recalculados: {$vencimentosRecalculados}" : '')
+            .($erros > 0 ? ", Erros: {$erros}" : '');
 
         return redirect()->back()->with('success', $msg);
     }

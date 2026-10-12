@@ -5,6 +5,24 @@ Todas as mudanças relevantes deste projeto são registradas neste arquivo.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
+
+## [2.0.73] - 2026-10-12
+
+### Corrigido
+- Salvar o cadastro do EPI agora **sincroniza** o vencimento das entregas
+  ativas com a vida útil atual (data da entrega + vida útil), mesmo sem alterar
+  o valor — corrige entregas antigas calculadas pela regra anterior. Entregas
+  devolvidas/inativadas — inclusive itens descartados — são preservadas. A
+  mesma regra vale para o cadastro em massa via CSV.
+- Novo comando `php artisan epi:recalcular-vencimentos` para corrigir em massa
+  todas as entregas ativas (data da entrega + vida útil atual), iterando por
+  tenant quando o multi-tenancy está ativo.
+
+### Alterado
+- O vencimento das entregas passa a ser sempre a data da entrega somada à vida
+  útil do catálogo; a validade do lote informada na entrada de estoque deixa de
+  ter prioridade e fica apenas como registro de referência.
+
 ## [2.0.72] - 2026-10-04
 
 ### Adicionado
