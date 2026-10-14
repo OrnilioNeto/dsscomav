@@ -147,6 +147,10 @@
             </h2>
             <div class="flex items-center gap-3">
                 <span class="text-[11px] text-gray-400 font-semibold">Atualizado em {{ date('d/m/Y H:i') }}</span>
+                <button type="button" onclick="toggleListaTodosValidade()" id="btn-lista-todos-validade" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-300 text-xs font-bold cursor-pointer transition" title="Exibir lista completa de itens do catálogo">
+                    <i class="fas fa-list-ul"></i>
+                    <span id="texto-lista-todos-validade">Listar Todos</span>
+                </button>
                 <button type="button" onclick="toggleMonitoramentoValidade()" id="btn-toggle-monitoramento" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border border-gray-300 text-xs font-bold cursor-pointer transition" title="Ocultar / Exibir painel">
                     <i id="icone-toggle-monitoramento" class="fas fa-chevron-up transition-transform duration-200"></i>
                     <span id="texto-toggle-monitoramento">Ocultar</span>
@@ -346,6 +350,67 @@
                 @endif
             </div>
         @endif
+
+        <!-- Lista completa (opção "Listar Todos"): todos os itens ativos do catálogo -->
+        @php $listaTodosValidade = $episValidadeTodos ?? collect(); @endphp
+        <div id="lista-todos-validade" class="hidden mt-4 border border-emerald-200 rounded-lg overflow-hidden">
+            <div class="bg-emerald-50 px-4 py-2.5 flex items-center justify-between flex-wrap gap-2">
+                <span class="text-xs font-bold text-emerald-800 uppercase"><i class="fas fa-list-ul mr-1"></i> Lista completa do catálogo ({{ $listaTodosValidade->count() }} itens ativos)</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">Todos os itens, com situação de CA e vida útil</span>
+            </div>
+            <div class="overflow-x-auto max-h-[480px] overflow-y-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-bold text-gray-500">Item</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Grupo</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">CA</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Validade do CA</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Situação</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Vida útil</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Funcionários</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($listaTodosValidade as $epi)
+                            @php [$caLabel, $caCls] = $epi->status_ca_badge; @endphp
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-3 py-2">
+                                    <div class="font-bold text-gray-900">{{ $epi->ss_e_tx_item }}</div>
+                                    <div class="text-[10px] text-gray-500">{{ $epi->ss_e_tx_fabricante ?? '' }}</div>
+                                </td>
+                                <td class="px-3 py-2 text-center text-gray-600">{{ $epi->ss_e_tx_grupo }}</td>
+                                <td class="px-3 py-2 text-center font-mono font-bold text-gray-800">{{ $epi->ss_e_tx_ca ?: '-' }}</td>
+                                <td class="px-3 py-2 text-center text-gray-600">
+                                    {{ $epi->ss_e_tx_validade_ca ? date('d/m/Y', strtotime($epi->ss_e_tx_validade_ca)) : '-' }}
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $caCls }}">{{ $caLabel }}</span>
+                                </td>
+                                <td class="px-3 py-2 text-center {{ $epi->ss_e_nb_vida_util_dias <= 0 ? 'text-rose-600 font-bold' : 'text-gray-600' }}">
+                                    {{ $epi->ss_e_nb_vida_util_dias > 0 ? $epi->ss_e_nb_vida_util_dias . ' dias' : 'Não configurada' }}
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <button onclick="abrirModalEpiEntregas({{ $epi->ss_e_nb_id }}, '{{ addslashes($epi->ss_e_tx_item ?? '') }}')" class="text-emerald-700 hover:text-emerald-900 font-bold cursor-pointer text-sm" title="Ver funcionários com este EPI">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <button onclick="editarEpi({{ json_encode($epi) }})" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
+                                        <i class="fas fa-edit mr-1"></i> Editar / Regularizar
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="8" class="px-3 py-6 text-center text-gray-400 font-semibold">Nenhum item ativo no catálogo.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
         </div>
     </div>
 
@@ -2138,6 +2203,24 @@
         if (icone) icone.style.transform = oculto ? 'rotate(180deg)' : '';
         if (texto) texto.textContent = oculto ? 'Exibir' : 'Ocultar';
         try { localStorage.setItem('epi_monitoramento_oculto', oculto ? '1' : '0'); } catch (e) {}
+    };
+
+    // Exibe / oculta a lista completa do catálogo no painel de Monitoramento de Validade
+    window.toggleListaTodosValidade = function() {
+        var lista = document.getElementById('lista-todos-validade');
+        var texto = document.getElementById('texto-lista-todos-validade');
+        var btn = document.getElementById('btn-lista-todos-validade');
+        if (!lista) return;
+        var oculto = lista.classList.toggle('hidden');
+        if (texto) texto.textContent = oculto ? 'Listar Todos' : 'Ocultar Lista';
+        if (btn) btn.title = oculto ? 'Exibir lista completa de itens do catálogo' : 'Ocultar lista completa';
+        // Ao exibir a lista, garante que o painel esteja aberto
+        if (!oculto) {
+            var body = document.getElementById('monitoramento-validade-body');
+            if (body && body.classList.contains('hidden')) {
+                window.toggleMonitoramentoValidade();
+            }
+        }
     };
 
     // Restaura o estado salvo do painel ao carregar a página
