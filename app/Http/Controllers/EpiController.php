@@ -156,6 +156,12 @@ class EpiController extends Controller
             ->limit(100)
             ->get();
 
+        // 1.3.1 Lista completa (opção "Listar Todos"): todos os itens ativos do catálogo
+        $episValidadeTodos = Epi::where('ss_e_tx_status', 'ativo')
+            ->orderBy('ss_e_tx_grupo')
+            ->orderBy('ss_e_tx_item')
+            ->get();
+
         // 1.4 Devoluções: pendências de inspeção e histórico auditável
         $devolucoesPendentes = EpiDevolucao::with(['colaborador', 'epi', 'variacao'])
             ->where('ss_ed_tx_status', 'pendente')
@@ -366,6 +372,7 @@ class EpiController extends Controller
             'entregasVencidasCount',
             'entregasVencendoCount',
             'entregasAlerta',
+            'episValidadeTodos',
             'devolucoesPendentes',
             'devolucoesPendentesCount',
             'devolucoesHistorico',
