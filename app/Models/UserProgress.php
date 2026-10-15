@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,11 +26,17 @@ class UserProgress extends Model
         'avaliacao_resposta_usuario',
         'avaliacao_respostas_json',
         'avaliacao_nota',
+        'prazo_estendido_ate',
+        'prazo_estendido_por',
+        'prazo_estendido_em',
+        'prazo_estendido_motivo',
     ];
 
     protected $casts = [
         'data_inicio' => 'datetime',
         'data_conclusao' => 'datetime',
+        'prazo_estendido_ate' => 'datetime',
+        'prazo_estendido_em' => 'datetime',
         'concluido' => 'boolean',
         'avaliacao_aprovada' => 'boolean',
         'avaliacao_tentativas' => 'integer',
@@ -49,7 +54,7 @@ class UserProgress extends Model
     public function getDataValidadeAttribute()
     {
         $training = $this->training;
-        if (!$training || !$training->dias_validade || !$this->data_conclusao) {
+        if (! $training || ! $training->dias_validade || ! $this->data_conclusao) {
             return null;
         }
 
@@ -59,7 +64,7 @@ class UserProgress extends Model
     public function getStatusValidadeAttribute(): string
     {
         $dataValidade = $this->data_validade;
-        if (!$dataValidade) {
+        if (! $dataValidade) {
             return 'sem_validade';
         }
 

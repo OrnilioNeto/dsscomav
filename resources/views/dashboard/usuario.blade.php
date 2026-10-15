@@ -199,6 +199,12 @@
                                 <div class="text-xs text-gray-500 mb-3">
                                     <i class="fas fa-calendar-check text-purple-500 mr-1"></i>Liberado em {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') }}
                                 </div>
+                                @php $prazo = $training->prazoConclusao($userProgress); @endphp
+                                @if($prazo && ! $concluido)
+                                    <div class="text-xs mb-3 {{ $prazo->lte(now()->addDays(2)) ? 'text-red-600 font-semibold' : 'text-gray-500' }}">
+                                        <i class="fas fa-hourglass-half text-purple-500 mr-1"></i>{{ $userProgress && $userProgress->prazo_estendido_ate ? 'Prazo estendido' : 'Prazo' }}: de {{ $training->periodoPrazoFormatado($userProgress) }}
+                                    </div>
+                                @endif
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
                                    class="block w-full bg-purple-600 text-white text-center py-2 rounded hover:bg-purple-700 transition font-semibold">
                                     <i class="fas {{ $concluido ? 'fa-redo' : ($iniciado ? 'fa-play' : 'fa-play-circle') }} mr-2"></i>{{ $concluido ? 'Reabrir' : ($iniciado ? 'Continuar' : 'Assistir') }}
@@ -289,6 +295,12 @@
                                 <div class="text-xs text-gray-500 mb-3">
                                     <i class="fas fa-calendar-check text-orange-500 mr-1"></i>Liberado em {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') }}
                                 </div>
+                                @php $prazo = $training->prazoConclusao($userProgress); @endphp
+                                @if($prazo)
+                                    <div class="text-xs mb-3 {{ $prazo->lte(now()->addDays(2)) ? 'text-red-600 font-semibold' : 'text-gray-500' }}">
+                                        <i class="fas fa-hourglass-half text-orange-500 mr-1"></i>{{ $userProgress && $userProgress->prazo_estendido_ate ? 'Prazo estendido' : 'Prazo' }}: de {{ $training->periodoPrazoFormatado($userProgress) }}
+                                    </div>
+                                @endif
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
                                    class="block w-full bg-orange-500 text-white text-center py-2 rounded hover:bg-orange-600 transition font-semibold">
                                     <i class="fas fa-play mr-2"></i>Continuar
@@ -357,6 +369,12 @@
                                 <div class="text-xs text-gray-500 mb-3">
                                     <i class="fas fa-calendar-check text-blue-500 mr-1"></i>Liberado em {{ optional($training->data_liberacao_exibicao)->format('d/m/Y') }}
                                 </div>
+                                @php $prazo = $training->prazoConclusao(); @endphp
+                                @if($prazo)
+                                    <div class="text-xs mb-3 {{ $prazo->lte(now()->addDays(2)) ? 'text-red-600 font-semibold' : 'text-gray-500' }}">
+                                        <i class="fas fa-hourglass-half text-blue-500 mr-1"></i>Prazo: de {{ $training->periodoPrazoFormatado() }}
+                                    </div>
+                                @endif
                                 <a href="{{ route('treinamentos.player', $training->id) }}"
                                    class="block w-full bg-blue-900 text-white text-center py-2 rounded hover:bg-blue-800 transition font-semibold">
                                     <i class="fas fa-play mr-2"></i>Iniciar
@@ -433,6 +451,80 @@
         @endif
 
         {{-- ═══════════════════════════════════════════════════════════ --}}
+        {{-- PRAZO EXPIRADO                                              --}}
+        {{-- ═══════════════════════════════════════════════════════════ --}}
+        @if(count($treinamentosPrazoExpirado) > 0)
+        <div class="bg-white rounded-xl shadow-md border-l-4 border-red-500 overflow-hidden secao-treinamento"
+             id="secao-prazo_expirado">
+
+            <button type="button"
+                    onclick="toggleSecao('prazo_expirado')"
+                    class="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-red-50 transition-colors focus:outline-none group">
+                <div class="flex items-center gap-3">
+                    <span class="flex items-center justify-center w-10 h-10 rounded-full bg-red-100">
+                        <i class="fas fa-hourglass-end text-red-500 text-lg"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            Prazo Expirado
+                            <span class="text-sm font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">{{ count($treinamentosPrazoExpirado) }}</span>
+                        </h2>
+                        <p class="text-xs text-gray-500">Conteúdos cujo prazo de conclusão terminou — fale com seu gestor para liberar um novo prazo</p>
+                    </div>
+                </div>
+                <i id="icon-prazo_expirado" class="fas fa-chevron-down text-gray-400 group-hover:text-red-500 transition-transform text-lg"></i>
+            </button>
+
+            <div id="body-prazo_expirado" class="hidden px-6 pb-6">
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                    @foreach($treinamentosPrazoExpirado as $training)
+                        @php
+                            $userProgress = $progresso->where('training_id', $training->id)->first();
+                            $porcentagem = $userProgress->porcentagem_assistida ?? 0;
+                        @endphp
+                        <div class="border-2 border-red-200 rounded-lg overflow-hidden bg-gradient-to-br from-red-50 to-white opacity-90">
+                            <div class="bg-gradient-to-r from-red-500 to-red-600 h-36 flex items-center justify-center text-white relative">
+                                <i class="fas fa-hourglass-end text-5xl opacity-70"></i>
+                                <div class="absolute top-2 right-2 bg-red-800 text-white px-2 py-1 rounded-full text-xs font-bold">
+                                    PRAZO EXPIRADO
+                                </div>
+                                @if($porcentagem > 0)
+                                    <div class="absolute top-2 left-2 bg-white/90 text-red-800 px-2 py-1 rounded-full text-xs font-bold">
+                                        {{ $porcentagem }}%
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="p-4">
+                                <div class="flex items-start justify-between mb-2">
+                                    <h3 class="font-bold text-gray-800 leading-snug">{{ $training->titulo }}</h3>
+                                    <span class="ml-2 shrink-0 text-xs bg-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-100 text-{{ $training->tipo === 'dss' ? 'red' : 'blue' }}-900 px-2 py-1 rounded">
+                                        {{ strtoupper($training->tipo) }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-3">{{ Str::limit($training->descricao, 80) }}</p>
+                                <div class="flex gap-2 text-sm text-gray-600 mb-3">
+                                    <span><i class="fas fa-clock text-red-500"></i> {{ $training->carga_horaria_formatada }}</span>
+                                    <span class="text-red-600"><i class="fas fa-lock"></i> Aguardando novo prazo</span>
+                                </div>
+                                <div class="rounded-lg border border-dashed border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700 mb-3">
+                                    <i class="fas fa-hourglass-end mr-1"></i>Prazo encerrado: {{ $training->periodoPrazoFormatado($userProgress) ?? '—' }}
+                                </div>
+                                <button type="button" disabled
+                                        class="block w-full bg-gray-400 text-white text-center py-2 rounded font-semibold cursor-not-allowed">
+                                    <i class="fas fa-lock mr-2"></i>Prazo expirado
+                                </button>
+                                <p class="text-xs text-gray-500 mt-2 text-center">
+                                    Fale com seu gestor para liberar um novo prazo.
+                                </p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
+
+        {{-- ═══════════════════════════════════════════════════════════ --}}
         {{-- BLOQUEADOS                                                  --}}
         {{-- ═══════════════════════════════════════════════════════════ --}}
         @if(count($treinamentosBloqueados) > 0)
@@ -497,7 +589,7 @@
         </div>
         @endif
 
-        @if(count($treinamentosDisponíveis) === 0 && count($treinamentosBloqueados) === 0)
+        @if(count($treinamentosDisponíveis) === 0 && count($treinamentosBloqueados) === 0 && count($treinamentosPrazoExpirado) === 0 && count($treinamentosDirecionados) === 0)
             <div class="bg-gray-50 p-8 rounded-xl text-center border-2 border-gray-200">
                 <i class="fas fa-video text-6xl text-gray-300 mb-4"></i>
                 <p class="text-gray-600 text-lg">Nenhum treinamento disponível para seu perfil no momento.</p>

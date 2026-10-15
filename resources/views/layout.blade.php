@@ -202,6 +202,11 @@
                                             <i class="fas fa-clipboard-list w-5 mr-2 text-slate-600"></i> Auditoria
                                         </a>
                                     @endif
+                                    @if(Auth::user()->isAdmin())
+                                        <a href="{{ route('admin.prazos.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-hourglass-half w-5 mr-2 text-red-600"></i> Prazos de Treinamentos
+                                        </a>
+                                    @endif
                                     @foreach(app(\App\Support\Modules\ModuleRegistry::class)->all() as $moduloMenu)
                                         <a href="{{ route($moduloMenu['route']) }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900 border-t border-gray-100">
                                             <i class="{{ $moduloMenu['icon'] }} w-5 mr-2 text-emerald-700"></i> {{ $moduloMenu['label'] }}
@@ -363,6 +368,11 @@
                                 @if(Auth::user()->isSuperAdmin() || Auth::user()->hasPermission('auditoria', 'view'))
                                     <a href="{{ route('auditoria.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
                                         <i class="fas fa-clipboard-list mr-2"></i> Auditoria
+                                    </a>
+                                @endif
+                                @if(Auth::user()->isAdmin())
+                                    <a href="{{ route('admin.prazos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-hourglass-half mr-2"></i> Prazos de Treinamentos
                                     </a>
                                 @endif
                                 @foreach(app(\App\Support\Modules\ModuleRegistry::class)->all() as $moduloMenu)

@@ -54,6 +54,44 @@
 
     <p class="text-gray-700 text-lg mb-8">{{ $training->descricao }}</p>
 
+    @php
+        $prazoConclusao = $training->prazoConclusao($progress);
+        $prazoEstendido = (bool) $progress->prazo_estendido_ate;
+        $prazoProximo = $prazoConclusao && ! $progress->concluido && $prazoConclusao->lte(now()->addDays(2));
+
+        if ($progress->concluido) {
+            $prazoClasse = 'border-emerald-200 bg-emerald-50 text-emerald-900';
+        } elseif ($prazoProximo) {
+            $prazoClasse = 'border-amber-300 bg-amber-50 text-amber-900';
+        } else {
+            $prazoClasse = 'border-blue-200 bg-blue-50 text-blue-900';
+        }
+    @endphp
+
+    @if($prazoConclusao)
+        <div class="mb-8 rounded-2xl border p-4 shadow-sm {{ $prazoClasse }}">
+            <p class="font-semibold">
+                <i class="fas fa-hourglass-half mr-2"></i>
+                @if($progress->concluido)
+                    Treinamento concluído.
+                @else
+                    Prazo para assistir o vídeo e responder a avaliação:
+                    de <strong>{{ $training->periodoPrazoFormatado($progress) }}</strong>.
+                @endif
+            </p>
+            @if(! $progress->concluido && $prazoProximo)
+                <p class="text-sm mt-1">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>Últimos dias! Conclua antes do vencimento para não perder o acesso.
+                </p>
+            @endif
+            @if($prazoEstendido)
+                <p class="text-xs mt-1 opacity-80">
+                    <i class="fas fa-calendar-plus mr-1"></i>Prazo estendido pelo gestor.
+                </p>
+            @endif
+        </div>
+    @endif
+
     <div class="training-video-container bg-white p-4 rounded-2xl shadow-lg mb-8">
         @if($training->tipo_video === 'upload')
             <video
@@ -236,6 +274,7 @@
             <h2 class="text-xl font-bold mb-4">Instruções</h2>
             <ul class="space-y-2 text-gray-700 list-disc list-inside">
                 <li>Assista o vídeo completamente para liberar a avaliação.</li>
+                <li>O prazo para concluir o vídeo e a avaliação termina às <strong>23:00 do domingo</strong> seguinte à liberação do treinamento.</li>
                 <li><strong>Não é permitido adiantar o vídeo.</strong></li>
                 <li><strong>A velocidade de reprodução está bloqueada em 1x (normal).</strong></li>
                 <li>As perguntas aparecem abaixo do vídeo e são habilitadas automaticamente após 100% de conclusão.</li>
@@ -262,6 +301,7 @@
 <script>
     const progressUrl = '{{ route('treinamentos.atualizar-progresso', $training->id) }}';
     const assessmentUrl = '{{ route('treinamentos.avaliacao', $training->id) }}';
+    const dashboardUrl = '{{ route('dashboard') }}';
     const csrfToken = '{{ csrf_token() }}';
     const hasAssessment = {{ $assessment ? 'true' : 'false' }};
     // Re-identificação por senha: somente para o tipo "Treinamento" (DSS dispensa)
@@ -349,6 +389,12 @@
                 porcentagem_assistida: currentProgress
             })
         }).then(r => r.json()).then(data => {
+            if (data.prazo_expirado) {
+                alert(data.error || 'O prazo para concluir este treinamento expirou.');
+                window.location.href = dashboardUrl;
+                return;
+            }
+
             if (data.show_assessment || currentProgress >= 99) {
                 unlockAssessment();
             }
@@ -427,6 +473,7 @@
                 return {
                     success: false,
                     reset_required: !!data.reset_required,
+                    prazo_expirado: !!data.prazo_expirado,
                     message: data.message || data.error || `Erro ${r.status} ao validar avaliação.`,
                 };
             }
@@ -435,6 +482,12 @@
         }).then(data => {
             message.textContent = data.message || 'Resposta processada.';
             message.className = 'text-sm font-medium ' + (data.success ? 'text-green-600' : 'text-red-600');
+
+            if (data.prazo_expirado) {
+                if (submitBtn) submitBtn.disabled = true;
+                setTimeout(() => { window.location.href = dashboardUrl; }, 2200);
+                return;
+            }
 
             if (data.success) {
                 setCertificateSuccessMessage();

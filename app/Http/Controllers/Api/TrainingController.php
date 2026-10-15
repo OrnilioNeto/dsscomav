@@ -31,7 +31,8 @@ class TrainingController extends Controller
         }
 
         $assessment = null;
-        if ($training->hasAssessment() && $progress && $progress->porcentagem_assistida >= 99 && ! $progress->avaliacao_aprovada) {
+        if ($training->hasAssessment() && $progress && $progress->porcentagem_assistida >= 99 && ! $progress->avaliacao_aprovada
+            && ! $training->prazoExpirado($progress)) {
             $assessment = [
                 'pergunta' => $training->avaliacao_pergunta,
                 'opcoes' => array_values(array_filter($training->avaliacao_opcoes ?? [])),
@@ -53,6 +54,9 @@ class TrainingController extends Controller
             'thumbnail' => $training->thumbnail,
             'data_publicacao' => $training->data_publicacao?->toISOString(),
             'data_liberacao' => $training->data_liberacao?->toISOString(),
+            'prazo_conclusao' => $training->prazoConclusao($progress)?->toISOString(),
+            'prazo_estendido' => $progress?->prazo_estendido_ate?->toISOString(),
+            'prazo_expirado' => $training->prazoExpirado($progress),
             'status' => $training->status,
             'obrigatorio' => (bool) $training->obrigatorio,
             'liberado' => $training->isReleased(),
@@ -105,6 +109,9 @@ class TrainingController extends Controller
             } elseif ($training->tipo === 'treinamento' && ! $training->isReleased()) {
                 // Mesma regra do web: direcionados não liberados ficam ocultos
                 continue;
+            } elseif (! $user->isTestUser() && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+                // Prazo expirado: continua visível, porém bloqueado
+                $bloqueados[] = $item;
             } elseif ($training->tipo === 'treinamento') {
                 $direcionados[] = $item;
             } else {
@@ -150,12 +157,22 @@ class TrainingController extends Controller
             ], 403);
         }
 
-        $progress = UserProgress::firstOrCreate(
+        $progress = UserProgress::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->first();
+
+        if (! $user->isTestUser() && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
+
+        $progress = $progress ?: UserProgress::create(
             [
                 'user_id' => $user->id,
                 'training_id' => $training->id,
-            ],
-            [
                 'data_inicio' => now(config('app.timezone')),
                 'tempo_assistido' => 0,
                 'porcentagem_assistida' => 0,
@@ -373,12 +390,22 @@ class TrainingController extends Controller
         $duracao = max(1, $training->duracaoSegundos());
         $tempoCliente = min($tempoCliente, $duracao);
 
-        $progress = UserProgress::firstOrCreate(
+        $progress = UserProgress::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->first();
+
+        if (! $isTestUser && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
+
+        $progress = $progress ?: UserProgress::create(
             [
                 'user_id' => $user->id,
                 'training_id' => $training->id,
-            ],
-            [
                 'data_inicio' => now(config('app.timezone')),
                 'tempo_assistido' => 0,
                 'porcentagem_assistida' => 0,
@@ -471,12 +498,22 @@ class TrainingController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Resposta inválida'], 422);
         }
 
-        $progress = UserProgress::firstOrCreate(
+        $progress = UserProgress::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->first();
+
+        if (! $isTestUser && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
+
+        $progress = $progress ?: UserProgress::create(
             [
                 'user_id' => $user->id,
                 'training_id' => $training->id,
-            ],
-            [
                 'data_inicio' => now(config('app.timezone')),
                 'tempo_assistido' => 0,
                 'porcentagem_assistida' => 0,
@@ -561,12 +598,22 @@ class TrainingController extends Controller
         $training = Training::findOrFail($id);
         $user = request()->user();
 
-        $progress = UserProgress::firstOrCreate(
+        $progress = UserProgress::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->first();
+
+        if (! $progress?->concluido && ! $user->isTestUser() && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
+
+        $progress = $progress ?: UserProgress::create(
             [
                 'user_id' => $user->id,
                 'training_id' => $training->id,
-            ],
-            [
                 'data_inicio' => now(config('app.timezone')),
                 'tempo_assistido' => 0,
                 'porcentagem_assistida' => 0,

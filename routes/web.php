@@ -20,6 +20,7 @@ use App\Http\Controllers\ProfilePhotoController;
 use App\Http\Controllers\ProjetoPedagogicoController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\TrainingController;
+use App\Http\Controllers\TrainingDeadlineController;
 use App\Http\Controllers\TrainingMaterialController;
 use App\Http\Controllers\TrainingPlayerController;
 use App\Http\Controllers\TrainingRewatchController;
@@ -224,6 +225,13 @@ Route::middleware('auth')->group(function () {
             Route::get('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'index'])->name('usuarios.treinamentos_reassistir');
             Route::post('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'store'])->name('usuarios.treinamentos_reassistir.store');
             Route::delete('/usuarios/{user}/treinamentos-reassistir/{rewatch}', [TrainingRewatchController::class, 'destroy'])->name('usuarios.treinamentos_reassistir.destroy');
+        });
+
+        // Prorrogação do prazo de treinamentos expirados (módulo:prazos)
+        Route::middleware('module:prazos')->prefix('admin/prazos-treinamentos')->name('admin.prazos.')->group(function () {
+            Route::get('/', [TrainingDeadlineController::class, 'index'])->name('index');
+            Route::post('/', [TrainingDeadlineController::class, 'store'])->name('store');
+            Route::delete('/{progress}', [TrainingDeadlineController::class, 'destroy'])->name('destroy');
         });
 
         // Gerenciador de Conteúdos Splash (acesso controlado por permissão:splash)

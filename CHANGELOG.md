@@ -6,6 +6,34 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.1.0] - 2026-10-15
+
+### Adicionado
+- **Prazo de conclusão dos treinamentos**: o usuário tem até as **23:00 do
+  domingo subsequente à liberação** para assistir o vídeo e responder a
+  avaliação. O prazo aparece no player e nos cards do dashboard ("Prazo até
+  ..."; destaque nos últimos 2 dias).
+- **Seção "Prazo Expirado" no dashboard do usuário**: treinamentos fora do
+  prazo saem das seções ativas (inclusive "Meus Treinamentos") e ficam
+  visíveis, porém bloqueados, com aviso para procurar o gestor.
+- **Bloqueio após o prazo**: player, atualização de progresso, envio da
+  avaliação e conclusão (web e API mobile) passam a exigir prazo vigente;
+  usuários de teste e admins continuam com acesso livre.
+- **Gestor de Prazos (`/admin/prazos-treinamentos`, módulo `prazos`)**:
+  lista usuários com prazo expirado (ou vencendo em até 7 dias) — inclusive
+  quem nunca iniciou — e permite liberar um **novo prazo** (data/hora
+  customizável, sugestão: 23:00 do próximo domingo) com justificativa
+  obrigatória, registrada em `training_logs` e na auditoria. O progresso do
+  usuário é mantido e o treinamento volta para "Em Andamento".
+- É possível **remover a prorrogação** (volta ao prazo padrão). Link no menu
+  Administração; faseamento de prazo na API (`prazo_conclusao`,
+  `prazo_estendido`, `prazo_expirado`).
+
+### Notas de deploy
+- Rodar `php artisan migrate --force` (novos campos em `user_progress`).
+- Gestores com perfil `admin` já acessam a página; para tenants SaaS, o
+  módulo `prazos` precisa estar habilitado no painel da plataforma.
+
 ## [2.0.74] - 2026-10-15
 
 ### Adicionado

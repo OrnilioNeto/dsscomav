@@ -37,13 +37,21 @@ class TrainingPlayerController extends Controller
             abort(403, 'Treinamento ainda não liberado.');
         }
 
+        // Prazo de conclusão: 23:00 do domingo subsequente à liberação,
+        // prorrogável pelo gestor (prazo_estendido_ate).
+        $progress = UserProgress::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->first();
+
+        if (! $user->isTestUser() && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            abort(403, 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.');
+        }
+
         // Obter ou criar progresso.
-        $progress = UserProgress::firstOrCreate(
+        $progress = $progress ?: UserProgress::create(
             [
                 'user_id' => $user->id,
                 'training_id' => $training->id,
-            ],
-            [
                 'data_inicio' => now(config('app.timezone')),
                 'tempo_assistido' => 0,
                 'porcentagem_assistida' => 0,
@@ -80,6 +88,22 @@ class TrainingPlayerController extends Controller
             return response()->json(['error' => 'Acesso negado'], 403);
         }
 
+        // Obter progresso anterior
+        $progress = UserProgress::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->first();
+
+        if (! $user->isTestUser() && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'error' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
+
+        if (! $progress) {
+            return response()->json(['error' => 'Progresso não encontrado'], 404);
+        }
+
         // Validar payload
         $tempoCliente = $request->input('tempo_assistido');
         $porcentagem = $request->input('porcentagem_assistida');
@@ -98,11 +122,6 @@ class TrainingPlayerController extends Controller
 
         // Capear tempo à duração máxima
         $tempoCliente = min($tempoCliente, $duracao);
-
-        // Obter progresso anterior
-        $progress = UserProgress::where('user_id', $user->id)
-            ->where('training_id', $training->id)
-            ->firstOrFail();
 
         $tempoAnterior = (int) $progress->tempo_assistido;
 
@@ -220,7 +239,19 @@ class TrainingPlayerController extends Controller
 
         $progress = UserProgress::where('user_id', $user->id)
             ->where('training_id', $training->id)
-            ->firstOrFail();
+            ->first();
+
+        // Prazo de conclusão: avaliação não pode ser enviada após o vencimento.
+        if (! $isTestUser && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'error' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
+
+        if (! $progress) {
+            return response()->json(['error' => 'Progresso não encontrado'], 404);
+        }
 
         // Re-identificação por senha (NR-01 Anexo II 4.6.1/4.6.2): exigida no
         // envio para o tipo "Treinamento" (DSS dispensa a confirmação).
@@ -429,6 +460,13 @@ class TrainingPlayerController extends Controller
         $progress = UserProgress::where('user_id', $user->id)
             ->where('training_id', $training->id)
             ->firstOrFail();
+
+        if (! $progress->concluido && ! $user->isTestUser() && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'error' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
 
         if (! $progress->concluido) {
             $progress->update([
