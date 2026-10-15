@@ -58,6 +58,12 @@
                 >
                     <i class="fas fa-sign-in-alt mr-2"></i> Entrar
                 </button>
+
+                <div class="text-center">
+                    <a href="{{ route('password.request') }}" class="text-blue-900 hover:underline text-sm font-semibold">
+                        <i class="fas fa-key mr-1"></i> Esqueci minha senha
+                    </a>
+                </div>
             </form>
         </div>
     </div>

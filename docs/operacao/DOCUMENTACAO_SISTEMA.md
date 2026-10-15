@@ -81,6 +81,11 @@ Pasta principal da aplicação Laravel. Contém controllers, models, middleware 
   - Faz autenticação por CPF
   - Faz logout e invalida sessão
 
+- `PasswordResetController.php`
+  - Recuperação de senha self-service por e-mail (`/esqueci-senha` e `/redefinir-senha/{token}`)
+  - Gera e consome tokens da tabela `password_reset_tokens` (expiração de 60 min)
+  - Resposta genérica (não revela se o e-mail existe) e auditoria de solicitações/conclusões
+
 - `DashboardController.php`
   - Decide qual dashboard mostrar conforme perfil
   - Monta indicadores do super admin, admin e usuário comum
@@ -212,6 +217,13 @@ No estado atual do projeto, essa pasta existe, mas o controle de acesso principa
 - `auth/login.blade.php`
   - Tela de login por CPF e senha
   - Exibe logo, identidade visual da empresa e credenciais de teste
+  - Link "Esqueci minha senha" para a recuperação por e-mail
+
+- `auth/forgot-password.blade.php` / `auth/reset-password.blade.php`
+  - Solicitação do link de recuperação e definição da nova senha
+
+- `emails/redefinir-senha.blade.php`
+  - Corpo do e-mail de redefinição (enviado pela `RedefinirSenhaNotification`)
 
 #### 4.3.3 Página inicial
 
@@ -522,6 +534,7 @@ Atualize seeders de roles, `CheckRole`, validações dos controllers, dashboard 
 ## 13. Como localizar rapidamente o que cada parte faz
 
 - **Login**: `app/Http/Controllers/AuthController.php` + `resources/views/auth/login.blade.php`
+- **Recuperação de senha**: `app/Http/Controllers/PasswordResetController.php` + `app/Notifications/RedefinirSenhaNotification.php`
 - **Dashboard**: `app/Http/Controllers/DashboardController.php`
 - **Usuários**: `app/Http/Controllers/UserController.php` + `resources/views/usuarios/`
 - **Treinamentos**: `app/Http/Controllers/TrainingController.php` + `resources/views/treinamentos/`

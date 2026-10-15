@@ -26,8 +26,8 @@ Facilitar investigação de falhas, rastreabilidade de requisições e diagnóst
 - `status`, `duration_ms`, `route`
 
 ## Mascaramento de dados sensíveis
-- Query strings com `token`, `codigo`, `password`, `api_key`, `secret`, etc. são gravadas como `***`.
-- Paths `/ficha/{token}` e `/validar/{codigo}` são gravados como `ficha/***` e `validar/***`.
+- Query strings com `token`, `codigo`, `password`, `api_key`, `secret`, `email`, etc. são gravadas como `***`.
+- Paths `/ficha/{token}`, `/validar/{codigo}` e `/redefinir-senha/{token}` são gravados como `ficha/***`, `validar/***` e `redefinir-senha/***`.
 - Corpo da requisição e headers (exceto `X-Request-Id`/`User-Agent`) **não** são registrados.
 
 ## Configuração via .env

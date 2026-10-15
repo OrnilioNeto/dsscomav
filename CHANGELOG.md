@@ -6,6 +6,32 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.74] - 2026-10-15
+
+### Adicionado
+- **Recuperação de senha por e-mail (self-service)**: link "Esqueci minha
+  senha" no login, páginas `/esqueci-senha` e `/redefinir-senha/{token}`, e
+  e-mail em pt-BR com link válido por 60 minutos (`RedefinirSenhaNotification`
+  + `PasswordResetController`).
+- Resposta sempre genérica para não revelar se o e-mail está cadastrado
+  (anti-enumeração) e auditoria de solicitações, falhas e conclusões
+  (`password_reset_*`, módulo `auth`).
+- Throttle dedicado: `password-email` (3/min por e-mail+IP e 10/min por IP)
+  e `password-reset` (10/min por IP).
+
+### Alterado
+- Após redefinir a senha, o `remember_token` é rotacionado, o token de
+  recuperação é apagado e o usuário volta ao login (sem autenticação
+  automática).
+
+### Notas de deploy
+- Configure `MAIL_*` no `.env` (ver `docs/operacao/INSTALACAO.md`) — sem SMTP
+  os e-mails de recuperação não são entregues. SMTP: `mail.previaseg.com`,
+  porta `465` (SSL), usuário `suporte@previaseg.com`.
+- Remetente padrão dos e-mails: `suporte@previaseg.com` (fallback em
+  `config/mail.php`), sobrescrevível por `MAIL_FROM_ADDRESS` ou pelo campo
+  **E-mail remetente** do tenant (white-label).
+
 ## [2.0.73] - 2026-10-12
 
 ### Corrigido

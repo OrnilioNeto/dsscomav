@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
+use App\Notifications\RedefinirSenhaNotification;
 use App\Support\RolePermissionCache;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -78,6 +79,14 @@ class User extends Authenticatable
                 $user->qrcode_token = Str::random(32);
             }
         });
+    }
+
+    /**
+     * Envia o e-mail de redefinição de senha em pt-BR (link da plataforma).
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new RedefinirSenhaNotification($token));
     }
 
     // Relacionamentos

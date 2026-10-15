@@ -14,6 +14,7 @@ use App\Http\Controllers\CertificateManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeFichaController;
 use App\Http\Controllers\EpiController;
+use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfilePhotoController;
 use App\Http\Controllers\ProjetoPedagogicoController;
@@ -41,6 +42,12 @@ Route::get('/teste-video', function () {
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login')->middleware('guest');
 Route::post('/login', [AuthController::class, 'login'])->middleware(['guest', 'throttle:login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+
+// Recuperação de senha por e-mail
+Route::get('/esqueci-senha', [PasswordResetController::class, 'showLinkRequestForm'])->name('password.request')->middleware('guest');
+Route::post('/esqueci-senha', [PasswordResetController::class, 'sendResetLinkEmail'])->name('password.email')->middleware(['guest', 'throttle:password-email']);
+Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset')->middleware('guest');
+Route::post('/redefinir-senha', [PasswordResetController::class, 'reset'])->name('password.update')->middleware(['guest', 'throttle:password-reset']);
 
 // Validação pública de certificado
 Route::get('/validar/{codigo}', [CertificateController::class, 'validateCertificate'])->name('validar.certificado')->middleware('throttle:60,1');
