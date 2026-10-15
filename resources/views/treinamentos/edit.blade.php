@@ -110,53 +110,10 @@
                 </div>
             </div>
 
-            <!-- Avaliação para DSS (pergunta única) -->
-            <div id="bloco-avaliacao-legada" style="{{ $training->tipo === 'dss' ? '' : 'display:none;' }}" class="border-t pt-6 space-y-4">
-                <h2 class="text-xl font-bold text-gray-800">Avaliação do DSS</h2>
-
-                <div>
-                    <label class="block text-gray-700 font-semibold mb-2">Pergunta da avaliação *</label>
-                    <textarea name="avaliacao_pergunta" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">{{ old('avaliacao_pergunta', $training->avaliacao_pergunta) }}</textarea>
-                </div>
-
-                @php
-                    $assessmentOptions = $training->avaliacao_opcoes ?? [];
-                @endphp
-
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 1 *</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[0] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 2 *</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[1] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 3</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[2] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 4</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[3] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-gray-700 font-semibold mb-2">Resposta correta *</label>
-                    <select name="avaliacao_resposta_correta" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                        <option value="0" {{ (int) $training->avaliacao_resposta_correta === 0 ? 'selected' : '' }}>Opção 1</option>
-                        <option value="1" {{ (int) $training->avaliacao_resposta_correta === 1 ? 'selected' : '' }}>Opção 2</option>
-                        <option value="2" {{ (int) $training->avaliacao_resposta_correta === 2 ? 'selected' : '' }}>Opção 3</option>
-                        <option value="3" {{ (int) $training->avaliacao_resposta_correta === 3 ? 'selected' : '' }}>Opção 4</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Avaliação para Treinamento (banco de questões NR-01 4.6) -->
-            <div id="bloco-banco-questoes" style="{{ $training->tipo === 'treinamento' ? '' : 'display:none;' }}" class="border-t pt-6">
+            <!-- Avaliação (banco de questões) — único formato para DSS e Treinamento -->
+            <div id="bloco-banco-questoes" class="border-t pt-6">
                 <div class="flex items-center justify-between mb-2">
-                    <h2 class="text-xl font-bold text-gray-800">Avaliação do Treinamento (Banco de Questões)</h2>
+                    <h2 class="text-xl font-bold text-gray-800">Avaliação (Banco de Questões)</h2>
                     <button type="button" onclick="adicionarQuestao()" class="bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-800">
                         <i class="fas fa-plus mr-1"></i>Adicionar Questão
                     </button>
@@ -164,7 +121,7 @@
                 <p class="text-sm text-gray-500 mb-4">Cadastre até 10 questões. Cada questão pode ter de <strong>2 a 4 opções</strong> e deve indicar a resposta correta. Na prova, as questões e opções são embaralhadas (NR-01 Anexo II 4.6.2).</p>
 
                 <div id="container-questoes" class="space-y-4">
-                    <p class="text-gray-500 text-sm italic" id="sem-questoes-aviso" style="{{ $training->questions->count() > 0 ? 'display:none;' : '' }}">Nenhuma questão cadastrada. Clique em "Adicionar Questão".</p>
+                    <p class="text-gray-500 text-sm italic" id="sem-questoes-aviso" style="{{ $training->questions->count() > 0 || ! empty($training->avaliacao_pergunta) ? 'display:none;' : '' }}">Nenhuma questão cadastrada. Clique em "Adicionar Questão".</p>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4 mt-4">
@@ -272,16 +229,12 @@
                     const blocoTipoUsuario = document.getElementById('bloco-tipo-usuario');
                     const blocoFuncionarios = document.getElementById('bloco-funcionarios');
                     const blocoTipoTreinamento = document.getElementById('bloco-tipo-treinamento');
-                    const blocoAvaliacaoLegada = document.getElementById('bloco-avaliacao-legada');
-                    const blocoBancoQuestoes = document.getElementById('bloco-banco-questoes');
 
                     function atualizarTipoConteudo() {
                         const isTreinamento = tipoSelect.value === 'treinamento';
                         blocoTipoUsuario.style.display = isTreinamento ? 'none' : 'block';
                         blocoFuncionarios.style.display = isTreinamento ? 'block' : 'none';
                         blocoTipoTreinamento.style.display = isTreinamento ? 'grid' : 'none';
-                        blocoAvaliacaoLegada.style.display = isTreinamento ? 'none' : 'block';
-                        blocoBancoQuestoes.style.display = isTreinamento ? 'block' : 'none';
                         const selTipo = document.getElementById('tipo-treinamento-select');
                         if (selTipo) selTipo.required = isTreinamento;
                     }
@@ -436,9 +389,22 @@
 
             <script>
                 let contadorQuestoes = 0;
-                const questoesExistentes = @json($training->questions->map(function ($q) {
-                    return ['pergunta' => $q->pergunta, 'opcoes' => $q->opcoes, 'resposta_correta' => $q->resposta_correta];
-                }));
+                @php
+                    $questoesExistentesForm = $training->questions->map(function ($q) {
+                        return ['pergunta' => $q->pergunta, 'opcoes' => array_values($q->opcoes ?? []), 'resposta_correta' => (int) $q->resposta_correta];
+                    })->values();
+
+                    // Conteúdos antigos no formato "pergunta única" entram já no banco de
+                    // questões; ao salvar, a avaliação é unificada automaticamente.
+                    if ($questoesExistentesForm->isEmpty() && ! empty($training->avaliacao_pergunta)) {
+                        $questoesExistentesForm->push([
+                            'pergunta' => $training->avaliacao_pergunta,
+                            'opcoes' => array_values(array_filter($training->avaliacao_opcoes ?? [])),
+                            'resposta_correta' => (int) ($training->avaliacao_resposta_correta ?? 0),
+                        ]);
+                    }
+                @endphp
+                const questoesExistentes = @json($questoesExistentesForm);
 
                 function atualizarAvisoQuestoes() {
                     const aviso = document.getElementById('sem-questoes-aviso');
@@ -454,7 +420,7 @@
                     const container = document.getElementById('container-questoes');
                     const total = document.querySelectorAll('.questao-item').length;
                     if (total >= 10) {
-                        alert('Máximo de 10 questões por treinamento.');
+                        alert('Máximo de 10 questões.');
                         return;
                     }
 

@@ -28,6 +28,13 @@ dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`)
 - É possível **remover a prorrogação** (volta ao prazo padrão). Link no menu
   Administração; faseamento de prazo na API (`prazo_conclusao`,
   `prazo_estendido`, `prazo_expirado`).
+- **Avaliação unificada (banco de questões) para DSS e Treinamento**: o bloco
+  separado "Avaliação do DSS (pergunta única)" saiu do cadastro — agora os dois
+  tipos usam somente "Avaliação (Banco de Questões)", com sorteio, quantidade
+  de questões e nota mínima. DSS antigos com pergunta única são pré-carregados
+  no banco ao abrir a edição e convertidos ao salvar (a prova segue funcionando
+  com o formato antigo até a conversão). A avaliação continua obrigatória
+  (mínimo de 1 questão no banco).
 
 ### Notas de deploy
 - Rodar `php artisan migrate --force` (novos campos em `user_progress`).

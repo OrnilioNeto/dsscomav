@@ -129,6 +129,78 @@ class TrainingAssessmentTest extends TestCase
             ->assertJson(['success' => true]);
     }
 
+    public function test_cadastro_de_dss_aceita_banco_de_questoes_e_nota_minima(): void
+    {
+        $superRole = Role::create(['nome' => 'super_admin', 'descricao' => 'Plataforma']);
+        $super = $this->criarUsuario('55555555555', $superRole);
+
+        $response = $this->actingAs($super)->post('/treinamentos', [
+            'titulo' => 'DSS com Banco de Questões',
+            'descricao' => 'Descrição do DSS com banco',
+            'tipo' => 'dss',
+            'tipo_usuario_permitido' => ['motorista'],
+            'url_video' => 'https://www.youtube.com/watch?v=abc123',
+            'tipo_video' => 'youtube',
+            'carga_horaria' => '1',
+            'obrigatorio' => '1',
+            'questoes' => [
+                ['pergunta' => 'Pergunta DSS 1?', 'opcoes' => ['A', 'B', 'C'], 'resposta_correta' => 2],
+            ],
+            'quantidade_questoes_prova' => 1,
+            'nota_minima_aprovacao' => 80,
+        ]);
+
+        $response->assertRedirect(route('treinamentos.index'));
+
+        $training = Training::where('titulo', 'DSS com Banco de Questões')->firstOrFail();
+
+        $this->assertSame('dss', $training->tipo);
+        $this->assertTrue($training->hasQuestionBank());
+        $this->assertSame(80, (int) $training->nota_minima_aprovacao);
+        $this->assertSame(1, (int) $training->quantidade_questoes_prova);
+        $this->assertDatabaseHas('training_questions', [
+            'training_id' => $training->id,
+            'pergunta' => 'Pergunta DSS 1?',
+        ]);
+
+        // O player monta a prova a partir do banco de questões do DSS
+        $role = Role::create(['nome' => 'usuario', 'descricao' => 'Usuário padrão']);
+        $user = $this->criarUsuario('66666666666', $role);
+
+        $this->actingAs($user)->get("/treinamentos/{$training->id}/player")
+            ->assertOk()
+            ->assertSee('Pergunta DSS 1?');
+    }
+
+    public function test_edicao_de_dss_legado_precarrega_pergunta_no_banco_de_questoes(): void
+    {
+        $superRole = Role::create(['nome' => 'super_admin', 'descricao' => 'Plataforma']);
+        $super = $this->criarUsuario('55555555555', $superRole);
+        $training = $this->criarDss();
+
+        $this->actingAs($super)->get("/treinamentos/{$training->id}/edit")
+            ->assertOk()
+            ->assertSee('Qual a resposta correta?', false)
+            ->assertDontSee('name="avaliacao_pergunta"', false);
+    }
+
+    public function test_cadastro_de_dss_sem_avaliacao_falha(): void
+    {
+        $superRole = Role::create(['nome' => 'super_admin', 'descricao' => 'Plataforma']);
+        $super = $this->criarUsuario('55555555555', $superRole);
+
+        $this->actingAs($super)->post('/treinamentos', [
+            'titulo' => 'DSS sem avaliação',
+            'tipo' => 'dss',
+            'tipo_usuario_permitido' => ['motorista'],
+            'url_video' => 'https://www.youtube.com/watch?v=abc123',
+            'tipo_video' => 'youtube',
+            'carga_horaria' => '1',
+        ])->assertSessionHasErrors('questoes');
+
+        $this->assertDatabaseMissing('trainings', ['titulo' => 'DSS sem avaliação']);
+    }
+
     public function test_servidor_recusa_avaliacao_antes_de_concluir_o_video(): void
     {
         $role = Role::create(['nome' => 'usuario', 'descricao' => 'Usuário padrão']);

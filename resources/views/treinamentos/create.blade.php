@@ -86,49 +86,10 @@
                 </div>
             </div>
 
-            <!-- Avaliação para DSS (pergunta única) -->
-            <div id="bloco-avaliacao-legada" style="display:none;" class="border-t pt-6 space-y-4">
-                <h2 class="text-xl font-bold text-gray-800">Avaliação do DSS</h2>
-
-                <div>
-                    <label class="block text-gray-700 font-semibold mb-2">Pergunta da avaliação *</label>
-                    <textarea name="avaliacao_pergunta" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">{{ old('avaliacao_pergunta') }}</textarea>
-                </div>
-
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 1 *</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ old('avaliacao_opcoes.0') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 2 *</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ old('avaliacao_opcoes.1') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 3</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ old('avaliacao_opcoes.2') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 4</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ old('avaliacao_opcoes.3') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-gray-700 font-semibold mb-2">Resposta correta *</label>
-                    <select name="avaliacao_resposta_correta" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                        <option value="0">Opção 1</option>
-                        <option value="1">Opção 2</option>
-                        <option value="2">Opção 3</option>
-                        <option value="3">Opção 4</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Avaliação para Treinamento (banco de questões NR-01 4.6) -->
+            <!-- Avaliação (banco de questões) — único formato para DSS e Treinamento -->
             <div id="bloco-banco-questoes" class="border-t pt-6">
                 <div class="flex items-center justify-between mb-2">
-                    <h2 class="text-xl font-bold text-gray-800">Avaliação do Treinamento (Banco de Questões)</h2>
+                    <h2 class="text-xl font-bold text-gray-800">Avaliação (Banco de Questões)</h2>
                     <button type="button" onclick="adicionarQuestao()" class="bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-800">
                         <i class="fas fa-plus mr-1"></i>Adicionar Questão
                     </button>
@@ -270,16 +231,12 @@
                     const blocoTipoUsuario = document.getElementById('bloco-tipo-usuario');
                     const blocoFuncionarios = document.getElementById('bloco-funcionarios');
                     const blocoTipoTreinamento = document.getElementById('bloco-tipo-treinamento');
-                    const blocoAvaliacaoLegada = document.getElementById('bloco-avaliacao-legada');
-                    const blocoBancoQuestoes = document.getElementById('bloco-banco-questoes');
 
                     function atualizarTipoConteudo() {
                         const isTreinamento = tipoSelect.value === 'treinamento';
                         blocoTipoUsuario.style.display = isTreinamento ? 'none' : 'block';
                         blocoFuncionarios.style.display = isTreinamento ? 'block' : 'none';
                         blocoTipoTreinamento.style.display = isTreinamento ? 'grid' : 'none';
-                        blocoAvaliacaoLegada.style.display = isTreinamento ? 'none' : 'block';
-                        blocoBancoQuestoes.style.display = isTreinamento ? 'block' : 'none';
                         if (!isTreinamento && blocoTipoTreinamento) {
                             const selTipo = document.getElementById('tipo-treinamento-select');
                             if (selTipo) selTipo.required = false;
@@ -558,7 +515,7 @@
                     const container = document.getElementById('container-questoes');
                     const total = document.querySelectorAll('.questao-item').length;
                     if (total >= 10) {
-                        alert('Máximo de 10 questões por treinamento.');
+                        alert('Máximo de 10 questões.');
                         return;
                     }
 
