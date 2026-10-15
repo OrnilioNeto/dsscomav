@@ -147,9 +147,9 @@
             </h2>
             <div class="flex items-center gap-3">
                 <span class="text-[11px] text-gray-400 font-semibold">Atualizado em {{ date('d/m/Y H:i') }}</span>
-                <button type="button" onclick="toggleListaTodosValidade()" id="btn-lista-todos-validade" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-300 text-xs font-bold cursor-pointer transition" title="Exibir lista completa de itens do catálogo">
+                <button type="button" onclick="toggleListaTodosValidade()" id="btn-lista-todos-validade" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white hover:bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-300 text-xs font-bold cursor-pointer transition" title="Exibir entregas ativas em dia (fora do alerta de 30 dias)">
                     <i class="fas fa-list-ul"></i>
-                    <span id="texto-lista-todos-validade">Listar Todos</span>
+                    <span id="texto-lista-todos-validade">Listar Em Dia</span>
                 </button>
                 <button type="button" onclick="toggleMonitoramentoValidade()" id="btn-toggle-monitoramento" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg border border-gray-300 text-xs font-bold cursor-pointer transition" title="Ocultar / Exibir painel">
                     <i id="icone-toggle-monitoramento" class="fas fa-chevron-up transition-transform duration-200"></i>
@@ -160,7 +160,7 @@
 
         <div id="monitoramento-validade-body">
             <!-- KPIs de Validade -->
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-4">
             <div class="bg-rose-50 p-3 rounded-xl border border-rose-100 text-center">
                 <div class="text-2xl font-bold text-rose-700">{{ $caStats['vencidos'] }}</div>
                 <div class="text-[10px] font-bold text-rose-600 uppercase mt-0.5">CAs Vencidos</div>
@@ -184,6 +184,10 @@
             <div class="bg-amber-50 p-3 rounded-xl border border-amber-100 text-center">
                 <div class="text-2xl font-bold text-amber-800">{{ $entregasVencendoCount }}</div>
                 <div class="text-[10px] font-bold text-amber-700 uppercase mt-0.5">Entregas vencem em 30d</div>
+            </div>
+            <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-center">
+                <div class="text-2xl font-bold text-emerald-700">{{ $entregasEmDiaCount }}</div>
+                <div class="text-[10px] font-bold text-emerald-600 uppercase mt-0.5">Entregas em dia</div>
             </div>
             <div class="bg-violet-50 p-3 rounded-xl border border-violet-100 text-center">
                 <div class="text-2xl font-bold text-violet-700">{{ $devolucoesPendentesCount }}</div>
@@ -351,60 +355,84 @@
             </div>
         @endif
 
-        <!-- Lista completa (opção "Listar Todos"): todos os itens ativos do catálogo -->
-        @php $listaTodosValidade = $episValidadeTodos ?? collect(); @endphp
+        <!-- Complemento do alerta (botão "Listar Em Dia"): entregas ativas fora do alerta de 30 dias -->
+        @php $listaTodosValidade = $entregasEmDia ?? collect(); @endphp
         <div id="lista-todos-validade" class="hidden mt-4 border border-emerald-200 rounded-lg overflow-hidden">
             <div class="bg-emerald-50 px-4 py-2.5 flex items-center justify-between flex-wrap gap-2">
-                <span class="text-xs font-bold text-emerald-800 uppercase"><i class="fas fa-list-ul mr-1"></i> Lista completa do catálogo ({{ $listaTodosValidade->count() }} itens ativos)</span>
-                <span class="text-[10px] text-emerald-600 font-semibold">Todos os itens, com situação de CA e vida útil</span>
+                <span class="text-xs font-bold text-emerald-800 uppercase"><i class="fas fa-list-ul mr-1"></i> Entregas ativas em dia — fora do alerta de 30 dias ({{ $listaTodosValidade->count() }})</span>
+                <span class="text-[10px] text-emerald-600 font-semibold">Complemento das tabelas acima: alerta + esta lista = 100% das entregas ativas</span>
             </div>
             <div class="overflow-x-auto max-h-[480px] overflow-y-auto">
                 <table class="min-w-full divide-y divide-gray-200 text-xs">
                     <thead class="bg-gray-50 sticky top-0">
                         <tr>
-                            <th class="px-3 py-2 text-left font-bold text-gray-500">Item</th>
-                            <th class="px-3 py-2 text-center font-bold text-gray-500">Grupo</th>
-                            <th class="px-3 py-2 text-center font-bold text-gray-500">CA</th>
-                            <th class="px-3 py-2 text-center font-bold text-gray-500">Validade do CA</th>
+                            <th class="px-3 py-2 text-left font-bold text-gray-500">Colaborador</th>
+                            <th class="px-3 py-2 text-left font-bold text-gray-500">EPI entregue</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Qtd</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Entrega</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Período (vida útil)</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Vencimento</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Falta p/ troca</th>
                             <th class="px-3 py-2 text-center font-bold text-gray-500">Situação</th>
-                            <th class="px-3 py-2 text-center font-bold text-gray-500">Vida útil</th>
-                            <th class="px-3 py-2 text-center font-bold text-gray-500">Funcionários</th>
                             <th class="px-3 py-2 text-center font-bold text-gray-500">Ação</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        @forelse($listaTodosValidade as $epi)
-                            @php [$caLabel, $caCls] = $epi->status_ca_badge; @endphp
+                        @php $hojeComparaTodos = now()->format('Y-m-d'); @endphp
+                        @forelse($listaTodosValidade as $ent)
+                            @php
+                                $vencTodos = $ent->ss_e_tx_vencimento ? \Carbon\Carbon::parse($ent->ss_e_tx_vencimento)->startOfDay() : null;
+                                $diasRestantes = $vencTodos ? (int) now()->startOfDay()->diffInDays($vencTodos, false) : null;
+                                $vidaUtilEpi = (int) ($ent->epi->ss_e_nb_vida_util_dias ?? 0);
+                            @endphp
                             <tr class="hover:bg-gray-50">
-                                <td class="px-3 py-2">
-                                    <div class="font-bold text-gray-900">{{ $epi->ss_e_tx_item }}</div>
-                                    <div class="text-[10px] text-gray-500">{{ $epi->ss_e_tx_fabricante ?? '' }}</div>
+                                <td class="px-3 py-2 font-bold text-gray-900">{{ $ent->colaborador->ss_c_tx_nome ?? 'N/D' }}</td>
+                                <td class="px-3 py-2 font-semibold text-emerald-950">
+                                    {{ $ent->epi->ss_e_tx_item ?? 'EPI N/D' }}
+                                    @if($ent->epi && $ent->epi->ss_e_tx_ca)
+                                        <span class="text-gray-400 font-normal">(CA {{ $ent->epi->ss_e_tx_ca }})</span>
+                                    @endif
                                 </td>
-                                <td class="px-3 py-2 text-center text-gray-600">{{ $epi->ss_e_tx_grupo }}</td>
-                                <td class="px-3 py-2 text-center font-mono font-bold text-gray-800">{{ $epi->ss_e_tx_ca ?: '-' }}</td>
-                                <td class="px-3 py-2 text-center text-gray-600">
-                                    {{ $epi->ss_e_tx_validade_ca ? date('d/m/Y', strtotime($epi->ss_e_tx_validade_ca)) : '-' }}
+                                <td class="px-3 py-2 text-center font-bold text-gray-800">{{ $ent->ss_e_nb_quantidade }}</td>
+                                <td class="px-3 py-2 text-center text-gray-600">{{ date('d/m/Y', strtotime($ent->ss_e_tx_data_entrega)) }}</td>
+                                <td class="px-3 py-2 text-center {{ $vidaUtilEpi <= 0 ? 'text-rose-600 font-bold' : 'text-gray-600' }}">
+                                    {{ $vidaUtilEpi > 0 ? $vidaUtilEpi . ' dias' : 'Não configurada' }}
+                                </td>
+                                <td class="px-3 py-2 text-center text-gray-600">{{ $ent->ss_e_tx_vencimento ? date('d/m/Y', strtotime($ent->ss_e_tx_vencimento)) : '-' }}</td>
+                                <td class="px-3 py-2 text-center font-bold {{ $diasRestantes === null ? 'text-gray-400' : ($diasRestantes < 0 ? 'text-rose-600' : ($diasRestantes <= 30 ? 'text-amber-700' : 'text-emerald-700')) }}">
+                                    @if($diasRestantes === null)
+                                        Sem periodicidade
+                                    @elseif($diasRestantes === 0)
+                                        Vence hoje
+                                    @elseif($diasRestantes > 0)
+                                        Faltam {{ $diasRestantes }} {{ $diasRestantes === 1 ? 'dia' : 'dias' }}
+                                    @else
+                                        Vencida há {{ abs($diasRestantes) }} {{ abs($diasRestantes) === 1 ? 'dia' : 'dias' }}
+                                    @endif
                                 </td>
                                 <td class="px-3 py-2 text-center">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $caCls }}">{{ $caLabel }}</span>
+                                    @if($diasRestantes === null)
+                                        <span class="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-[10px] font-bold">Sem periodicidade</span>
+                                    @elseif($diasRestantes < 0)
+                                        <span class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Vencida</span>
+                                    @elseif($diasRestantes <= 30)
+                                        <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">Vence em 30 dias</span>
+                                    @else
+                                        <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold">Em dia</span>
+                                    @endif
                                 </td>
-                                <td class="px-3 py-2 text-center {{ $epi->ss_e_nb_vida_util_dias <= 0 ? 'text-rose-600 font-bold' : 'text-gray-600' }}">
-                                    {{ $epi->ss_e_nb_vida_util_dias > 0 ? $epi->ss_e_nb_vida_util_dias . ' dias' : 'Não configurada' }}
-                                </td>
-                                <td class="px-3 py-2 text-center">
-                                    <button onclick="abrirModalEpiEntregas({{ $epi->ss_e_nb_id }}, '{{ addslashes($epi->ss_e_tx_item ?? '') }}')" class="text-emerald-700 hover:text-emerald-900 font-bold cursor-pointer text-sm" title="Ver funcionários com este EPI">
-                                        <i class="fas fa-chevron-down"></i>
+                                <td class="px-3 py-2 text-center whitespace-nowrap">
+                                    <button onclick="abrirModalVencimentoEntrega({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}', '{{ $ent->ss_e_tx_vencimento ?? '' }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
+                                        <i class="fas fa-calendar-alt mr-1"></i> Editar Vencimento
                                     </button>
-                                </td>
-                                <td class="px-3 py-2 text-center">
-                                    <button onclick="editarEpi({{ json_encode($epi) }})" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
-                                        <i class="fas fa-edit mr-1"></i> Editar / Regularizar
+                                    <button onclick="abrirModalDevolucao({{ $ent->ss_e_nb_id }}, '{{ addslashes($ent->epi->ss_e_tx_item ?? '') }}', {{ $ent->colaborador->ss_c_nb_id ?? 'null' }})" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold cursor-pointer" title="Registrar devolução / saída do EPI">
+                                        <i class="fas fa-undo-alt mr-1"></i> Devolver / Saída
                                     </button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-3 py-6 text-center text-gray-400 font-semibold">Nenhum item ativo no catálogo.</td>
+                                <td colspan="9" class="px-3 py-6 text-center text-gray-400 font-semibold">Nenhuma entrega ativa fora do alerta de vencimento.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -2205,15 +2233,15 @@
         try { localStorage.setItem('epi_monitoramento_oculto', oculto ? '1' : '0'); } catch (e) {}
     };
 
-    // Exibe / oculta a lista completa do catálogo no painel de Monitoramento de Validade
+    // Exibe / oculta as entregas ativas em dia (complemento do alerta) no painel de Monitoramento de Validade
     window.toggleListaTodosValidade = function() {
         var lista = document.getElementById('lista-todos-validade');
         var texto = document.getElementById('texto-lista-todos-validade');
         var btn = document.getElementById('btn-lista-todos-validade');
         if (!lista) return;
         var oculto = lista.classList.toggle('hidden');
-        if (texto) texto.textContent = oculto ? 'Listar Todos' : 'Ocultar Lista';
-        if (btn) btn.title = oculto ? 'Exibir lista completa de itens do catálogo' : 'Ocultar lista completa';
+        if (texto) texto.textContent = oculto ? 'Listar Em Dia' : 'Ocultar Lista';
+        if (btn) btn.title = oculto ? 'Exibir entregas ativas em dia (fora do alerta de 30 dias)' : 'Ocultar lista';
         // Ao exibir a lista, garante que o painel esteja aberto
         if (!oculto) {
             var body = document.getElementById('monitoramento-validade-body');
