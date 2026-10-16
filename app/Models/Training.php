@@ -230,6 +230,41 @@ class Training extends Model
     }
 
     /**
+     * Retorna a quantidade de questões que serão exibidas na prova.
+     */
+    public function totalQuestoesProva(): int
+    {
+        $totalBanco = $this->hasQuestionBank()
+            ? ($this->relationLoaded('questions') ? $this->questions->count() : $this->questions()->count())
+            : 0;
+
+        if ($totalBanco === 0) {
+            return $this->hasAssessment() ? 1 : 0;
+        }
+
+        if ($this->quantidade_questoes_prova && $this->quantidade_questoes_prova > 0) {
+            return min((int) $this->quantidade_questoes_prova, $totalBanco);
+        }
+
+        return $totalBanco;
+    }
+
+    /**
+     * Retorna a quantidade mínima de acertos necessários para aprovação.
+     */
+    public function minimoAcertosAprovacao(?int $totalQuestoes = null): int
+    {
+        $total = $totalQuestoes ?? $this->totalQuestoesProva();
+        if ($total <= 0) {
+            return 1;
+        }
+
+        $notaMinima = (int) ($this->nota_minima_aprovacao ?? 70);
+
+        return (int) max(1, (int) ceil(($notaMinima / 100) * $total));
+    }
+
+    /**
      * Retorna o rótulo em pt-BR do tipo do treinamento (inicial/periódico/eventual).
      */
     public function getTipoTreinamentoLabelAttribute(): ?string

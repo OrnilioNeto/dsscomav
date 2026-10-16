@@ -219,4 +219,96 @@ class TrainingAssessmentTest extends TestCase
             'avaliacao_aprovada' => false,
         ]);
     }
+
+    public function test_aprovacao_com_50_por_cento_em_2_questoes_aprova_ao_acertar_1(): void
+    {
+        $role = Role::create(['nome' => 'usuario', 'descricao' => 'Usuário padrão']);
+        $user = $this->criarUsuario(role: $role);
+        $training = $this->criarDss();
+        $training->update(['nota_minima_aprovacao' => 50]);
+
+        $q1 = TrainingQuestion::create([
+            'training_id' => $training->id,
+            'pergunta' => 'Questão 1?',
+            'opcoes' => ['Opção A', 'Opção B'],
+            'resposta_correta' => 0,
+            'ordem' => 0,
+        ]);
+
+        $q2 = TrainingQuestion::create([
+            'training_id' => $training->id,
+            'pergunta' => 'Questão 2?',
+            'opcoes' => ['Opção C', 'Opção D'],
+            'resposta_correta' => 1,
+            'ordem' => 1,
+        ]);
+
+        $this->criarProgresso($user, $training, 100);
+
+        // Simulando o mapa de sessão: q1 sem embaralhar [0, 1], q2 sem embaralhar [0, 1]
+        $mapa = [
+            $q1->id => [0, 1],
+            $q2->id => [0, 1],
+        ];
+
+        // Responde Q1 correta (0) e Q2 errada (0, quando o correto é 1)
+        $response = $this->actingAs($user)
+            ->withSession(["avaliacao_{$training->id}_map" => $mapa])
+            ->postJson("/treinamentos/{$training->id}/avaliacao", [
+                'respostas' => [
+                    $q1->id => 0,
+                    $q2->id => 0,
+                ],
+            ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'success' => true,
+                'nota' => 50,
+                'corretas' => 1,
+                'total' => 2,
+                'minimo_acertos' => 1,
+                'nota_minima' => 50,
+            ]);
+
+        $this->assertDatabaseHas('user_progress', [
+            'user_id' => $user->id,
+            'training_id' => $training->id,
+            'avaliacao_aprovada' => true,
+            'avaliacao_nota' => 50,
+        ]);
+    }
+
+    public function test_player_exibe_criterio_de_aprovacao_ao_usuario(): void
+    {
+        $role = Role::create(['nome' => 'usuario', 'descricao' => 'Usuário padrão']);
+        $user = $this->criarUsuario(role: $role);
+        $training = $this->criarDss();
+        $training->update(['nota_minima_aprovacao' => 50]);
+
+        TrainingQuestion::create([
+            'training_id' => $training->id,
+            'pergunta' => 'Q1?',
+            'opcoes' => ['A', 'B'],
+            'resposta_correta' => 0,
+            'ordem' => 0,
+        ]);
+
+        TrainingQuestion::create([
+            'training_id' => $training->id,
+            'pergunta' => 'Q2?',
+            'opcoes' => ['C', 'D'],
+            'resposta_correta' => 1,
+            'ordem' => 1,
+        ]);
+
+        $this->criarProgresso($user, $training, 100);
+
+        $response = $this->actingAs($user)->get("/treinamentos/{$training->id}/player");
+
+        $response->assertOk();
+        $response->assertSee('Critério de Aprovação', false);
+        $response->assertSee('1 de 2 questão(ões)', false);
+        $response->assertSee('50%', false);
+    }
 }

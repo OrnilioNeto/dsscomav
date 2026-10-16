@@ -161,7 +161,32 @@
             <p class="text-sm text-emerald-900 font-semibold">
                 <i class="fas fa-lock-open mr-2"></i>Vídeo concluído! A avaliação está liberada.
             </p>
-            <p class="text-xs text-emerald-800 mt-1">Selecione uma opção e clique em "Responder avaliação".</p>
+            <p class="text-xs text-emerald-800 mt-1">Selecione uma opção para cada pergunta e clique em "Responder avaliação".</p>
+        </div>
+
+        <!-- Critério de aprovação visível para o participante -->
+        <div class="rounded-xl border border-blue-200 bg-blue-50/70 p-4 mb-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-900 text-white font-bold text-sm shrink-0">
+                        <i class="fas fa-graduation-cap"></i>
+                    </span>
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-sm sm:text-base">Critério de Aprovação</h3>
+                        <p class="text-xs text-gray-600 mt-0.5">
+                            Você precisa acertar no mínimo <strong class="text-blue-900 font-bold">{{ $assessment['minimo_acertos'] ?? 1 }} de {{ $assessment['total_questoes'] ?? 1 }} questão(ões)</strong> ({{ $assessment['nota_minima'] ?? 70 }}%) para ser aprovado.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-xs shrink-0">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">
+                        <i class="fas fa-check-circle text-emerald-600"></i> Mínimo: {{ $assessment['nota_minima'] ?? 70 }}%
+                    </span>
+                    <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 font-semibold text-blue-800">
+                        <i class="fas fa-list-ol text-blue-600"></i> {{ $assessment['total_questoes'] ?? 1 }} questão(ões)
+                    </span>
+                </div>
+            </div>
         </div>
 
         <form id="assessment-form" class="space-y-5">
@@ -182,11 +207,14 @@
             <div id="assessment-questoes-container" class="space-y-5 {{ $assessmentUnlocked ? '' : 'opacity-60 pointer-events-none' }}">
                 @if($assessment['modo'] === 'banco')
                     @foreach($assessment['questoes'] as $qi => $questao)
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <p class="font-semibold text-gray-800 mb-2">{{ $qi + 1 }}. {{ $questao['pergunta'] }}</p>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 questao-bloco" data-questao-id="{{ $questao['id'] }}">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold px-2.5 py-0.5 rounded bg-blue-100 text-blue-800">Questão {{ $qi + 1 }} de {{ count($assessment['questoes']) }}</span>
+                            </div>
+                            <p class="font-semibold text-gray-800 mb-3">{{ $qi + 1 }}. {{ $questao['pergunta'] }}</p>
                             <div class="space-y-2">
                                 @foreach($questao['opcoes'] as $oi => $opcao)
-                                    <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 hover:border-blue-500">
+                                    <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 hover:border-blue-500 transition">
                                         <input type="radio" name="respostas[{{ $questao['id'] }}]" value="{{ $oi }}" class="text-blue-900" required {{ $assessmentUnlocked ? '' : 'disabled' }}>
                                         <span class="text-gray-700">{{ $opcao }}</span>
                                     </label>
@@ -195,11 +223,11 @@
                         </div>
                     @endforeach
                 @else
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 questao-bloco">
                         <p class="font-semibold text-gray-800 mb-2">{{ $assessment['pergunta'] }}</p>
                         <div class="space-y-2">
                             @foreach($assessment['opcoes'] as $oi => $opcao)
-                                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 hover:border-blue-500">
+                                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 hover:border-blue-500 transition">
                                     <input type="radio" name="answer" value="{{ $oi }}" class="text-blue-900" required {{ $assessmentUnlocked ? '' : 'disabled' }}>
                                     <span class="text-gray-700">{{ $opcao }}</span>
                                 </label>
@@ -412,6 +440,13 @@
         const answers = {};
         const checkedBank = container.querySelectorAll('input[type="radio"]:checked');
         let payload = {};
+        const blocosQuestoes = container.querySelectorAll('.questao-bloco');
+
+        if (blocosQuestoes.length > 1 && checkedBank.length < blocosQuestoes.length) {
+            message.textContent = `Por favor, responda todas as ${blocosQuestoes.length} questões antes de enviar (você respondeu ${checkedBank.length} de ${blocosQuestoes.length}).`;
+            message.className = 'text-sm font-medium text-amber-800 bg-amber-50 p-3 rounded-lg border border-amber-200';
+            return;
+        }
 
         if (checkedBank.length > 0) {
             const m = checkedBank[0].name.match(/^respostas\[(\d+)\]$/);

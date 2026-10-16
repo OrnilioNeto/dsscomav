@@ -205,6 +205,10 @@ class TrainingPlayerController extends Controller
             // Guarda o mapeamento da ordem embaralhada para validar no servidor (4.6.2)
             session()->put("avaliacao_{$training->id}_map", $payload->mapWithKeys(fn ($q) => [$q['id'] => $q['mapa']])->toArray());
 
+            $totalQuestoes = $payload->count();
+            $notaMinima = (int) ($training->nota_minima_aprovacao ?? 70);
+            $minimoAcertos = $training->minimoAcertosAprovacao($totalQuestoes);
+
             return [
                 'modo' => 'banco',
                 'questoes' => $payload->map(fn ($q) => [
@@ -212,14 +216,22 @@ class TrainingPlayerController extends Controller
                     'pergunta' => $q['pergunta'],
                     'opcoes' => $q['opcoes'],
                 ])->values()->all(),
+                'total_questoes' => $totalQuestoes,
+                'nota_minima' => $notaMinima,
+                'minimo_acertos' => $minimoAcertos,
             ];
         }
 
         // Pergunta única legada (DSS / treinamento sem banco)
+        $notaMinima = (int) ($training->nota_minima_aprovacao ?? 70);
+
         return [
             'modo' => 'legado',
             'pergunta' => $training->avaliacao_pergunta,
             'opcoes' => array_values(array_filter($training->avaliacao_opcoes ?? [])),
+            'total_questoes' => 1,
+            'nota_minima' => $notaMinima,
+            'minimo_acertos' => 1,
         ];
     }
 
@@ -305,9 +317,10 @@ class TrainingPlayerController extends Controller
 
             $nota = $total > 0 ? (int) round(($corretas / $total) * 100) : 0;
             $notaMinima = (int) ($training->nota_minima_aprovacao ?? 70);
-            $aprovado = $nota >= $notaMinima;
+            $minimoAcertos = $training->minimoAcertosAprovacao($total);
+            $aprovado = $corretas >= $minimoAcertos;
 
-            TrainingLog::registrar($training->id, $user->id, 'avaliacao_submetida', "Nota {$nota}% (mínimo {$notaMinima}%) em {$total} questão(ões).");
+            TrainingLog::registrar($training->id, $user->id, 'avaliacao_submetida', "Acertos: {$corretas}/{$total} ({$nota}%). Mínimo exigido: {$notaMinima}% ({$minimoAcertos} acertos).");
 
             if (! $aprovado) {
                 $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
@@ -332,7 +345,12 @@ class TrainingPlayerController extends Controller
                     return response()->json([
                         'success' => false,
                         'reset_required' => true,
-                        'message' => "Nota insatisfatória ({$nota}%) nas duas tentativas. Assista o vídeo novamente para liberar uma nova avaliação.",
+                        'message' => "Nota insatisfatória: você acertou {$corretas} de {$total} questão(ões) ({$nota}%). O critério mínimo é {$notaMinima}% (pelo menos {$minimoAcertos} acerto(s)). Limite de tentativas atingido; assista o vídeo novamente para liberar uma nova avaliação.",
+                        'corretas' => $corretas,
+                        'total' => $total,
+                        'nota' => $nota,
+                        'nota_minima' => $notaMinima,
+                        'minimo_acertos' => $minimoAcertos,
                     ], 422);
                 }
 
@@ -347,8 +365,13 @@ class TrainingPlayerController extends Controller
                     'success' => false,
                     'reset_required' => false,
                     'message' => $isTestUser
-                        ? "Nota insatisfatória ({$nota}%). Modo teste: pode tentar novamente sem reassistir o vídeo."
-                        : "Nota insatisfatória ({$nota}%). Você ainda tem mais uma chance. Nota mínima para aprovação: {$notaMinima}%.",
+                        ? "Nota insatisfatória: você acertou {$corretas} de {$total} questão(ões) ({$nota}%). Mínimo exigido: {$notaMinima}% (pelo menos {$minimoAcertos} acerto(s)). Modo teste: pode tentar novamente sem reassistir o vídeo."
+                        : "Nota insatisfatória: você acertou {$corretas} de {$total} questão(ões) ({$nota}%). Mínimo para aprovação: {$notaMinima}% (pelo menos {$minimoAcertos} acerto(s)). Você ainda tem mais uma chance.",
+                    'corretas' => $corretas,
+                    'total' => $total,
+                    'nota' => $nota,
+                    'nota_minima' => $notaMinima,
+                    'minimo_acertos' => $minimoAcertos,
                 ], 422);
             }
 
@@ -371,8 +394,13 @@ class TrainingPlayerController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Avaliação aprovada com sucesso! Nota: {$nota}% (satisfatório).",
+                'message' => "Avaliação aprovada com sucesso! Você acertou {$corretas} de {$total} questão(ões) ({$nota}%). Critério atingido (mínimo exigido: {$notaMinima}% ou {$minimoAcertos} acerto(s)).",
                 'progress' => $progress->fresh(),
+                'corretas' => $corretas,
+                'total' => $total,
+                'nota' => $nota,
+                'nota_minima' => $notaMinima,
+                'minimo_acertos' => $minimoAcertos,
             ]);
         }
 
