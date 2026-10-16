@@ -1,157 +1,110 @@
-# Documentação do Relatório de Auditoria
+# Relatórios de Auditoria e de Avaliações
 
-Este documento explica o significado dos principais cards, gráficos e filtros do relatório executivo de auditoria.
+Este documento explica a metodologia, os filtros, as fontes de dados e as exportações dos dois relatórios gerenciais voltados a auditoria e tomada de decisão.
 
 ## Visão geral
 
-O relatório consolida dados de:
+### Relatório de Auditoria Gerencial — `/relatorios/auditoria`
 
-- `User` para usuários, perfis e status
-- `UserProgress` para participações, conclusão e tempo assistido
-- `Training` para catálogo de conteúdos
-- `Certificate` para emissão de certificados e histórico de validação
+Painel de conformidade de treinamentos com tratamento explícito de ausências justificadas e trilha de evidências. Objetivo: permitir auditoria interna/externa (ex.: SASSMAQ, ISO) e decisão gerencial com números rastreáveis.
 
-O objetivo é permitir leitura gerencial rápida sobre engajamento, consumo de conteúdo, certificação e pontos de atenção.
+### Relatório de Avaliações e Notas — `/relatorios/avaliacoes`
 
-## Cards do topo
+Detalhamento de notas por usuário × treinamento: resultado (aprovado/reprovado/pendente), tentativas, data/hora de início e conclusão, tempo assistido, certificado emitido e histórico completo de tentativas de avaliação.
 
-### Total de Usuários
+## Base de cálculo (transparência)
 
-- **O que mostra:** total de usuários dentro do filtro atual.
-- **De onde vem:** consulta em `usuariosBase`.
-- **Como interpretar:** quantas pessoas compõem a base analisada naquele recorte.
+- **Excluídos da base:** somente `super_admin` e usuários com `usuario_teste = true`.
+  - A contagem de excluídos é exibida no topo do relatório e registrada nos arquivos exportados.
+  - Admins, inativos e afastados **permanecem** na base e são isoláveis por filtros.
+- **Escopo por visualizador:** admin enxerga apenas usuários comuns (sem papel `admin`/`super_admin`); super_admin enxerga todos. `admin`/`super_admin` com papel não-admin aparecem no escopo do super_admin.
+- **Elegibilidade por conteúdo** (mesmas regras de liberação do sistema):
+  - corte por data de cadastro (usuários cadastrados após o fim da semana da liberação não são elegíveis);
+  - público-alvo (DSS) ou atribuição direta (Treinamento);
+  - isenção de férias por conteúdo (`training_vacation_exemptions`);
+  - férias cobrindo a data de liberação do conteúdo.
+- **Prazo efetivo:** prazo estendido concedido pelo gestor (`user_progress.prazo_estendido_ate`) quando existir; senão, **23:00 do domingo subsequente à liberação**.
 
-### Conteúdos
+## Metodologia de conformidade
 
-- **O que mostra:** total de treinamentos cadastrados.
-- **De onde vem:** `Training::count()`.
-- **Como interpretar:** tamanho do catálogo disponível no sistema.
+Status por par usuário × conteúdo:
 
-### Certificados
+| Status | Regra |
+|---|---|
+| Concluído em dia | `concluido = true` e conclusão dentro do prazo efetivo |
+| Concluído em atraso | `concluido = true` e conclusão após o prazo efetivo |
+| Em andamento | iniciado, não concluído e prazo vigente |
+| Não iniciado | elegível e sem registro de progresso |
+| Prazo expirado | não concluído e prazo efetivo já passou |
+| Isento | isenção de conteúdo por férias registrada |
+| Afastado na liberação | elegível pelas demais regras, mas de férias na data de liberação |
 
-- **O que mostra:** número de certificados emitidos dentro do filtro atual.
-- **De onde vem:** consulta em `certificadosBase`.
-- **Como interpretar:** volume de evidências geradas no período ou filtro selecionado.
+- **Índice de conformidade** = concluídos em dia ÷ pares elegíveis.
+  - Por padrão, **afastados justificados (isentos + afastados na liberação) ficam fora do denominador**.
+  - O filtro "Incluir afastados/isentos no denominador" aplica o cenário mais rígido.
+- A matriz de conformidade reflete o **estado atual** dos conteúdos filtrados; as métricas de atividade (participações, tempo, certificados, ausências) respeitam o **período** selecionado.
 
-### Tempo
+## Ausências justificadas
 
-- **O que mostra:** soma exata do tempo assistido, no formato `HH:MM:SS`.
-- **De onde vem:** soma de `tempo_assistido` em `progressBase`.
-- **Como interpretar:** tempo total consumido pela base no recorte atual.
+| Fonte | Tabela | Observações |
+|---|---|---|
+| Férias | `user_vacations` (+ campos `users.ferias_*`) | dias sobrepostos ao período |
+| Folgas / Atestados / Licenças | `folga_dias` (`tipo`) | lançamentos com autor (`lancado_por`) e motivo |
+| Isenções de conteúdo | `training_vacation_exemptions` | motivo e criador |
+| Prazos estendidos | `user_progress.prazo_estendido_*` | motivo, autor e nova data |
 
-## Cards de leitura executiva
+Todas aparecem em painel próprio (totais + listas) e em **CSV de ausências**. Usuários afastados que registraram atividade no período continuam contando nas métricas de atividade e aparecem com o afastamento destacado.
 
-### Taxa de conclusão
+## Trilha de auditoria (audit_logs)
 
-- **O que mostra:** percentual de registros finalizados sobre o total de participações.
-- **De onde vem:** `concluidas / totalAssistencias`.
-- **Como interpretar:** quanto da jornada registrada terminou com sucesso.
+- Seção-resumo do relatório de auditoria com eventos do período: totais por tipo, módulos mais acionados, usuários mais ativos e últimos eventos.
+- Visível apenas para quem tem a permissão `auditoria` (ou super_admin).
+- Link direto para `/admin/auditoria` com o período pré-preenchido.
 
-### Engajamento
+## Exportações e cadeia de custódia
 
-- **O que mostra:** percentual de usuários com pelo menos um registro em `UserProgress`.
-- **De onde vem:** `usuariosComProgresso / totalUsuarios`.
-- **Como interpretar:** mede a adesão da base aos treinamentos.
-- **Exemplo:** `60,00%` significa que 60 de cada 100 usuários tiveram ao menos uma participação registrada.
+### Auditoria
+- **CSV detalhado** (`relatorios.auditoria.csv`): uma linha por participação (usuário × conteúdo) com elegibilidade, prazos, situação, afastamento no período, isenção, certificado e status de validade. Opção "incluir não iniciados" quando um conteúdo específico está selecionado.
+- **CSV de ausências** (`?tipo_exportacao=ausencias`): férias, folgas/atestados/licenças, isenções e prorrogações com motivo e autor.
+- **PDF executivo** (`relatorios.auditoria.pdf`): capa com filtros, KPIs, conformidade por conteúdo, ausências e trilha.
 
-### Certificação
+### Avaliações
+- **CSV resultados**: notas, resultado, tentativas, datas/horas, tempo e certificados.
+- **CSV tentativas** (`?tipo_exportacao=tentativas`): histórico de submissões/resets/senha inválida com data/hora e detalhe (acertos).
+- **PDF executivo**: indicadores, desempenho por treinamento e resultados (até 1.500 linhas; CSV para a base completa).
 
-- **O que mostra:** percentual de usuários com pelo menos um certificado.
-- **De onde vem:** `usuariosComCertificados / totalUsuarios`.
-- **Como interpretar:** mede a proporção da base que já concluiu conteúdos com emissão de evidência.
+### Metadados de integridade
+- Todo arquivo exportado inclui: plataforma, título, **data/hora de geração**, **usuário gerador**, **filtros aplicados** e **SHA-256 do recorte de dados**.
+- O mesmo conjunto de filtros produz o **mesmo digest** no CSV e no PDF do relatório de auditoria.
+- Toda exportação é registrada na trilha de auditoria (`AuditLogger`, evento `exported`).
 
-### Usuários sem progresso
+## Filtros disponíveis
 
-- **O que mostra:** quantidade de usuários sem nenhum registro de treinamento.
-- **De onde vem:** `User::whereDoesntHave('progress')` com o mesmo escopo de permissões.
-- **Como interpretar:** é o grupo de maior risco para ações de ativação.
+- **Período** (início/fim) e **base da data** (início, conclusão ou emissão, conforme o relatório).
+- Perfil/Tipo de usuário, status (ativo/inativo), busca por nome/CPF, setor, cargo, empresa.
+- Conteúdo específico, tipo de conteúdo (DSS/Treinamento), tipo de treinamento (inicial/periódico/eventual) e somente obrigatórios.
+- Auditoria: incluir afastados/isentos no denominador.
+- Avaliações: resultado, faixa de nota (mín./máx.), somente conteúdos com prova e tipo de evento do histórico.
 
-## Seções analíticas
+## Fontes de dados
 
-### Saúde da operação
+- `users` (perfil, status, empresa, setor, cargo, férias, `usuario_teste`)
+- `trainings` (tipo, tipo de treinamento, obrigatoriedade, liberação, validade, nota mínima)
+- `user_progress` (início, conclusão, tempo, porcentagem, nota, aprovação, tentativas, prazos estendidos)
+- `certificates` (emissão, validade calculada pela configuração do treinamento)
+- `training_logs` (histórico de tentativas de avaliação — evidência)
+- `user_vacations`, `folga_dias`, `training_vacation_exemptions` (ausências e justificativas)
+- `audit_logs` (trilha de ações, módulo `auditoria`)
 
-Reúne participações registradas, pendências, taxa de conclusão, engajamento e certificação em uma visão única.
+## Observação sobre tempo e notas
 
-### Distribuição e conteúdo
+- Tempo sempre em `HH:MM:SS` (mesmo padrão do certificado oficial).
+- Nota na escala 0–100; o critério de aprovação é a `nota_minima_aprovacao` do treinamento (padrão 70%).
+- O relatório de avaliações exibe o **último estado registrado**; reprovações duplas zeram a nota para nova tentativa após reassistir — por isso o histórico de tentativas é a evidência completa.
 
-#### Usuários por perfil
+## Testes automatizados
 
-- **De onde vem:** `usuariosPorTipo`
-- **O que mostra:** distribuição de usuários por tipo/perfil.
-- **Como interpretar:** ajuda a entender a composição da base filtrada.
+- `tests/Feature/RelatorioAuditoriaTest.php`
+- `tests/Feature/RelatorioAvaliacoesTest.php`
 
-#### Conteúdos por tipo
-
-- **De onde vem:** `conteudosPorTipo`
-- **O que mostra:** volume de conteúdos por categoria.
-- **Como interpretar:** mostra a estrutura do catálogo.
-
-### Evolução mensal
-
-#### Participações por mês
-
-- **De onde vem:** `atividadesPorMes`
-- **O que mostra:** quantidade de registros de progresso iniciados em cada mês.
-- **Como interpretar:** tendência de uso da plataforma ao longo do tempo.
-
-#### Certificados por mês
-
-- **De onde vem:** `certificadosPorMes`
-- **O que mostra:** quantidade de certificados emitidos por mês.
-- **Como interpretar:** evolução da conclusão formal dos treinamentos.
-
-### Usuários em destaque
-
-- **De onde vem:** `usuariosEmDestaque`
-- **O que mostra:** ranking dos usuários com maior volume de participações e tempo acumulado.
-- **Como interpretar:** identifica quem mais consome conteúdo.
-
-### Treinamentos com maior impacto
-
-- **De onde vem:** `treinamentosMaisAssistidos`
-- **O que mostra:** conteúdos com maior número de participações, conclusões e tempo total.
-- **Como interpretar:** revela quais treinamentos puxam mais a operação.
-
-### Mapa de oportunidade
-
-- **De onde vem:** `usuariosSemTreinamentoLista`
-- **O que mostra:** usuários sem nenhum progresso registrado.
-- **Como interpretar:** lista prática para abordagem e ativação.
-
-## Filtros
-
-### Tipo de usuário
-
-Filtra o relatório pelo perfil do usuário.
-
-### Usuário
-
-Filtra um usuário específico.
-
-### Tipo de conteúdo
-
-Filtra entre DSS e Treinamento.
-
-### Treinamento
-
-Filtra um conteúdo específico.
-
-### Período inicial e final
-
-Restringe os registros pela data de início e pela data de emissão dos certificados.
-
-## Observação sobre tempo
-
-O tempo exibido no relatório segue o mesmo formato do certificado oficial: `HH:MM:SS`.
-
-Isso significa que:
-
-- horas são mostradas quando existem
-- minutos e segundos sempre aparecem
-- o valor é calculado a partir dos segundos armazenados no banco
-
-## Fonte dos dados
-
-- `UserProgress.tempo_assistido` armazena o tempo assistido em segundos
-- `Certificate.tempo_assistido_segundos` espelha esse valor no certificado
-- os relatórios formatam esse tempo com `gmdate('H:i:s', ...)`
+Cobrem: exclusões da base (super_admin/teste), escopo admin × super_admin, conformidade com prazo e ausências, painel de ausências, filtros, exportações CSV/PDF com hash e trilha condicionada à permissão.

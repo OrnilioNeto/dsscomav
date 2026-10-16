@@ -206,6 +206,12 @@
                                         <a href="{{ route('admin.prazos.index') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
                                             <i class="fas fa-hourglass-half w-5 mr-2 text-red-600"></i> Prazos de Treinamentos
                                         </a>
+                                        <a href="{{ route('relatorios.avaliacoes') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-graduation-cap w-5 mr-2 text-indigo-600"></i> Relatório de Avaliações
+                                        </a>
+                                        <a href="{{ route('relatorios.auditoria') }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900">
+                                            <i class="fas fa-shield-alt w-5 mr-2 text-purple-700"></i> Auditoria Gerencial
+                                        </a>
                                     @endif
                                     @foreach(app(\App\Support\Modules\ModuleRegistry::class)->all() as $moduloMenu)
                                         <a href="{{ route($moduloMenu['route']) }}" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 hover:text-emerald-900 border-t border-gray-100">
@@ -373,6 +379,12 @@
                                 @if(Auth::user()->isAdmin())
                                     <a href="{{ route('admin.prazos.index') }}" class="block px-3 py-2 rounded text-white site-link-hover">
                                         <i class="fas fa-hourglass-half mr-2"></i> Prazos de Treinamentos
+                                    </a>
+                                    <a href="{{ route('relatorios.avaliacoes') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-graduation-cap mr-2"></i> Relatório de Avaliações
+                                    </a>
+                                    <a href="{{ route('relatorios.auditoria') }}" class="block px-3 py-2 rounded text-white site-link-hover">
+                                        <i class="fas fa-shield-alt mr-2"></i> Auditoria Gerencial
                                     </a>
                                 @endif
                                 @foreach(app(\App\Support\Modules\ModuleRegistry::class)->all() as $moduloMenu)

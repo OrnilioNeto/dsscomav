@@ -6,6 +6,39 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.2.0] - 2026-10-16
+
+### Adicionado
+- **Relatório de Auditoria Gerencial reconstruído** (`/relatorios/auditoria`):
+  base de cálculo com metodologia explícita (exclui **somente** super_admin e
+  usuários marcados como teste), índice de conformidade por usuário × conteúdo,
+  situação detalhada (concluído em dia/atraso, em andamento, não iniciado,
+  prazo expirado), tratamento de **ausências justificadas** (férias, folgas,
+  atestados, licenças, isenções de conteúdo e prazos estendidos), evolução
+  mensal, resumo da trilha de auditoria (`audit_logs`, condicionado à permissão
+  `auditoria`) e filtros avançados (período, perfil, status, setor, cargo,
+  empresa, conteúdo, tipo de treinamento, obrigatórios e inclusão de afastados
+  no denominador). Exportações **CSV detalhado**, **CSV de ausências** e
+  **PDF executivo** com data/hora, autor, filtros aplicados e **SHA-256 do
+  recorte** (mesmo digest no CSV e no PDF para os mesmos filtros), registradas
+  na auditoria.
+- **Relatório de Avaliações e Notas** (`/relatorios/avaliacoes`): notas por
+  usuário × treinamento (última avaliação), resultado (aprovado/reprovado/
+  pendente), tentativas, data/hora de início e conclusão, tempo assistido,
+  certificado emitido com status de validade, desempenho por treinamento
+  (média e taxa de aprovação) e **histórico de tentativas** (`training_logs`)
+  como evidência de auditoria. Filtros por período, base da data, resultado,
+  nota mínima/máxima, usuário, perfil, status, setor, cargo, empresa e tipo de
+  conteúdo; exportações CSV (resultados e tentativas) e PDF.
+- Novo escopo `User::auditEligible` (exclusão apenas de super_admin e teste) e
+  `User::visibleToViewer` (escopo admin × super_admin) para relatórios.
+- Índices de apoio em `user_progress.data_inicio`, `user_progress.data_conclusao`
+  e `certificates.data_emissao`.
+
+### Notas de deploy
+- Rodar `php artisan migrate --force` (novos índices dos relatórios).
+- Manter `php artisan schedule:run` ativo (sem mudança de comandos).
+
 ## [2.1.0] - 2026-10-15
 
 ### Adicionado

@@ -472,6 +472,41 @@ class User extends Authenticatable
             });
     }
 
+    /**
+     * Base do relatório de auditoria: exclui SOMENTE super_admin e usuários
+     * marcados como teste. Admins, inativos e afastados permanecem na base e
+     * são tratados por filtros explícitos e pelo painel de justificativas.
+     */
+    public function scopeAuditEligible($query)
+    {
+        return $query
+            ->where('usuario_teste', false)
+            ->where(function ($roleQuery) {
+                $roleQuery->whereNull('role_id')
+                    ->orWhereHas('role', function ($role) {
+                        $role->where('nome', '<>', 'super_admin');
+                    });
+            });
+    }
+
+    /**
+     * Visibilidade de relatórios gerenciais: admin vê apenas usuários comuns;
+     * super_admin vê todos.
+     */
+    public function scopeVisibleToViewer($query, self $viewer)
+    {
+        if ($viewer->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->where(function ($sub) {
+            $sub->whereNull('role_id')
+                ->orWhereHas('role', function ($role) {
+                    $role->whereNotIn('nome', ['admin', 'super_admin']);
+                });
+        });
+    }
+
     public function scopeVacationInPeriod($query, $periodStart = null, $periodEnd = null)
     {
         $periodStart = $periodStart ? Carbon::parse($periodStart, config('app.timezone'))->startOfDay() : Carbon::now(config('app.timezone'))->startOfDay();

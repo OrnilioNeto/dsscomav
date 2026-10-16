@@ -7,6 +7,8 @@ use App\Http\Controllers\Admin\PlataformaSettingsController;
 use App\Http\Controllers\Admin\PlataformaTenantController;
 use App\Http\Controllers\Admin\RankingController;
 use App\Http\Controllers\Admin\RankingSettingsController;
+use App\Http\Controllers\Admin\RelatorioAuditoriaController;
+use App\Http\Controllers\Admin\RelatorioAvaliacoesController;
 use App\Http\Controllers\Admin\SplashContentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CertificateController;
@@ -168,7 +170,17 @@ Route::middleware('auth')->group(function () {
             Route::post('/relatorios/ia/analyze-ai', [CertificateManagementController::class, 'analyzeAi'])->name('relatorios.ia.analyze_ai');
             Route::get('/relatorios/ia/pdf', [CertificateManagementController::class, 'relatorioIaPdf'])->name('relatorios.ia.pdf');
             Route::get('/relatorios/usuarios', [CertificateManagementController::class, 'relatorioUsuarios'])->name('relatorios.usuarios');
-            Route::get('/relatorios/auditoria', [CertificateManagementController::class, 'relatorioAuditoria'])->name('relatorios.auditoria');
+
+            // Auditoria gerencial (base: exclui apenas super_admin e usuários de teste)
+            Route::get('/relatorios/auditoria', [RelatorioAuditoriaController::class, 'index'])->name('relatorios.auditoria');
+            Route::get('/relatorios/auditoria/csv', [RelatorioAuditoriaController::class, 'csv'])->name('relatorios.auditoria.csv');
+            Route::get('/relatorios/auditoria/pdf', [RelatorioAuditoriaController::class, 'pdf'])->name('relatorios.auditoria.pdf');
+
+            // Avaliações e notas por usuário/treinamento
+            Route::get('/relatorios/avaliacoes', [RelatorioAvaliacoesController::class, 'index'])->name('relatorios.avaliacoes');
+            Route::get('/relatorios/avaliacoes/csv', [RelatorioAvaliacoesController::class, 'csv'])->name('relatorios.avaliacoes.csv');
+            Route::get('/relatorios/avaliacoes/pdf', [RelatorioAvaliacoesController::class, 'pdf'])->name('relatorios.avaliacoes.pdf');
+
             Route::get('/certificados/exportar', [CertificateManagementController::class, 'exportarCertificados'])->name('certificados.exportar');
         });
 
