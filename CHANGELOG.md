@@ -6,7 +6,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
-## [2.2.0] - 2026-10-16
+## [2.0.76] - 2026-10-16
 
 ### Adicionado
 - **Relatório de Auditoria Gerencial reconstruído** (`/relatorios/auditoria`):
@@ -39,7 +39,7 @@ dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`)
 - Rodar `php artisan migrate --force` (novos índices dos relatórios).
 - Manter `php artisan schedule:run` ativo (sem mudança de comandos).
 
-## [2.1.0] - 2026-10-15
+## [2.0.75] - 2026-10-15
 
 ### Adicionado
 - **Prazo de conclusão dos treinamentos**: o usuário tem até as **23:00 do
