@@ -40,4 +40,14 @@ if [ "$ROLE_COUNT" = "0" ]; then
     php artisan db:seed --force
 fi
 
+# Aquece o OPcache em background: a primeira compilação de cada página lê ~600
+# arquivos do bind mount do Windows (lento); o warm-up evita que o primeiro
+# acesso pague esse custo. Falhas são ignoradas — o servidor segue normal.
+(
+    for _ in $(seq 1 60); do
+        curl -s -o /dev/null http://127.0.0.1:8000/login && break
+        sleep 1
+    done
+) &
+
 exec "$@"

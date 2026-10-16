@@ -11,7 +11,9 @@ use Throwable;
 
 class LogSystemRequests
 {
-    private const SENSITIVE_QUERY_KEYS = 'token|codigo|code|password|password_confirmation|api_key|secret|access_token';
+    private const SENSITIVE_QUERY_KEYS = 'token|codigo|code|password|password_confirmation|api_key|secret|access_token|email';
+
+    private const SENSITIVE_PATH_PREFIXES = 'ficha|validar|redefinir-senha';
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -73,12 +75,12 @@ class LogSystemRequests
 
     private function safePath(Request $request): string
     {
-        return preg_replace('#^(ficha|validar)/[^/]+#', '$1/***', $request->path());
+        return preg_replace('#^('.self::SENSITIVE_PATH_PREFIXES.')/[^/]+#', '$1/***', $request->path());
     }
 
     private function safeUrl(Request $request): string
     {
-        $url = preg_replace('#/(ficha|validar)/[^/?]+#', '/$1/***', $request->fullUrl());
+        $url = preg_replace('#/('.self::SENSITIVE_PATH_PREFIXES.')/[^/?]+#', '/$1/***', $request->fullUrl());
 
         return preg_replace(
             '/([?&](?:'.self::SENSITIVE_QUERY_KEYS.')=)[^&#]*/i',

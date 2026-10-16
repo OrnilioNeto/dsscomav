@@ -150,6 +150,9 @@ class DashboardController extends Controller
             ->pluck('training_id')
             ->toArray();
 
+        $progresso = UserProgress::where('user_id', $user->id)->get();
+        $progressoPorTraining = $progresso->keyBy('training_id');
+
         // DSS: comportamento atual (público-alvo por tipo de usuário)
         // Ordenação: liberação mais recente primeiro (bloqueados: próxima liberação primeiro)
         $dssElegiveis = Training::where('status', 'ativo')
@@ -181,7 +184,24 @@ class DashboardController extends Controller
             ->sortByDesc(fn ($t) => $t->releaseDate()?->getTimestamp() ?? 0)
             ->values();
 
-        $progresso = UserProgress::where('user_id', $user->id)->get();
+        // Separa os conteúdos ainda pendentes cujo prazo de conclusão expirou
+        // (23:00 do domingo subsequente à liberação; prorrogável pelo gestor).
+        $separarPorPrazo = function ($trainings) use ($progressoPorTraining) {
+            [$expirados, $ativos] = $trainings->partition(
+                fn ($t) => $t->prazoExpirado($progressoPorTraining->get($t->id))
+            );
+
+            return [$ativos->values(), $expirados->values()];
+        };
+
+        [$treinamentosDisponíveis, $expiradosDss] = $separarPorPrazo($treinamentosDisponíveis);
+        [$treinamentosDirecionados, $expiradosDirecionados] = $separarPorPrazo($treinamentosDirecionados);
+
+        $treinamentosPrazoExpirado = $expiradosDss
+            ->merge($expiradosDirecionados)
+            ->sortByDesc(fn ($t) => $t->prazoConclusao($progressoPorTraining->get($t->id))?->getTimestamp() ?? 0)
+            ->values();
+
         $certificados = Certificate::where('user_id', $user->id)->where('valido', true)->count();
 
         $tempoTotal = $progresso->sum('tempo_assistido');
@@ -248,6 +268,7 @@ class DashboardController extends Controller
         return view('dashboard.usuario', [
             'treinamentosDisponíveis' => $treinamentosDisponíveis,
             'treinamentosBloqueados' => $treinamentosBloqueados,
+            'treinamentosPrazoExpirado' => $treinamentosPrazoExpirado,
             'treinamentosDirecionados' => $treinamentosDirecionados,
             'treinamentosConcluidos' => $treinamentosConcluidos,
             'treinamentosPendentes' => $treinamentosPendentes,

@@ -37,13 +37,21 @@ class TrainingPlayerController extends Controller
             abort(403, 'Treinamento ainda não liberado.');
         }
 
+        // Prazo de conclusão: 23:00 do domingo subsequente à liberação,
+        // prorrogável pelo gestor (prazo_estendido_ate).
+        $progress = UserProgress::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->first();
+
+        if (! $user->isTestUser() && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            abort(403, 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.');
+        }
+
         // Obter ou criar progresso.
-        $progress = UserProgress::firstOrCreate(
+        $progress = $progress ?: UserProgress::create(
             [
                 'user_id' => $user->id,
                 'training_id' => $training->id,
-            ],
-            [
                 'data_inicio' => now(config('app.timezone')),
                 'tempo_assistido' => 0,
                 'porcentagem_assistida' => 0,
@@ -80,6 +88,22 @@ class TrainingPlayerController extends Controller
             return response()->json(['error' => 'Acesso negado'], 403);
         }
 
+        // Obter progresso anterior
+        $progress = UserProgress::where('user_id', $user->id)
+            ->where('training_id', $training->id)
+            ->first();
+
+        if (! $user->isTestUser() && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'error' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
+
+        if (! $progress) {
+            return response()->json(['error' => 'Progresso não encontrado'], 404);
+        }
+
         // Validar payload
         $tempoCliente = $request->input('tempo_assistido');
         $porcentagem = $request->input('porcentagem_assistida');
@@ -98,11 +122,6 @@ class TrainingPlayerController extends Controller
 
         // Capear tempo à duração máxima
         $tempoCliente = min($tempoCliente, $duracao);
-
-        // Obter progresso anterior
-        $progress = UserProgress::where('user_id', $user->id)
-            ->where('training_id', $training->id)
-            ->firstOrFail();
 
         $tempoAnterior = (int) $progress->tempo_assistido;
 
@@ -186,6 +205,10 @@ class TrainingPlayerController extends Controller
             // Guarda o mapeamento da ordem embaralhada para validar no servidor (4.6.2)
             session()->put("avaliacao_{$training->id}_map", $payload->mapWithKeys(fn ($q) => [$q['id'] => $q['mapa']])->toArray());
 
+            $totalQuestoes = $payload->count();
+            $notaMinima = (int) ($training->nota_minima_aprovacao ?? 70);
+            $minimoAcertos = $training->minimoAcertosAprovacao($totalQuestoes);
+
             return [
                 'modo' => 'banco',
                 'questoes' => $payload->map(fn ($q) => [
@@ -193,14 +216,22 @@ class TrainingPlayerController extends Controller
                     'pergunta' => $q['pergunta'],
                     'opcoes' => $q['opcoes'],
                 ])->values()->all(),
+                'total_questoes' => $totalQuestoes,
+                'nota_minima' => $notaMinima,
+                'minimo_acertos' => $minimoAcertos,
             ];
         }
 
         // Pergunta única legada (DSS / treinamento sem banco)
+        $notaMinima = (int) ($training->nota_minima_aprovacao ?? 70);
+
         return [
             'modo' => 'legado',
             'pergunta' => $training->avaliacao_pergunta,
             'opcoes' => array_values(array_filter($training->avaliacao_opcoes ?? [])),
+            'total_questoes' => 1,
+            'nota_minima' => $notaMinima,
+            'minimo_acertos' => 1,
         ];
     }
 
@@ -220,7 +251,19 @@ class TrainingPlayerController extends Controller
 
         $progress = UserProgress::where('user_id', $user->id)
             ->where('training_id', $training->id)
-            ->firstOrFail();
+            ->first();
+
+        // Prazo de conclusão: avaliação não pode ser enviada após o vencimento.
+        if (! $isTestUser && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'error' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
+
+        if (! $progress) {
+            return response()->json(['error' => 'Progresso não encontrado'], 404);
+        }
 
         // Re-identificação por senha (NR-01 Anexo II 4.6.1/4.6.2): exigida no
         // envio para o tipo "Treinamento" (DSS dispensa a confirmação).
@@ -274,9 +317,10 @@ class TrainingPlayerController extends Controller
 
             $nota = $total > 0 ? (int) round(($corretas / $total) * 100) : 0;
             $notaMinima = (int) ($training->nota_minima_aprovacao ?? 70);
-            $aprovado = $nota >= $notaMinima;
+            $minimoAcertos = $training->minimoAcertosAprovacao($total);
+            $aprovado = $corretas >= $minimoAcertos;
 
-            TrainingLog::registrar($training->id, $user->id, 'avaliacao_submetida', "Nota {$nota}% (mínimo {$notaMinima}%) em {$total} questão(ões).");
+            TrainingLog::registrar($training->id, $user->id, 'avaliacao_submetida', "Acertos: {$corretas}/{$total} ({$nota}%). Mínimo exigido: {$notaMinima}% ({$minimoAcertos} acertos).");
 
             if (! $aprovado) {
                 $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
@@ -301,7 +345,12 @@ class TrainingPlayerController extends Controller
                     return response()->json([
                         'success' => false,
                         'reset_required' => true,
-                        'message' => "Nota insatisfatória ({$nota}%) nas duas tentativas. Assista o vídeo novamente para liberar uma nova avaliação.",
+                        'message' => "Nota insatisfatória: você acertou {$corretas} de {$total} questão(ões) ({$nota}%). O critério mínimo é {$notaMinima}% (pelo menos {$minimoAcertos} acerto(s)). Limite de tentativas atingido; assista o vídeo novamente para liberar uma nova avaliação.",
+                        'corretas' => $corretas,
+                        'total' => $total,
+                        'nota' => $nota,
+                        'nota_minima' => $notaMinima,
+                        'minimo_acertos' => $minimoAcertos,
                     ], 422);
                 }
 
@@ -316,8 +365,13 @@ class TrainingPlayerController extends Controller
                     'success' => false,
                     'reset_required' => false,
                     'message' => $isTestUser
-                        ? "Nota insatisfatória ({$nota}%). Modo teste: pode tentar novamente sem reassistir o vídeo."
-                        : "Nota insatisfatória ({$nota}%). Você ainda tem mais uma chance. Nota mínima para aprovação: {$notaMinima}%.",
+                        ? "Nota insatisfatória: você acertou {$corretas} de {$total} questão(ões) ({$nota}%). Mínimo exigido: {$notaMinima}% (pelo menos {$minimoAcertos} acerto(s)). Modo teste: pode tentar novamente sem reassistir o vídeo."
+                        : "Nota insatisfatória: você acertou {$corretas} de {$total} questão(ões) ({$nota}%). Mínimo para aprovação: {$notaMinima}% (pelo menos {$minimoAcertos} acerto(s)). Você ainda tem mais uma chance.",
+                    'corretas' => $corretas,
+                    'total' => $total,
+                    'nota' => $nota,
+                    'nota_minima' => $notaMinima,
+                    'minimo_acertos' => $minimoAcertos,
                 ], 422);
             }
 
@@ -340,8 +394,13 @@ class TrainingPlayerController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Avaliação aprovada com sucesso! Nota: {$nota}% (satisfatório).",
+                'message' => "Avaliação aprovada com sucesso! Você acertou {$corretas} de {$total} questão(ões) ({$nota}%). Critério atingido (mínimo exigido: {$notaMinima}% ou {$minimoAcertos} acerto(s)).",
                 'progress' => $progress->fresh(),
+                'corretas' => $corretas,
+                'total' => $total,
+                'nota' => $nota,
+                'nota_minima' => $notaMinima,
+                'minimo_acertos' => $minimoAcertos,
             ]);
         }
 
@@ -429,6 +488,13 @@ class TrainingPlayerController extends Controller
         $progress = UserProgress::where('user_id', $user->id)
             ->where('training_id', $training->id)
             ->firstOrFail();
+
+        if (! $progress->concluido && ! $user->isTestUser() && ! $user->isAdmin() && $training->prazoExpirado($progress)) {
+            return response()->json([
+                'error' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
+                'prazo_expirado' => true,
+            ], 403);
+        }
 
         if (! $progress->concluido) {
             $progress->update([

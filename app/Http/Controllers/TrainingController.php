@@ -89,26 +89,16 @@ class TrainingController extends Controller
         $assessments = array_values(array_filter($request->avaliacao_opcoes ?? []));
         $questoesBanco = $this->normalizeQuestions($request);
 
-        // Para treinamento é obrigatório haver avaliação: banco de questões OU pergunta única legada.
-        if ($request->input('tipo') === 'treinamento') {
-            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
-            if (empty($questoesBanco) && ! $temLegado) {
-                return redirect()->back()
-                    ->withErrors(['questoes' => 'Cadastre pelo menos uma questão no banco de questões (ou preencha a pergunta única).'])
-                    ->withInput();
-            }
-        }
+        // Avaliação obrigatória (DSS e Treinamento): banco de questões OU pergunta única legada.
+        // Havendo banco, ele tem prioridade e a pergunta única é ignorada.
+        $temLegado = ! empty(trim((string) $request->avaliacao_pergunta))
+            && count($assessments) >= 2
+            && $request->filled('avaliacao_resposta_correta');
 
-        // Para DSS é obrigatório o formato de pergunta única (legado).
-        if ($request->input('tipo') === 'dss') {
-            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta))
-                && count($assessments) >= 2
-                && $request->filled('avaliacao_resposta_correta');
-            if (! $temLegado) {
-                return redirect()->back()
-                    ->withErrors(['avaliacao_pergunta' => 'Para DSS é obrigatório preencher a pergunta, ao menos 2 opções e a resposta correta.'])
-                    ->withInput();
-            }
+        if (empty($questoesBanco) && ! $temLegado) {
+            return redirect()->back()
+                ->withErrors(['questoes' => 'Cadastre pelo menos uma questão no banco de questões (ou preencha a pergunta única com 2 opções e a resposta correta).'])
+                ->withInput();
         }
 
         $duracao = $this->parseCargaHorariaInput($request->input('carga_horaria'), $request->input('carga_horaria_segundos'))
@@ -298,26 +288,16 @@ class TrainingController extends Controller
         $assessments = array_values(array_filter($request->avaliacao_opcoes ?? []));
         $questoesBanco = $this->normalizeQuestions($request);
 
-        // Para treinamento é obrigatório haver avaliação: banco de questões OU pergunta única legada.
-        if ($request->input('tipo') === 'treinamento') {
-            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta)) && count($assessments) >= 2;
-            if (empty($questoesBanco) && ! $temLegado) {
-                return redirect()->back()
-                    ->withErrors(['questoes' => 'Cadastre pelo menos uma questão no banco de questões (ou preencha a pergunta única).'])
-                    ->withInput();
-            }
-        }
+        // Avaliação obrigatória (DSS e Treinamento): banco de questões OU pergunta única legada.
+        // Havendo banco, ele tem prioridade e a pergunta única é ignorada.
+        $temLegado = ! empty(trim((string) $request->avaliacao_pergunta))
+            && count($assessments) >= 2
+            && $request->filled('avaliacao_resposta_correta');
 
-        // Para DSS é obrigatório o formato de pergunta única (legado).
-        if ($request->input('tipo') === 'dss') {
-            $temLegado = ! empty(trim((string) $request->avaliacao_pergunta))
-                && count($assessments) >= 2
-                && $request->filled('avaliacao_resposta_correta');
-            if (! $temLegado) {
-                return redirect()->back()
-                    ->withErrors(['avaliacao_pergunta' => 'Para DSS é obrigatório preencher a pergunta, ao menos 2 opções e a resposta correta.'])
-                    ->withInput();
-            }
+        if (empty($questoesBanco) && ! $temLegado) {
+            return redirect()->back()
+                ->withErrors(['questoes' => 'Cadastre pelo menos uma questão no banco de questões (ou preencha a pergunta única com 2 opções e a resposta correta).'])
+                ->withInput();
         }
 
         $duracao = $this->parseCargaHorariaInput($request->input('carga_horaria'), $request->input('carga_horaria_segundos'))

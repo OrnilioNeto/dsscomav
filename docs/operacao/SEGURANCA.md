@@ -38,6 +38,13 @@ Garantias:
   `throttle:60,1` (web) e `throttle:30,1` (API).
 - Token Sanctum expira em 30 dias por padrão (`SANCTUM_EXPIRATION`, em minutos;
   `0`/vazio = sem expiração).
+- **Recuperação de senha por e-mail** (`/esqueci-senha`): resposta sempre
+  genérica (não revela se o e-mail existe — anti-enumeração); tokens gravados
+  com hash na `password_reset_tokens` e válidos por 60 minutos; throttle
+  `password-email` (3/min por e-mail+IP e 10/min por IP) e `password-reset`
+  (10/min por IP); após a troca o token é apagado, o `remember_token` é
+  rotacionado e a senha **não** autentica automaticamente (o usuário volta ao
+  login). Solicitações, falhas e conclusões ficam na auditoria (`auth`).
 
 Configuração recomendada em produção (`.env`):
 
@@ -49,6 +56,13 @@ SESSION_DRIVER=file           # ou database (tabela sessions criada nas migratio
 TRUSTED_PROXIES=              # IPs do proxy/LB, separados por vírgula (se houver)
 CORS_ALLOWED_ORIGINS=https://app.suamarca.com.br
 SANCTUM_EXPIRATION=43200
+MAIL_MAILER=smtp              # obrigatório para a recuperação de senha por e-mail
+MAIL_HOST=mail.previaseg.com
+MAIL_PORT=465                 # 465 = SSL (SMTP exige autenticação)
+MAIL_USERNAME=suporte@previaseg.com
+MAIL_PASSWORD=sua_senha       # senha da conta de e-mail — somente no .env
+MAIL_ENCRYPTION=ssl
+MAIL_FROM_ADDRESS=suporte@previaseg.com
 ```
 
 ## 3. Autorização (RBAC)
@@ -98,6 +112,6 @@ SANCTUM_EXPIRATION=43200
   arquivos/`nonce`.
 - QR Codes ainda usam `api.qrserver.com` (o PNG local exige extensão Imagick;
   `simple-qrcode` usa SVG sem Imagick, incompatível com o TCPDF).
-- 2FA e recuperação de senha self-service (hoje a troca é feita por admin).
+- 2FA (a recuperação de senha já é self-service por e-mail desde a 2.0.74).
 - Tokens Sanctum com abilities específicas em vez de `*`.
 - Mover materiais sigilosos para disco privado com download assinado.

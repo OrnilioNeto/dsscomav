@@ -55,6 +55,10 @@ return [
         'label' => 'Reassistir Treinamentos',
         'description' => 'Liberação de conteúdo para reassistir',
     ],
+    'prazos' => [
+        'label' => 'Prazos de Treinamentos',
+        'description' => 'Prorrogação do prazo de treinamentos expirados',
+    ],
     'lembretes_whatsapp' => [
         'label' => 'Lembretes WhatsApp',
         'description' => 'Disparo de lembretes de treinamento via WhatsApp',

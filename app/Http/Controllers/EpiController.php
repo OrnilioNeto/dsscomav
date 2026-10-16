@@ -156,11 +156,21 @@ class EpiController extends Controller
             ->limit(100)
             ->get();
 
-        // 1.3.1 Lista completa (opção "Listar Todos"): todos os itens ativos do catálogo
-        $episValidadeTodos = Epi::where('ss_e_tx_status', 'ativo')
-            ->orderBy('ss_e_tx_grupo')
-            ->orderBy('ss_e_tx_item')
+        // 1.3.1 Complemento do alerta (botão "Listar Em Dia"): entregas ativas que NÃO estão
+        // vencidas nem vencendo em 30 dias, com o tempo restante até a troca
+        // (data da entrega + vida útil/periodicidade). Alerta (acima) + esta lista = 100%.
+        $entregasEmDia = EpiEntrega::with(['colaborador', 'epi', 'variacao'])
+            ->whereNotIn('ss_e_tx_status', ['inativo', 'devolvido'])
+            ->where(function ($q) use ($vencimentoLimite) {
+                $q->where('ss_e_tx_vencimento', '>', $vencimentoLimite)
+                    ->orWhereNull('ss_e_tx_vencimento');
+            })
+            ->orderByRaw('ss_e_tx_vencimento IS NULL')
+            ->orderBy('ss_e_tx_vencimento')
+            ->orderBy('ss_e_nb_id', 'desc')
             ->get();
+
+        $entregasEmDiaCount = $entregasEmDia->count();
 
         // 1.4 Devoluções: pendências de inspeção e histórico auditável
         $devolucoesPendentes = EpiDevolucao::with(['colaborador', 'epi', 'variacao'])
@@ -372,7 +382,8 @@ class EpiController extends Controller
             'entregasVencidasCount',
             'entregasVencendoCount',
             'entregasAlerta',
-            'episValidadeTodos',
+            'entregasEmDia',
+            'entregasEmDiaCount',
             'devolucoesPendentes',
             'devolucoesPendentesCount',
             'devolucoesHistorico',

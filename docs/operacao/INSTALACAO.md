@@ -102,6 +102,38 @@ No painel ValueHost:
 - Ative certificado SSL (geralmente gratuito no ValueHost)
 - Atualize `APP_URL` no .env: `APP_URL=https://seu-dominio.com`
 
+## 📧 E-mail (recuperação de senha)
+
+A recuperação de senha (`/esqueci-senha`) envia o link por e-mail. Sem SMTP
+configurado, os e-mails **não são entregues** (a solicitação continua com
+resposta genérica e o erro fica registrado em `storage/logs`).
+
+Configure no `.env`:
+
+```
+MAIL_MAILER=smtp
+MAIL_HOST=mail.previaseg.com
+MAIL_PORT=465
+MAIL_ENCRYPTION=ssl
+MAIL_USERNAME=suporte@previaseg.com
+MAIL_PASSWORD=sua_senha
+MAIL_FROM_ADDRESS=suporte@previaseg.com
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+- Servidor de saída (`mail.previaseg.com`): porta **465 = SSL** (SMTP com
+  autenticação obrigatória). Usuário: `suporte@previaseg.com` — a senha é a da
+  conta de e-mail e vai **apenas** no `.env` (nunca no repositório).
+- O remetente padrão (`config/mail.php`) é `suporte@previaseg.com`; pode ser
+  sobrescrito por `MAIL_FROM_ADDRESS` ou, por tenant (white-label), pelo campo
+  **E-mail remetente** do cadastro do cliente em `/plataforma`.
+- Local/desenvolvimento: use `MAIL_MAILER=log` para "enviar" para
+  `storage/logs/laravel.log` sem SMTP.
+- Após alterar o `.env` em produção: `php artisan config:cache`.
+- O link gerado usa `APP_URL` — mantenha-o com a URL pública correta
+  (ex.: `https://seu-dominio.com`).
+- Validade do link: 60 minutos (`config/auth.php`, `passwords.users.expire`).
+
 ## 🗄️ Banco de Dados
 
 ### Estrutura de Tabelas

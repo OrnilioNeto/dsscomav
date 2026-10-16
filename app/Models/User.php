@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
+use App\Notifications\RedefinirSenhaNotification;
 use App\Support\RolePermissionCache;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -78,6 +79,14 @@ class User extends Authenticatable
                 $user->qrcode_token = Str::random(32);
             }
         });
+    }
+
+    /**
+     * Envia o e-mail de redefinição de senha em pt-BR (link da plataforma).
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new RedefinirSenhaNotification($token));
     }
 
     // Relacionamentos
@@ -461,6 +470,41 @@ class User extends Authenticatable
                             ->orWhereDate('ferias_fim', '<', $now->toDateString());
                     });
             });
+    }
+
+    /**
+     * Base do relatório de auditoria: exclui SOMENTE super_admin e usuários
+     * marcados como teste. Admins, inativos e afastados permanecem na base e
+     * são tratados por filtros explícitos e pelo painel de justificativas.
+     */
+    public function scopeAuditEligible($query)
+    {
+        return $query
+            ->where('usuario_teste', false)
+            ->where(function ($roleQuery) {
+                $roleQuery->whereNull('role_id')
+                    ->orWhereHas('role', function ($role) {
+                        $role->where('nome', '<>', 'super_admin');
+                    });
+            });
+    }
+
+    /**
+     * Visibilidade de relatórios gerenciais: admin vê apenas usuários comuns;
+     * super_admin vê todos.
+     */
+    public function scopeVisibleToViewer($query, self $viewer)
+    {
+        if ($viewer->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->where(function ($sub) {
+            $sub->whereNull('role_id')
+                ->orWhereHas('role', function ($role) {
+                    $role->whereNotIn('nome', ['admin', 'super_admin']);
+                });
+        });
     }
 
     public function scopeVacationInPeriod($query, $periodStart = null, $periodEnd = null)

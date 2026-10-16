@@ -7,6 +7,8 @@ use App\Http\Controllers\Admin\PlataformaSettingsController;
 use App\Http\Controllers\Admin\PlataformaTenantController;
 use App\Http\Controllers\Admin\RankingController;
 use App\Http\Controllers\Admin\RankingSettingsController;
+use App\Http\Controllers\Admin\RelatorioAuditoriaController;
+use App\Http\Controllers\Admin\RelatorioAvaliacoesController;
 use App\Http\Controllers\Admin\SplashContentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CertificateController;
@@ -14,11 +16,13 @@ use App\Http\Controllers\CertificateManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeFichaController;
 use App\Http\Controllers\EpiController;
+use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfilePhotoController;
 use App\Http\Controllers\ProjetoPedagogicoController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\TrainingController;
+use App\Http\Controllers\TrainingDeadlineController;
 use App\Http\Controllers\TrainingMaterialController;
 use App\Http\Controllers\TrainingPlayerController;
 use App\Http\Controllers\TrainingRewatchController;
@@ -41,6 +45,12 @@ Route::get('/teste-video', function () {
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login')->middleware('guest');
 Route::post('/login', [AuthController::class, 'login'])->middleware(['guest', 'throttle:login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+
+// Recuperação de senha por e-mail
+Route::get('/esqueci-senha', [PasswordResetController::class, 'showLinkRequestForm'])->name('password.request')->middleware('guest');
+Route::post('/esqueci-senha', [PasswordResetController::class, 'sendResetLinkEmail'])->name('password.email')->middleware(['guest', 'throttle:password-email']);
+Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset')->middleware('guest');
+Route::post('/redefinir-senha', [PasswordResetController::class, 'reset'])->name('password.update')->middleware(['guest', 'throttle:password-reset']);
 
 // Validação pública de certificado
 Route::get('/validar/{codigo}', [CertificateController::class, 'validateCertificate'])->name('validar.certificado')->middleware('throttle:60,1');
@@ -160,7 +170,17 @@ Route::middleware('auth')->group(function () {
             Route::post('/relatorios/ia/analyze-ai', [CertificateManagementController::class, 'analyzeAi'])->name('relatorios.ia.analyze_ai');
             Route::get('/relatorios/ia/pdf', [CertificateManagementController::class, 'relatorioIaPdf'])->name('relatorios.ia.pdf');
             Route::get('/relatorios/usuarios', [CertificateManagementController::class, 'relatorioUsuarios'])->name('relatorios.usuarios');
-            Route::get('/relatorios/auditoria', [CertificateManagementController::class, 'relatorioAuditoria'])->name('relatorios.auditoria');
+
+            // Auditoria gerencial (base: exclui apenas super_admin e usuários de teste)
+            Route::get('/relatorios/auditoria', [RelatorioAuditoriaController::class, 'index'])->name('relatorios.auditoria');
+            Route::get('/relatorios/auditoria/csv', [RelatorioAuditoriaController::class, 'csv'])->name('relatorios.auditoria.csv');
+            Route::get('/relatorios/auditoria/pdf', [RelatorioAuditoriaController::class, 'pdf'])->name('relatorios.auditoria.pdf');
+
+            // Avaliações e notas por usuário/treinamento
+            Route::get('/relatorios/avaliacoes', [RelatorioAvaliacoesController::class, 'index'])->name('relatorios.avaliacoes');
+            Route::get('/relatorios/avaliacoes/csv', [RelatorioAvaliacoesController::class, 'csv'])->name('relatorios.avaliacoes.csv');
+            Route::get('/relatorios/avaliacoes/pdf', [RelatorioAvaliacoesController::class, 'pdf'])->name('relatorios.avaliacoes.pdf');
+
             Route::get('/certificados/exportar', [CertificateManagementController::class, 'exportarCertificados'])->name('certificados.exportar');
         });
 
@@ -217,6 +237,13 @@ Route::middleware('auth')->group(function () {
             Route::get('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'index'])->name('usuarios.treinamentos_reassistir');
             Route::post('/usuarios/{user}/treinamentos-reassistir', [TrainingRewatchController::class, 'store'])->name('usuarios.treinamentos_reassistir.store');
             Route::delete('/usuarios/{user}/treinamentos-reassistir/{rewatch}', [TrainingRewatchController::class, 'destroy'])->name('usuarios.treinamentos_reassistir.destroy');
+        });
+
+        // Prorrogação do prazo de treinamentos expirados (módulo:prazos)
+        Route::middleware('module:prazos')->prefix('admin/prazos-treinamentos')->name('admin.prazos.')->group(function () {
+            Route::get('/', [TrainingDeadlineController::class, 'index'])->name('index');
+            Route::post('/', [TrainingDeadlineController::class, 'store'])->name('store');
+            Route::delete('/{progress}', [TrainingDeadlineController::class, 'destroy'])->name('destroy');
         });
 
         // Gerenciador de Conteúdos Splash (acesso controlado por permissão:splash)

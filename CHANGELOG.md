@@ -6,6 +6,100 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.2.0] - 2026-10-16
+
+### Adicionado
+- **Relatório de Auditoria Gerencial reconstruído** (`/relatorios/auditoria`):
+  base de cálculo com metodologia explícita (exclui **somente** super_admin e
+  usuários marcados como teste), índice de conformidade por usuário × conteúdo,
+  situação detalhada (concluído em dia/atraso, em andamento, não iniciado,
+  prazo expirado), tratamento de **ausências justificadas** (férias, folgas,
+  atestados, licenças, isenções de conteúdo e prazos estendidos), evolução
+  mensal, resumo da trilha de auditoria (`audit_logs`, condicionado à permissão
+  `auditoria`) e filtros avançados (período, perfil, status, setor, cargo,
+  empresa, conteúdo, tipo de treinamento, obrigatórios e inclusão de afastados
+  no denominador). Exportações **CSV detalhado**, **CSV de ausências** e
+  **PDF executivo** com data/hora, autor, filtros aplicados e **SHA-256 do
+  recorte** (mesmo digest no CSV e no PDF para os mesmos filtros), registradas
+  na auditoria.
+- **Relatório de Avaliações e Notas** (`/relatorios/avaliacoes`): notas por
+  usuário × treinamento (última avaliação), resultado (aprovado/reprovado/
+  pendente), tentativas, data/hora de início e conclusão, tempo assistido,
+  certificado emitido com status de validade, desempenho por treinamento
+  (média e taxa de aprovação) e **histórico de tentativas** (`training_logs`)
+  como evidência de auditoria. Filtros por período, base da data, resultado,
+  nota mínima/máxima, usuário, perfil, status, setor, cargo, empresa e tipo de
+  conteúdo; exportações CSV (resultados e tentativas) e PDF.
+- Novo escopo `User::auditEligible` (exclusão apenas de super_admin e teste) e
+  `User::visibleToViewer` (escopo admin × super_admin) para relatórios.
+- Índices de apoio em `user_progress.data_inicio`, `user_progress.data_conclusao`
+  e `certificates.data_emissao`.
+
+### Notas de deploy
+- Rodar `php artisan migrate --force` (novos índices dos relatórios).
+- Manter `php artisan schedule:run` ativo (sem mudança de comandos).
+
+## [2.1.0] - 2026-10-15
+
+### Adicionado
+- **Prazo de conclusão dos treinamentos**: o usuário tem até as **23:00 do
+  domingo subsequente à liberação** para assistir o vídeo e responder a
+  avaliação. O prazo aparece no player e nos cards do dashboard ("Prazo até
+  ..."; destaque nos últimos 2 dias).
+- **Seção "Prazo Expirado" no dashboard do usuário**: treinamentos fora do
+  prazo saem das seções ativas (inclusive "Meus Treinamentos") e ficam
+  visíveis, porém bloqueados, com aviso para procurar o gestor.
+- **Bloqueio após o prazo**: player, atualização de progresso, envio da
+  avaliação e conclusão (web e API mobile) passam a exigir prazo vigente;
+  usuários de teste e admins continuam com acesso livre.
+- **Gestor de Prazos (`/admin/prazos-treinamentos`, módulo `prazos`)**:
+  lista usuários com prazo expirado (ou vencendo em até 7 dias) — inclusive
+  quem nunca iniciou — e permite liberar um **novo prazo** (data/hora
+  customizável, sugestão: 23:00 do próximo domingo) com justificativa
+  obrigatória, registrada em `training_logs` e na auditoria. O progresso do
+  usuário é mantido e o treinamento volta para "Em Andamento".
+- É possível **remover a prorrogação** (volta ao prazo padrão). Link no menu
+  Administração; faseamento de prazo na API (`prazo_conclusao`,
+  `prazo_estendido`, `prazo_expirado`).
+- **Avaliação unificada (banco de questões) para DSS e Treinamento**: o bloco
+  separado "Avaliação do DSS (pergunta única)" saiu do cadastro — agora os dois
+  tipos usam somente "Avaliação (Banco de Questões)", com sorteio, quantidade
+  de questões e nota mínima. DSS antigos com pergunta única são pré-carregados
+  no banco ao abrir a edição e convertidos ao salvar (a prova segue funcionando
+  com o formato antigo até a conversão). A avaliação continua obrigatória
+  (mínimo de 1 questão no banco).
+
+### Notas de deploy
+- Rodar `php artisan migrate --force` (novos campos em `user_progress`).
+- Gestores com perfil `admin` já acessam a página; para tenants SaaS, o
+  módulo `prazos` precisa estar habilitado no painel da plataforma.
+
+## [2.0.74] - 2026-10-15
+
+### Adicionado
+- **Recuperação de senha por e-mail (self-service)**: link "Esqueci minha
+  senha" no login, páginas `/esqueci-senha` e `/redefinir-senha/{token}`, e
+  e-mail em pt-BR com link válido por 60 minutos (`RedefinirSenhaNotification`
+  + `PasswordResetController`).
+- Resposta sempre genérica para não revelar se o e-mail está cadastrado
+  (anti-enumeração) e auditoria de solicitações, falhas e conclusões
+  (`password_reset_*`, módulo `auth`).
+- Throttle dedicado: `password-email` (3/min por e-mail+IP e 10/min por IP)
+  e `password-reset` (10/min por IP).
+
+### Alterado
+- Após redefinir a senha, o `remember_token` é rotacionado, o token de
+  recuperação é apagado e o usuário volta ao login (sem autenticação
+  automática).
+
+### Notas de deploy
+- Configure `MAIL_*` no `.env` (ver `docs/operacao/INSTALACAO.md`) — sem SMTP
+  os e-mails de recuperação não são entregues. SMTP: `mail.previaseg.com`,
+  porta `465` (SSL), usuário `suporte@previaseg.com`.
+- Remetente padrão dos e-mails: `suporte@previaseg.com` (fallback em
+  `config/mail.php`), sobrescrevível por `MAIL_FROM_ADDRESS` ou pelo campo
+  **E-mail remetente** do tenant (white-label).
+
 ## [2.0.73] - 2026-10-12
 
 ### Corrigido

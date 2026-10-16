@@ -230,6 +230,41 @@ class Training extends Model
     }
 
     /**
+     * Retorna a quantidade de questões que serão exibidas na prova.
+     */
+    public function totalQuestoesProva(): int
+    {
+        $totalBanco = $this->hasQuestionBank()
+            ? ($this->relationLoaded('questions') ? $this->questions->count() : $this->questions()->count())
+            : 0;
+
+        if ($totalBanco === 0) {
+            return $this->hasAssessment() ? 1 : 0;
+        }
+
+        if ($this->quantidade_questoes_prova && $this->quantidade_questoes_prova > 0) {
+            return min((int) $this->quantidade_questoes_prova, $totalBanco);
+        }
+
+        return $totalBanco;
+    }
+
+    /**
+     * Retorna a quantidade mínima de acertos necessários para aprovação.
+     */
+    public function minimoAcertosAprovacao(?int $totalQuestoes = null): int
+    {
+        $total = $totalQuestoes ?? $this->totalQuestoesProva();
+        if ($total <= 0) {
+            return 1;
+        }
+
+        $notaMinima = (int) ($this->nota_minima_aprovacao ?? 70);
+
+        return (int) max(1, (int) ceil(($notaMinima / 100) * $total));
+    }
+
+    /**
      * Retorna o rótulo em pt-BR do tipo do treinamento (inicial/periódico/eventual).
      */
     public function getTipoTreinamentoLabelAttribute(): ?string
@@ -268,6 +303,72 @@ class Training extends Model
     public function getDataLiberacaoExibicaoAttribute(): ?Carbon
     {
         return $this->releaseDate();
+    }
+
+    /**
+     * Prazo padrão para o usuário assistir o vídeo e concluir a avaliação:
+     * 23:00 do domingo subsequente à data de liberação do conteúdo.
+     */
+    public function prazoBaseConclusao(): ?Carbon
+    {
+        $liberacao = $this->releaseDate();
+
+        if (! $liberacao) {
+            return null;
+        }
+
+        // Domingos: liberações de segunda a sábado vencem no domingo da mesma
+        // semana; quando a própria liberação é no domingo, vence no seguinte.
+        $diasAteDomingo = 7 - (int) $liberacao->dayOfWeekIso;
+        if ($diasAteDomingo === 0) {
+            $diasAteDomingo = 7;
+        }
+
+        return $liberacao->copy()->startOfDay()->addDays($diasAteDomingo)->setTime(23, 0, 0);
+    }
+
+    /**
+     * Prazo efetivo de conclusão: o prazo estendido pelo gestor (quando
+     * houver) ou o prazo padrão calculado a partir da liberação.
+     */
+    public function prazoConclusao(?UserProgress $progress = null): ?Carbon
+    {
+        if ($progress && $progress->prazo_estendido_ate) {
+            return $progress->prazo_estendido_ate;
+        }
+
+        return $this->prazoBaseConclusao();
+    }
+
+    /**
+     * Período do prazo para exibição (ex.: "05/10 08:00 a 11/10 23:00"),
+     * da data de liberação cadastrada até o prazo efetivo de conclusão.
+     */
+    public function periodoPrazoFormatado(?UserProgress $progress = null): ?string
+    {
+        $inicio = $this->releaseDate();
+        $fim = $this->prazoConclusao($progress);
+
+        if (! $inicio || ! $fim) {
+            return null;
+        }
+
+        return $inicio->format('d/m H:i').' a '.$fim->format('d/m H:i');
+    }
+
+    /**
+     * Indica se o prazo de conclusão já expirou para este usuário.
+     * Treinamentos já concluídos não são considerados expirados.
+     */
+    public function prazoExpirado(?UserProgress $progress = null): bool
+    {
+        if ($progress && $progress->concluido) {
+            return false;
+        }
+
+        $prazo = $this->prazoConclusao($progress);
+
+        return $prazo !== null && Carbon::now(config('app.timezone'))->gt($prazo);
     }
 
     /**

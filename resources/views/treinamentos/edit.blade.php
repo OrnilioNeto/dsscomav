@@ -110,53 +110,10 @@
                 </div>
             </div>
 
-            <!-- Avaliação para DSS (pergunta única) -->
-            <div id="bloco-avaliacao-legada" style="{{ $training->tipo === 'dss' ? '' : 'display:none;' }}" class="border-t pt-6 space-y-4">
-                <h2 class="text-xl font-bold text-gray-800">Avaliação do DSS</h2>
-
-                <div>
-                    <label class="block text-gray-700 font-semibold mb-2">Pergunta da avaliação *</label>
-                    <textarea name="avaliacao_pergunta" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">{{ old('avaliacao_pergunta', $training->avaliacao_pergunta) }}</textarea>
-                </div>
-
-                @php
-                    $assessmentOptions = $training->avaliacao_opcoes ?? [];
-                @endphp
-
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 1 *</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[0] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 2 *</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[1] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 3</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[2] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 font-semibold mb-2">Opção 4</label>
-                        <input type="text" name="avaliacao_opcoes[]" value="{{ $assessmentOptions[3] ?? '' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-gray-700 font-semibold mb-2">Resposta correta *</label>
-                    <select name="avaliacao_resposta_correta" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
-                        <option value="0" {{ (int) $training->avaliacao_resposta_correta === 0 ? 'selected' : '' }}>Opção 1</option>
-                        <option value="1" {{ (int) $training->avaliacao_resposta_correta === 1 ? 'selected' : '' }}>Opção 2</option>
-                        <option value="2" {{ (int) $training->avaliacao_resposta_correta === 2 ? 'selected' : '' }}>Opção 3</option>
-                        <option value="3" {{ (int) $training->avaliacao_resposta_correta === 3 ? 'selected' : '' }}>Opção 4</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Avaliação para Treinamento (banco de questões NR-01 4.6) -->
-            <div id="bloco-banco-questoes" style="{{ $training->tipo === 'treinamento' ? '' : 'display:none;' }}" class="border-t pt-6">
+            <!-- Avaliação (banco de questões) — único formato para DSS e Treinamento -->
+            <div id="bloco-banco-questoes" class="border-t pt-6">
                 <div class="flex items-center justify-between mb-2">
-                    <h2 class="text-xl font-bold text-gray-800">Avaliação do Treinamento (Banco de Questões)</h2>
+                    <h2 class="text-xl font-bold text-gray-800">Avaliação (Banco de Questões)</h2>
                     <button type="button" onclick="adicionarQuestao()" class="bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-800">
                         <i class="fas fa-plus mr-1"></i>Adicionar Questão
                     </button>
@@ -164,7 +121,7 @@
                 <p class="text-sm text-gray-500 mb-4">Cadastre até 10 questões. Cada questão pode ter de <strong>2 a 4 opções</strong> e deve indicar a resposta correta. Na prova, as questões e opções são embaralhadas (NR-01 Anexo II 4.6.2).</p>
 
                 <div id="container-questoes" class="space-y-4">
-                    <p class="text-gray-500 text-sm italic" id="sem-questoes-aviso" style="{{ $training->questions->count() > 0 ? 'display:none;' : '' }}">Nenhuma questão cadastrada. Clique em "Adicionar Questão".</p>
+                    <p class="text-gray-500 text-sm italic" id="sem-questoes-aviso" style="{{ $training->questions->count() > 0 || ! empty($training->avaliacao_pergunta) ? 'display:none;' : '' }}">Nenhuma questão cadastrada. Clique em "Adicionar Questão".</p>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4 mt-4">
@@ -175,9 +132,14 @@
                     </div>
                     <div>
                         <label class="block text-gray-700 font-semibold mb-2">Nota mínima p/ aprovação (%)</label>
-                        <input type="number" name="nota_minima_aprovacao" value="{{ old('nota_minima_aprovacao', $training->nota_minima_aprovacao ?? 70) }}" min="1" max="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                        <input type="number" name="nota_minima_aprovacao" id="nota-minima-aprovacao-input" value="{{ old('nota_minima_aprovacao', $training->nota_minima_aprovacao ?? 70) }}" min="1" max="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                         <p class="text-xs text-gray-500 mt-1">Abaixo da nota = conceito <strong>insatisfatório</strong> (refaz a prova). Igual ou acima = <strong>satisfatório</strong>.</p>
                     </div>
+                </div>
+
+                <div id="resumo-criterio-aprovacao" class="mt-4 p-3.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-center gap-2.5">
+                    <i class="fas fa-calculator text-blue-700 text-base shrink-0"></i>
+                    <span id="texto-resumo-criterio">Calculando critério...</span>
                 </div>
             </div>
 
@@ -272,16 +234,12 @@
                     const blocoTipoUsuario = document.getElementById('bloco-tipo-usuario');
                     const blocoFuncionarios = document.getElementById('bloco-funcionarios');
                     const blocoTipoTreinamento = document.getElementById('bloco-tipo-treinamento');
-                    const blocoAvaliacaoLegada = document.getElementById('bloco-avaliacao-legada');
-                    const blocoBancoQuestoes = document.getElementById('bloco-banco-questoes');
 
                     function atualizarTipoConteudo() {
                         const isTreinamento = tipoSelect.value === 'treinamento';
                         blocoTipoUsuario.style.display = isTreinamento ? 'none' : 'block';
                         blocoFuncionarios.style.display = isTreinamento ? 'block' : 'none';
                         blocoTipoTreinamento.style.display = isTreinamento ? 'grid' : 'none';
-                        blocoAvaliacaoLegada.style.display = isTreinamento ? 'none' : 'block';
-                        blocoBancoQuestoes.style.display = isTreinamento ? 'block' : 'none';
                         const selTipo = document.getElementById('tipo-treinamento-select');
                         if (selTipo) selTipo.required = isTreinamento;
                     }
@@ -436,9 +394,22 @@
 
             <script>
                 let contadorQuestoes = 0;
-                const questoesExistentes = @json($training->questions->map(function ($q) {
-                    return ['pergunta' => $q->pergunta, 'opcoes' => $q->opcoes, 'resposta_correta' => $q->resposta_correta];
-                }));
+                @php
+                    $questoesExistentesForm = $training->questions->map(function ($q) {
+                        return ['pergunta' => $q->pergunta, 'opcoes' => array_values($q->opcoes ?? []), 'resposta_correta' => (int) $q->resposta_correta];
+                    })->values();
+
+                    // Conteúdos antigos no formato "pergunta única" entram já no banco de
+                    // questões; ao salvar, a avaliação é unificada automaticamente.
+                    if ($questoesExistentesForm->isEmpty() && ! empty($training->avaliacao_pergunta)) {
+                        $questoesExistentesForm->push([
+                            'pergunta' => $training->avaliacao_pergunta,
+                            'opcoes' => array_values(array_filter($training->avaliacao_opcoes ?? [])),
+                            'resposta_correta' => (int) ($training->avaliacao_resposta_correta ?? 0),
+                        ]);
+                    }
+                @endphp
+                const questoesExistentes = @json($questoesExistentesForm);
 
                 function atualizarAvisoQuestoes() {
                     const aviso = document.getElementById('sem-questoes-aviso');
@@ -448,13 +419,60 @@
                     if (inputQtd && inputQtd.value && parseInt(inputQtd.value) > total) {
                         inputQtd.value = total || '';
                     }
+                    atualizarResumoCriterioAprovacao();
+                }
+
+                function atualizarResumoCriterioAprovacao() {
+                    const totalQuestoesCadastradas = document.querySelectorAll('.questao-item').length;
+                    const inputQtdProva = document.getElementById('quantidade-questoes-prova');
+                    const inputNota = document.getElementById('nota-minima-aprovacao-input');
+                    const resumoEl = document.getElementById('texto-resumo-criterio');
+                    const boxEl = document.getElementById('resumo-criterio-aprovacao');
+
+                    if (!resumoEl || !boxEl) return;
+
+                    if (totalQuestoesCadastradas === 0) {
+                        boxEl.style.display = 'none';
+                        return;
+                    }
+
+                    boxEl.style.display = 'flex';
+                    const qtdProvaVal = inputQtdProva && inputQtdProva.value ? parseInt(inputQtdProva.value) : null;
+                    const questoesNaProva = (qtdProvaVal && qtdProvaVal > 0 && qtdProvaVal <= totalQuestoesCadastradas)
+                        ? qtdProvaVal
+                        : totalQuestoesCadastradas;
+
+                    const notaMinima = inputNota && inputNota.value ? parseInt(inputNota.value) : 70;
+                    const notaNormalizada = Math.max(1, Math.min(100, isNaN(notaMinima) ? 70 : notaMinima));
+                    const acertosNecessarios = Math.max(1, Math.ceil((notaNormalizada / 100) * questoesNaProva));
+                    const percentEfetivo = Math.round((acertosNecessarios / questoesNaProva) * 100);
+
+                    resumoEl.innerHTML = `Com base em <strong>${questoesNaProva} questão(ões) na prova</strong> (${totalQuestoesCadastradas} no banco) e nota mínima de <strong>${notaNormalizada}%</strong>, o participante precisará acertar no mínimo <strong class="text-blue-900 font-bold underline">${acertosNecessarios} de ${questoesNaProva} questão(ões)</strong> (${percentEfetivo}%) para ser aprovado.`;
+                }
+
+                function sincronizarTextosOpcoes(bloco) {
+                    const rows = bloco.querySelectorAll('.opcao-row');
+                    const select = bloco.querySelector('select[name$="[resposta_correta]"]');
+                    if (!select) return;
+                    const atual = select.value;
+                    select.innerHTML = '';
+                    rows.forEach((row, i) => {
+                        const input = row.querySelector('input');
+                        const val = (input?.value || '').trim();
+                        const opt = document.createElement('option');
+                        opt.value = String(i);
+                        opt.textContent = `Opção ${i + 1}${val ? ': ' + (val.length > 35 ? val.slice(0, 35) + '...' : val) : ''}`;
+                        select.appendChild(opt);
+                    });
+                    if (parseInt(atual) < rows.length) select.value = atual;
+                    else select.value = String(Math.max(0, rows.length - 1));
                 }
 
                 function adicionarQuestao(dados) {
                     const container = document.getElementById('container-questoes');
                     const total = document.querySelectorAll('.questao-item').length;
                     if (total >= 10) {
-                        alert('Máximo de 10 questões por treinamento.');
+                        alert('Máximo de 10 questões.');
                         return;
                     }
 
@@ -466,12 +484,15 @@
                     dados.opcoes.forEach((opcao, i) => {
                         opcoesHtml += `
                             <div class="flex items-center gap-2 opcao-row">
-                                <input type="text" name="questoes[${idx}][opcoes][]" value="${(opcao || '').replace(/"/g, '&quot;')}" placeholder="Opção ${i + 1}" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                                <input type="text" name="questoes[${idx}][opcoes][]" value="${(opcao || '').replace(/"/g, '&quot;')}" oninput="sincronizarTextosOpcoes(this.closest('.questao-item'))" placeholder="Opção ${i + 1}" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                                 <button type="button" onclick="removerOpcao(this)" class="text-red-600 p-1" title="Remover opção"><i class="fas fa-times"></i></button>
                             </div>`;
                     });
-                    const selectOpcoes = dados.opcoes.map((o, i) =>
-                        `<option value="${i}" ${parseInt(dados.resposta_correta) === i ? 'selected' : ''}>Opção ${i + 1}</option>`).join('');
+                    const selectOpcoes = dados.opcoes.map((o, i) => {
+                        const val = (o || '').trim();
+                        const txt = `Opção ${i + 1}${val ? ': ' + (val.length > 35 ? val.slice(0, 35) + '...' : val) : ''}`;
+                        return `<option value="${i}" ${parseInt(dados.resposta_correta) === i ? 'selected' : ''}>${txt}</option>`;
+                    }).join('');
 
                     div.innerHTML = `
                         <div class="flex items-start justify-between mb-3">
@@ -514,15 +535,11 @@
                     const row = document.createElement('div');
                     row.className = 'flex items-center gap-2 opcao-row';
                     row.innerHTML = `
-                        <input type="text" name="${baseName}[]" required placeholder="Opção ${rows.length + 1}" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                        <input type="text" name="${baseName}[]" required oninput="sincronizarTextosOpcoes(this.closest('.questao-item'))" placeholder="Opção ${rows.length + 1}" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
                         <button type="button" onclick="removerOpcao(this)" class="text-red-600 p-1" title="Remover opção"><i class="fas fa-times"></i></button>
                     `;
                     rows[rows.length - 1].after(row);
-                    const select = bloco.querySelector('select[name$="[resposta_correta]"]');
-                    const opt = document.createElement('option');
-                    opt.value = String(rows.length);
-                    opt.textContent = 'Opção ' + (rows.length + 1);
-                    select.appendChild(opt);
+                    sincronizarTextosOpcoes(bloco);
                 }
 
                 function removerOpcao(btn) {
@@ -533,28 +550,22 @@
                         return;
                     }
                     btn.closest('.opcao-row').remove();
-                    const select = bloco.querySelector('select[name$="[resposta_correta]"]');
-                    const novosRows = bloco.querySelectorAll('.opcao-row');
-                    const atual = select.value;
-                    select.innerHTML = '';
-                    novosRows.forEach((row, i) => {
-                        row.querySelector('input').placeholder = 'Opção ' + (i + 1);
-                        const opt = document.createElement('option');
-                        opt.value = String(i);
-                        opt.textContent = 'Opção ' + (i + 1);
-                        select.appendChild(opt);
-                    });
-                    if (parseInt(atual) < novosRows.length) select.value = atual;
-                    else select.value = String(novosRows.length - 1);
+                    sincronizarTextosOpcoes(bloco);
                 }
 
                 window.adicionarQuestao = adicionarQuestao;
                 window.removerQuestao = removerQuestao;
                 window.adicionarOpcao = adicionarOpcao;
                 window.removerOpcao = removerOpcao;
+                window.sincronizarTextosOpcoes = sincronizarTextosOpcoes;
+                window.atualizarResumoCriterioAprovacao = atualizarResumoCriterioAprovacao;
 
                 document.addEventListener('DOMContentLoaded', function() {
                     (questoesExistentes || []).forEach(q => adicionarQuestao(q));
+                    atualizarResumoCriterioAprovacao();
+
+                    document.getElementById('quantidade-questoes-prova')?.addEventListener('input', atualizarResumoCriterioAprovacao);
+                    document.getElementById('nota-minima-aprovacao-input')?.addEventListener('input', atualizarResumoCriterioAprovacao);
                 });
             </script>
 

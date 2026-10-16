@@ -183,7 +183,7 @@
                 <i class="fas fa-chart-pie text-blue-900 mr-2"></i>Relatórios Gerenciais
             </h2>
 
-            <div class="grid md:grid-cols-3 gap-4">
+            <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <a href="{{ route('relatorios.treinamentos') }}" class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg border-2 border-blue-300 hover:shadow-lg transition">
                     <i class="fas fa-chart-line text-3xl text-blue-900 mb-3"></i>
                     <h3 class="font-bold text-gray-800 mb-2">Treinamentos</h3>
@@ -196,10 +196,16 @@
                     <p class="text-sm text-gray-600">Análise de usuários, histórico e participação</p>
                 </a>
 
+                <a href="{{ route('relatorios.avaliacoes') }}" class="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-lg border-2 border-indigo-300 hover:shadow-lg transition">
+                    <i class="fas fa-graduation-cap text-3xl text-indigo-900 mb-3"></i>
+                    <h3 class="font-bold text-gray-800 mb-2">Avaliações e Notas</h3>
+                    <p class="text-sm text-gray-600">Notas, datas/horas, tentativas e certificados por usuário e treinamento</p>
+                </a>
+
                 <a href="{{ route('relatorios.auditoria') }}" class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg border-2 border-purple-300 hover:shadow-lg transition">
-                    <i class="fas fa-audit text-3xl text-purple-900 mb-3"></i>
+                    <i class="fas fa-shield-alt text-3xl text-purple-900 mb-3"></i>
                     <h3 class="font-bold text-gray-800 mb-2">Auditoria</h3>
-                    <p class="text-sm text-gray-600">Relatório completo para auditoria e compliance</p>
+                    <p class="text-sm text-gray-600">Conformidade, ausências justificadas e exportações com SHA-256</p>
                 </a>
             </div>
         </div>
