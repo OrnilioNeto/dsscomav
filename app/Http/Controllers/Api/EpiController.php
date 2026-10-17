@@ -5,9 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\EpiColaborador;
 use App\Models\EpiEntrega;
+use App\Models\EpiFiltro;
 use App\Models\User;
-use App\Models\EpiDevolucao;
-use App\Models\Epi;
 use Illuminate\Http\Request;
 
 class EpiController extends Controller
@@ -31,7 +30,7 @@ class EpiController extends Controller
         $user = $request->user();
         $colaborador = $this->colaboradorDoUsuario($user);
 
-        if (!$colaborador) {
+        if (! $colaborador) {
             return response()->json(['status' => 'success', 'data' => [], 'count' => 0]);
         }
 
@@ -41,7 +40,7 @@ class EpiController extends Controller
             ->get();
 
         $grupos = $pendentes->groupBy(function ($item) {
-            return $item->ss_e_tx_grupo_assinatura ?: 'grupo_' . $item->ss_e_nb_id;
+            return $item->ss_e_tx_grupo_assinatura ?: 'grupo_'.$item->ss_e_nb_id;
         });
 
         $data = $grupos->map(function ($items, $grupoId) {
@@ -77,7 +76,7 @@ class EpiController extends Controller
         $user = $request->user();
         $colaborador = $this->colaboradorDoUsuario($user);
 
-        if (!$colaborador) {
+        if (! $colaborador) {
             return response()->json(['status' => 'error', 'message' => 'Colaborador não encontrado!'], 404);
         }
 
@@ -119,7 +118,7 @@ class EpiController extends Controller
         $user = $request->user();
         $colaborador = $this->colaboradorDoUsuario($user);
 
-        if (!$colaborador) {
+        if (! $colaborador) {
             return response()->json(['status' => 'error', 'message' => 'Colaborador não encontrado!'], 404);
         }
 
@@ -154,7 +153,7 @@ class EpiController extends Controller
         $user = $request->user();
         $colaborador = $this->colaboradorDoUsuario($user);
 
-        if (!$colaborador) {
+        if (! $colaborador) {
             return response()->json(['status' => 'error', 'message' => 'Colaborador não encontrado!'], 404);
         }
 
@@ -176,8 +175,27 @@ class EpiController extends Controller
             'status' => $e->ss_e_tx_status,
             'status_assinatura' => $e->ss_e_tx_status_assinatura,
             'data_assinatura' => $e->ss_e_tx_data_assinatura,
-            'tem_assinatura' => !empty($e->ss_e_tx_assinatura),
+            'tem_assinatura' => ! empty($e->ss_e_tx_assinatura),
             'retroativo' => (bool) $e->ss_e_tx_retroativo,
+        ])->values();
+
+        // Filtros de máscara ativos (itens de reposição, não são EPIs)
+        $filtros = EpiFiltro::with(['epi'])
+            ->where('ss_ef_nb_colaborador_id', $colaborador->ss_c_nb_id)
+            ->where('ss_ef_tx_status', 'ativo')
+            ->orderByDesc('ss_ef_tx_data_instalacao')
+            ->get();
+
+        $filtrosData = $filtros->map(fn ($f) => [
+            'id' => $f->ss_ef_nb_id,
+            'tipo' => $f->ss_ef_tx_tipo_nome,
+            'ca' => $f->ss_ef_tx_ca,
+            'mascara' => $f->epi?->ss_e_tx_item,
+            'quantidade' => (int) $f->ss_ef_nb_quantidade,
+            'data_instalacao' => $f->ss_ef_tx_data_instalacao,
+            'vencimento' => $f->ss_ef_tx_vencimento,
+            'status_assinatura' => $f->ss_ef_tx_status_assinatura,
+            'tem_assinatura' => ! empty($f->ss_ef_tx_assinatura),
         ])->values();
 
         return response()->json([
@@ -190,6 +208,7 @@ class EpiController extends Controller
                     'cargo' => $colaborador->ss_c_tx_cargo,
                 ],
                 'epis' => $data,
+                'filtros' => $filtrosData,
             ],
         ]);
     }

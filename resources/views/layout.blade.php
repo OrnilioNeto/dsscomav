@@ -238,13 +238,17 @@
                                         $colab = \App\Models\EpiColaborador::where('ss_c_tx_cpf', Auth::user()->cpf)->first();
                                         if ($colab) {
                                             $pendentesCount = \App\Models\EpiEntrega::pendentesAssinatura($colab->ss_c_nb_id)->count();
+                                            // Filtros de máscara pendentes entram na mesma notificação
+                                            if (\Illuminate\Support\Facades\Schema::hasTable('ss_epi_filtro')) {
+                                                $pendentesCount += \App\Models\EpiFiltro::pendentesAssinatura($colab->ss_c_nb_id)->count();
+                                            }
                                         }
                                     }
                                 } catch (\Throwable $e) {}
                             }
                         @endphp
                         @if($pendentesCount > 0)
-                            <a href="{{ route('epi.assinaturas') }}" class="relative site-link-hover nav-link flex items-center text-amber-300 font-bold" title="Assinaturas Pendentes">
+                            <a href="{{ route('epi.assinaturas') }}" class="relative site-link-hover nav-link flex items-center text-amber-300 font-bold" title="Assinaturas Pendentes (EPIs e filtros de máscara)">
                                 <i class="fas fa-bell text-lg"></i>
                                 <span class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{{ $pendentesCount > 9 ? '9+' : $pendentesCount }}</span>
                             </a>

@@ -229,6 +229,42 @@
                             <p>Nenhum registro de entrega de EPI para este funcionário.</p>
                         </div>
                     @endif
+
+                    @if($epiModuloFiltros->count() > 0)
+                        <div class="mt-6 pt-4 border-t border-gray-100">
+                            <p class="text-xs uppercase tracking-wide font-bold text-gray-500 mb-2">Filtros de máscara instalados (itens de reposição — não são EPIs)</p>
+                            <div class="space-y-3">
+                                @foreach($epiModuloFiltros as $filtro)
+                                    <div class="p-4 rounded-xl border border-cyan-100 bg-cyan-50/40 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                                        <div class="min-w-0 flex-grow">
+                                            <h4 class="font-bold text-gray-800 text-sm sm:text-base">
+                                                {{ $filtro->ss_ef_tx_tipo_nome }}
+                                                @if($filtro->ss_ef_tx_ca)
+                                                    <span class="text-xs font-semibold text-gray-500">/ CA {{ $filtro->ss_ef_tx_ca }}</span>
+                                                @endif
+                                                @if($filtro->ss_ef_tx_status === 'descartado')
+                                                    <span class="ml-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">Descartado</span>
+                                                @endif
+                                            </h4>
+                                            @if($filtro->epi)
+                                                <p class="text-xs text-gray-500 mt-0.5">Máscara: {{ $filtro->epi->ss_e_tx_item }}</p>
+                                            @endif
+                                            <div class="flex flex-wrap gap-4 mt-2 text-xs text-gray-600 font-medium">
+                                                <span>Quant: <strong class="text-gray-900">{{ $filtro->ss_ef_nb_quantidade }}</strong></span>
+                                                @if($filtro->ss_ef_tx_vencimento)
+                                                    <span>Vencimento: <strong class="text-gray-900">{{ date('d/m/Y', strtotime($filtro->ss_ef_tx_vencimento)) }}</strong></span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 sm:mt-0 sm:ml-4 text-left sm:text-right">
+                                            <span class="text-xs block text-gray-500">Instalação</span>
+                                            <strong class="text-xs sm:text-sm text-gray-900">{{ $filtro->ss_ef_tx_data_instalacao ? date('d/m/Y', strtotime($filtro->ss_ef_tx_data_instalacao)) : '-' }}</strong>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
 
                 <!-- Conteúdo 3: DSS -->

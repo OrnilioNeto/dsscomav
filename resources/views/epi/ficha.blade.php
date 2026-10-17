@@ -147,6 +147,76 @@
             </table>
         </div>
 
+        <!-- Tabela de Filtros de Reposição (Máscaras) -->
+        @if(isset($filtros) && $filtros->isNotEmpty())
+            <h3 class="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider flex items-center">
+                <i class="fas fa-head-side-mask text-cyan-700 mr-2"></i> Filtros de Reposição (Máscaras e Respiradores)
+            </h3>
+            <p class="text-[10px] text-gray-500 mb-3">Filtros são itens de reposição vinculados às máscaras entregues e não constituem EPI autônomo. O descarte encerra apenas o filtro, sem alterar a máscara.</p>
+
+            <div class="overflow-x-auto mb-8 border border-gray-300 rounded-lg">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100 border-b border-gray-300">
+                            <th class="p-2.5 font-bold text-gray-700 uppercase border-r border-gray-300">Instalação</th>
+                            <th class="p-2.5 font-bold text-gray-700 uppercase border-r border-gray-300">Filtro / CA</th>
+                            <th class="p-2.5 font-bold text-gray-700 uppercase border-r border-gray-300">Máscara Vinculada</th>
+                            <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Qtd</th>
+                            <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Vencimento</th>
+                            <th class="p-2.5 font-bold text-gray-700 uppercase text-center border-r border-gray-300">Situação</th>
+                            <th class="p-2.5 font-bold text-gray-700 uppercase text-center">Assinatura / Visto</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-300">
+                        @foreach($filtros as $filtro)
+                            <tr class="hover:bg-gray-50">
+                                <td class="p-2.5 font-semibold text-gray-800 border-r border-gray-300 whitespace-nowrap">
+                                    {{ $filtro->ss_ef_tx_data_instalacao ? date('d/m/Y', strtotime($filtro->ss_ef_tx_data_instalacao)) : '-' }}
+                                </td>
+                                <td class="p-2.5 border-r border-gray-300">
+                                    <div class="font-bold text-gray-900">
+                                        {{ $filtro->ss_ef_tx_tipo_nome }}
+                                        @if(!empty($filtro->ss_ef_nb_quantidade) && $filtro->ss_ef_nb_quantidade >= 2)
+                                            <span class="ml-1 text-[9px] text-cyan-800 bg-cyan-100 px-1.5 py-0.5 rounded font-bold">Par</span>
+                                        @endif
+                                    </div>
+                                    <div class="text-gray-500 text-[10px]">CA: {{ $filtro->ss_ef_tx_ca ?? 'Não informado' }}</div>
+                                </td>
+                                <td class="p-2.5 border-r border-gray-300">
+                                    <div class="font-semibold text-gray-800">{{ $filtro->epi->ss_e_tx_item ?? 'Máscara N/D' }}</div>
+                                    <div class="text-gray-500 text-[10px]">CA da máscara: {{ $filtro->epi->ss_e_tx_ca ?? '-' }}</div>
+                                </td>
+                                <td class="p-2.5 text-center font-bold text-gray-900 border-r border-gray-300">
+                                    {{ $filtro->ss_ef_nb_quantidade }}
+                                </td>
+                                <td class="p-2.5 text-center text-gray-700 border-r border-gray-300 whitespace-nowrap">
+                                    {{ $filtro->ss_ef_tx_vencimento ? date('d/m/Y', strtotime($filtro->ss_ef_tx_vencimento)) : '-' }}
+                                </td>
+                                <td class="p-2.5 text-center border-r border-gray-300">
+                                    @if($filtro->ss_ef_tx_status === 'descartado')
+                                        <span class="text-[9px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold" title="{{ $filtro->motivo_descarte_label ?? '' }}{{ $filtro->ss_ef_tx_data_descarte ? ' em '.date('d/m/Y', strtotime($filtro->ss_ef_tx_data_descarte)) : '' }}">Descartado</span>
+                                    @elseif($filtro->ss_ef_tx_vencimento && $filtro->ss_ef_tx_vencimento < date('Y-m-d'))
+                                        <span class="text-[9px] text-rose-800 bg-rose-100 px-1.5 py-0.5 rounded font-bold">Vencido</span>
+                                    @else
+                                        <span class="text-[9px] text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded font-bold">Ativo</span>
+                                    @endif
+                                </td>
+                                <td class="p-2.5 text-center">
+                                    @if($filtro->ss_ef_tx_assinatura)
+                                        <img src="{{ $filtro->ss_ef_tx_assinatura }}" alt="Assinatura" class="h-8 max-w-[120px] mx-auto object-contain">
+                                    @elseif($filtro->ss_ef_tx_status_assinatura === 'pendente')
+                                        <span class="text-[10px] text-amber-700 font-bold border border-amber-200 bg-amber-50 px-2 py-0.5 rounded">Assinatura pendente</span>
+                                    @else
+                                        <span class="text-gray-400 font-italic">Sem Visto</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
         <!-- Seção de Assinaturas Finais -->
         <div class="mt-12 pt-8 border-t border-gray-300 grid grid-cols-2 gap-8 text-center text-xs">
             <div>

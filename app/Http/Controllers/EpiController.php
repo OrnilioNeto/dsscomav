@@ -7,6 +7,8 @@ use App\Models\EpiColaborador;
 use App\Models\EpiDevolucao;
 use App\Models\EpiEntrega;
 use App\Models\EpiEstoque;
+use App\Models\EpiFiltro;
+use App\Models\EpiFiltroTipo;
 use App\Models\EpiKit;
 use App\Models\EpiKitItem;
 use App\Models\EpiVariacao;
@@ -57,6 +59,14 @@ class EpiController extends Controller
         $users = User::query()->get(['id', 'nome', 'cpf', 'cargo', 'status']);
 
         foreach ($users as $u) {
+            // Normaliza o CPF; usuários sem CPF não geram colaborador
+            // (evita uma linha nova a cada sincronização).
+            $cpf = preg_replace('/\D/', '', (string) $u->cpf);
+
+            if ($cpf === '') {
+                continue;
+            }
+
             $dados = [
                 'ss_c_tx_nome' => $u->nome,
                 'ss_c_tx_cargo' => $u->cargo ?: 'Funcionário',
@@ -64,17 +74,25 @@ class EpiController extends Controller
             ];
 
             $existente = DB::table('ss_colaborador')
-                ->where('ss_c_tx_cpf', $u->cpf)
+                ->where('ss_c_tx_cpf', $cpf)
                 ->whereTenant('ss_colaborador')
                 ->first();
+
+            // Fallback para linhas legadas com CPF formatado (pontos/traços/espaços)
+            if (! $existente) {
+                $existente = DB::table('ss_colaborador')
+                    ->whereRaw("REPLACE(REPLACE(REPLACE(ss_c_tx_cpf, '.', ''), '-', ''), ' ', '') = ?", [$cpf])
+                    ->whereTenant('ss_colaborador')
+                    ->first();
+            }
 
             if ($existente) {
                 DB::table('ss_colaborador')
                     ->where('ss_c_nb_id', $existente->ss_c_nb_id)
-                    ->update($dados);
+                    ->update($dados + ['ss_c_tx_cpf' => $cpf]);
             } else {
                 DB::table('ss_colaborador')->insert(array_merge($dados, [
-                    'ss_c_tx_cpf' => $u->cpf,
+                    'ss_c_tx_cpf' => $cpf,
                     'ss_c_tx_matricula' => 'MAT-'.str_pad($u->id, 5, '0', STR_PAD_LEFT),
                     'ss_c_nb_empresa_id' => 0,
                     'tenant_id' => app(TenantManager::class)->id(),
@@ -185,6 +203,40 @@ class EpiController extends Controller
             ->limit(150)
             ->get();
 
+        // 1.5 Filtros de máscara (não são EPIs): vencidos, vencendo em 30 dias,
+        // listas da aba e mini-catálogo de tipos
+        $filtrosVencidosCount = EpiFiltro::where('ss_ef_tx_status', 'ativo')
+            ->whereNotNull('ss_ef_tx_vencimento')
+            ->where('ss_ef_tx_vencimento', '<', $hojeStr)
+            ->count();
+
+        $filtrosVencendoCount = EpiFiltro::where('ss_ef_tx_status', 'ativo')
+            ->whereNotNull('ss_ef_tx_vencimento')
+            ->where('ss_ef_tx_vencimento', '>=', $hojeStr)
+            ->where('ss_ef_tx_vencimento', '<=', $vencimentoLimite)
+            ->count();
+
+        $filtrosAlerta = EpiFiltro::with(['colaborador', 'tipo', 'epi', 'entrega'])
+            ->where('ss_ef_tx_status', 'ativo')
+            ->whereNotNull('ss_ef_tx_vencimento')
+            ->where('ss_ef_tx_vencimento', '<=', $vencimentoLimite)
+            ->orderBy('ss_ef_tx_vencimento')
+            ->limit(100)
+            ->get();
+
+        $filtrosAtivos = EpiFiltro::with(['colaborador', 'tipo', 'epi', 'entrega'])
+            ->where('ss_ef_tx_status', 'ativo')
+            ->orderBy('ss_ef_tx_vencimento')
+            ->get();
+
+        $filtrosDescartados = EpiFiltro::with(['colaborador', 'tipo', 'epi'])
+            ->where('ss_ef_tx_status', 'descartado')
+            ->orderByDesc('ss_ef_tx_data_descarte')
+            ->limit(150)
+            ->get();
+
+        $tiposFiltro = EpiFiltroTipo::orderBy('ss_eft_tx_nome')->get();
+
         // 2. Consulta do Catálogo de EPIs
         $queryCatalogo = Epi::query();
         if (! empty($buscaCatalogo)) {
@@ -218,6 +270,21 @@ class EpiController extends Controller
 
         // 3. Colaboradores Elegíveis (Regra 4: sem diretores)
         $colaboradores = EpiColaborador::elegiveisParaEntrega()->orderBy('ss_c_tx_nome')->get();
+
+        // Deduplica registros legados repetidos (ex.: backfill/multi-tenant antigo):
+        // por CPF mantém o registro vinculado a entregas; em empate, o mais antigo.
+        // Registros sem CPF são mantidos (podem ser pessoas distintas).
+        $idsComEntregas = array_flip(
+            EpiEntrega::query()->distinct()->pluck('ss_e_nb_colaborador_id')->all()
+        );
+        $semCpf = $colaboradores->filter(fn ($c) => blank($c->ss_c_tx_cpf));
+        $colaboradores = $colaboradores
+            ->filter(fn ($c) => filled($c->ss_c_tx_cpf))
+            ->sortBy(fn ($c) => sprintf('%d-%09d', isset($idsComEntregas[$c->ss_c_nb_id]) ? 0 : 1, $c->ss_c_nb_id))
+            ->unique('ss_c_tx_cpf')
+            ->concat($semCpf)
+            ->sortBy('ss_c_tx_nome')
+            ->values();
 
         // 4. Kits Cadastrados
         $kits = EpiKit::with('itens.epi')->where('ss_k_tx_status', 'ativo')->get();
@@ -387,6 +454,12 @@ class EpiController extends Controller
             'devolucoesPendentes',
             'devolucoesPendentesCount',
             'devolucoesHistorico',
+            'filtrosVencidosCount',
+            'filtrosVencendoCount',
+            'filtrosAlerta',
+            'filtrosAtivos',
+            'filtrosDescartados',
+            'tiposFiltro',
             'episCatalogo',
             'gruposUnicos',
             'colaboradores',
@@ -1227,6 +1300,8 @@ class EpiController extends Controller
                     'data_entrega' => $ent->ss_e_tx_data_entrega ? date('d/m/Y', strtotime($ent->ss_e_tx_data_entrega)) : null,
                     'vencimento' => $ent->ss_e_tx_vencimento ? date('d/m/Y', strtotime($ent->ss_e_tx_vencimento)) : null,
                     'ca' => $ent->epi->ss_e_tx_ca ?? null,
+                    'grupo' => $ent->epi->ss_e_tx_grupo ?? null,
+                    'subgrupo' => $ent->epi->ss_e_tx_subgrupo ?? null,
                 ];
             })
             ->values();
@@ -1586,7 +1661,13 @@ class EpiController extends Controller
             ->orderBy('ss_e_nb_id', 'asc')
             ->get();
 
-        return view('epi.ficha', compact('colaborador', 'entregas'));
+        $filtros = EpiFiltro::with(['tipo', 'epi', 'entrega'])
+            ->where('ss_ef_nb_colaborador_id', $colaborador_id)
+            ->orderBy('ss_ef_tx_data_instalacao', 'asc')
+            ->orderBy('ss_ef_nb_id', 'asc')
+            ->get();
+
+        return view('epi.ficha', compact('colaborador', 'entregas', 'filtros'));
     }
 
     /**
@@ -1604,7 +1685,7 @@ class EpiController extends Controller
                 return response()->json(['status' => 'success', 'data' => [], 'count' => 0]);
             }
 
-            return view('epi.assinaturas', ['pendentes' => collect(), 'count' => 0, 'colaborador' => null]);
+            return view('epi.assinaturas', ['pendentes' => collect(), 'grupos' => collect(), 'gruposFiltro' => collect(), 'count' => 0, 'colaborador' => null]);
         }
 
         $pendentes = EpiEntrega::with(['epi', 'variacao'])
@@ -1617,13 +1698,28 @@ class EpiController extends Controller
             return $item->ss_e_tx_grupo_assinatura ?: 'grupo_'.$item->ss_e_nb_id;
         });
 
-        $count = $grupos->count();
+        // Filtros de máscara pendentes de assinatura (mesmo fluxo das entregas)
+        $filtrosPendentes = EpiFiltro::with(['tipo', 'epi', 'entrega'])
+            ->pendentesAssinatura($colaborador->ss_c_nb_id)
+            ->orderBy('ss_ef_tx_data_instalacao', 'desc')
+            ->get();
+
+        $gruposFiltro = $filtrosPendentes->groupBy(function ($item) {
+            return $item->ss_ef_tx_grupo_assinatura ?: 'filtro_'.$item->ss_ef_nb_id;
+        });
+
+        $count = $grupos->count() + $gruposFiltro->count();
 
         if (request()->wantsJson()) {
-            return response()->json(['status' => 'success', 'data' => $pendentes, 'count' => $count]);
+            return response()->json([
+                'status' => 'success',
+                'data' => $pendentes,
+                'filtros' => $filtrosPendentes,
+                'count' => $count,
+            ]);
         }
 
-        return view('epi.assinaturas', compact('grupos', 'count', 'colaborador'));
+        return view('epi.assinaturas', compact('grupos', 'gruposFiltro', 'count', 'colaborador'));
     }
 
     /**
@@ -1738,7 +1834,38 @@ class EpiController extends Controller
             ->limit(100)
             ->get();
 
-        return view('epi.gestao_assinaturas', compact('assinadas', 'negadas', 'pendentes'));
+        // Filtros de máscara (não são EPIs) no mesmo painel de assinaturas
+        $filtrosAssinadas = EpiFiltro::with(['colaborador', 'tipo', 'epi'])
+            ->where('ss_ef_tx_requer_assinatura', true)
+            ->where('ss_ef_tx_status_assinatura', 'assinada')
+            ->orderBy('ss_ef_tx_data_assinatura', 'desc')
+            ->limit(100)
+            ->get();
+
+        $filtrosNegadas = EpiFiltro::with(['colaborador', 'tipo', 'epi'])
+            ->where('ss_ef_tx_requer_assinatura', true)
+            ->where('ss_ef_tx_status_assinatura', 'negada')
+            ->where('ss_ef_tx_status', 'ativo')
+            ->orderBy('ss_ef_tx_data_instalacao', 'desc')
+            ->limit(100)
+            ->get();
+
+        $filtrosPendentes = EpiFiltro::with(['colaborador', 'tipo', 'epi'])
+            ->where('ss_ef_tx_requer_assinatura', true)
+            ->where('ss_ef_tx_status_assinatura', 'pendente')
+            ->where('ss_ef_tx_status', 'ativo')
+            ->orderBy('ss_ef_tx_data_instalacao', 'desc')
+            ->limit(100)
+            ->get();
+
+        return view('epi.gestao_assinaturas', compact(
+            'assinadas',
+            'negadas',
+            'pendentes',
+            'filtrosAssinadas',
+            'filtrosNegadas',
+            'filtrosPendentes'
+        ));
     }
 
     /**

@@ -6,6 +6,44 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.77] - 2026-10-16
+
+### Adicionado
+- **Filtros de máscara no módulo de EPI** (filtros de reposição de respiradores,
+  que **não são EPIs**): nova aba "Filtros de Máscara" com mini-catálogo de tipos
+  de filtro (nome, fabricante, nº CA e duração padrão em dias), lançamento do
+  filtro vinculado à máscara (entrega ativa do colaborador), quantidade com
+  padrão de **1 par (2 unidades)**, data de instalação e **data de vencimento**
+  com sugestão automática pela duração do tipo.
+- **Alertas de vencimento dos filtros** (vencidos e vencendo em 30 dias): bloco
+  no painel de monitoramento com **botão para ocultar/exibir somente os alertas
+  de filtros** (preferência salva no navegador), 2 KPIs ("Filtros vencidos" e
+  "Filtros vencem em 30d"), badge na aba e coluna "Falta p/ troca" (dias
+  restantes) na lista de filtros ativos.
+- **Descarte do filtro** com motivo (vencido, danificado, substituição, perda,
+  outro), data e observação, com histórico auditável. A máscara do colaborador
+  **nunca é alterada**: sem devolução e sem movimentação de estoque. Inclui
+  exclusão de lançamento para correção de erro.
+- **Assinatura dos filtros na mesma regra das entregas de EPI**: o gestor apenas
+  vincula o filtro (sem coleta no ato) e o vínculo já entra como **assinatura
+  pendente**; o colaborador recebe a **notificação no sino do topo** (a
+  contagem agora soma entregas e filtros pendentes) e assina em
+  `/epi/assinaturas`, onde os itens recebidos ficam listados. Na Gestão de
+  Assinaturas o gestor pode reenviar (volta a pendente) ou cancelar (descarta o
+  filtro).
+- Correção de **colaboradores duplicados** no módulo de EPI: a sincronização de
+  usuários (`syncColaboradoresFromUsers`) agora ignora usuários sem CPF e
+  normaliza/mescla CPFs formatados, e a listagem do módulo deduplica registros
+  legados repetidos (mantendo o registro com entregas).
+- Exibição dos filtros na **ficha individual** (impressão NR-06), na **ficha
+  pública (QR Code)** e na API mobile (`GET /api/v1/epi/ficha/me`).
+- Novas tabelas `ss_epi_filtro_tipo` e `ss_epi_filtro` (multi-tenant,
+  auditáveis) e rotas de filtros sob o módulo `epi` (`permission:epi`).
+
+### Notas de deploy
+- Rodar `php artisan migrate --force` (novas tabelas `ss_epi_filtro_tipo` e
+  `ss_epi_filtro`).
+
 ## [2.0.76] - 2026-10-16
 
 ### Adicionado
