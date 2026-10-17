@@ -54,6 +54,11 @@ class EpiEntrega extends Model
         return $this->belongsTo(EpiVariacao::class, 'ss_e_nb_variacao_id', 'ss_ev_nb_id');
     }
 
+    public function filtros()
+    {
+        return $this->hasMany(EpiFiltro::class, 'ss_ef_nb_entrega_id', 'ss_e_nb_id');
+    }
+
     public function scopePendentesAssinatura($query, $colaboradorId)
     {
         return $query->where('ss_e_nb_colaborador_id', $colaboradorId)

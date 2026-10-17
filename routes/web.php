@@ -16,6 +16,7 @@ use App\Http\Controllers\CertificateManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeFichaController;
 use App\Http\Controllers\EpiController;
+use App\Http\Controllers\EpiFiltroController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfilePhotoController;
@@ -91,9 +92,19 @@ Route::middleware('auth')->group(function () {
         Route::post('/filiais/{id}/toggle', [EpiController::class, 'filialToggleStatus'])->name('epi.filiais.toggle');
         Route::delete('/filiais/{id}', [EpiController::class, 'filialDestroy'])->name('epi.filiais.destroy');
 
+        // Filtros de Máscara (respiradores) - não são EPIs: sem estoque e sem devolução
+        Route::post('/filtros', [EpiFiltroController::class, 'store'])->name('epi.filtros.store');
+        Route::post('/filtros/{id}/vencimento', [EpiFiltroController::class, 'editarVencimento'])->name('epi.filtros.vencimento');
+        Route::post('/filtros/{id}/descartar', [EpiFiltroController::class, 'descartar'])->name('epi.filtros.descartar');
+        Route::delete('/filtros/{id}', [EpiFiltroController::class, 'destroy'])->name('epi.filtros.destroy');
+        Route::post('/filtros/tipos', [EpiFiltroController::class, 'tipoStore'])->name('epi.filtros.tipos.store');
+        Route::post('/filtros/tipos/{id}/toggle', [EpiFiltroController::class, 'tipoToggle'])->name('epi.filtros.tipos.toggle');
+        Route::delete('/filtros/tipos/{id}', [EpiFiltroController::class, 'tipoDestroy'])->name('epi.filtros.tipos.destroy');
+
         // Gestão de Assinaturas (apenas gestores)
         Route::get('/gestao-assinaturas', [EpiController::class, 'gestaoAssinaturas'])->name('epi.gestao-assinaturas');
         Route::post('/gestao-assinaturas/{id}/alterar', [EpiController::class, 'alterarEntrega'])->name('epi.gestao-assinaturas.alterar');
+        Route::post('/gestao-assinaturas/filtro/{id}/alterar', [EpiFiltroController::class, 'alterarFiltro'])->name('epi.gestao-assinaturas.filtro.alterar');
     });
 
     // Assinatura Digital do Colaborador (acessível a qualquer usuário autenticado)
@@ -101,6 +112,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/assinaturas', [EpiController::class, 'pendentesAssinatura'])->name('epi.assinaturas');
         Route::post('/assinaturas/{id}/assinar', [EpiController::class, 'assinarEntrega'])->name('epi.assinaturas.assinar');
         Route::post('/assinaturas/{id}/negar', [EpiController::class, 'negarAssinatura'])->name('epi.assinaturas.negar');
+        Route::post('/assinaturas/filtro/{id}/assinar', [EpiFiltroController::class, 'assinar'])->name('epi.assinaturas.filtro.assinar');
+        Route::post('/assinaturas/filtro/{id}/negar', [EpiFiltroController::class, 'negar'])->name('epi.assinaturas.filtro.negar');
     });
 
     // Perfil do Usuário

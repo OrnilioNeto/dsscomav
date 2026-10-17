@@ -193,11 +193,19 @@
                 <div class="text-2xl font-bold text-violet-700">{{ $devolucoesPendentesCount }}</div>
                 <div class="text-[10px] font-bold text-violet-600 uppercase mt-0.5">Pendências de inspeção</div>
             </div>
+            <div class="bg-rose-50 p-3 rounded-xl border border-rose-100 text-center">
+                <div class="text-2xl font-bold text-rose-700">{{ $filtrosVencidosCount }}</div>
+                <div class="text-[10px] font-bold text-rose-600 uppercase mt-0.5">Filtros vencidos</div>
+            </div>
+            <div class="bg-amber-50 p-3 rounded-xl border border-amber-100 text-center">
+                <div class="text-2xl font-bold text-amber-800">{{ $filtrosVencendoCount }}</div>
+                <div class="text-[10px] font-bold text-amber-700 uppercase mt-0.5">Filtros vencem em 30d</div>
+            </div>
         </div>
 
-        @if($episCaProblema->isEmpty() && $episVidaUtilProblema->isEmpty() && $entregasAlerta->isEmpty())
+        @if($episCaProblema->isEmpty() && $episVidaUtilProblema->isEmpty() && $entregasAlerta->isEmpty() && $filtrosAlerta->isEmpty())
             <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-700 text-sm font-semibold">
-                <i class="fas fa-check-circle mr-1"></i> Nenhum alerta: todos os CAs estão em dia, a vida útil está configurada e não há entregas vencidas ou vencendo.
+                <i class="fas fa-check-circle mr-1"></i> Nenhum alerta: todos os CAs estão em dia, a vida útil está configurada e não há entregas nem filtros de máscara vencidos ou vencendo.
             </div>
         @else
             <div class="space-y-4">
@@ -352,6 +360,69 @@
                         </div>
                     </div>
                 @endif
+
+                <!-- Tabela: Filtros de máscara vencidos ou vencendo (com botão de ocultar/exibir) -->
+                @if($filtrosAlerta->isNotEmpty())
+                    <div class="border border-cyan-200 rounded-lg overflow-hidden" id="bloco-alerta-filtros">
+                        <div class="bg-cyan-50 px-4 py-2.5 flex items-center justify-between flex-wrap gap-2">
+                            <span class="text-xs font-bold text-cyan-800 uppercase"><i class="fas fa-head-side-mask mr-1"></i> Filtros de máscara vencidos ou vencendo em 30 dias ({{ $filtrosAlerta->count() }})</span>
+                            <button type="button" id="btn-toggle-alerta-filtros" onclick="alternarAlertaFiltros()" class="text-[10px] font-bold text-cyan-700 hover:text-cyan-900 cursor-pointer px-2.5 py-1 bg-white border border-cyan-200 rounded-lg">
+                                <i class="fas fa-eye-slash mr-1"></i> <span id="texto-toggle-alerta-filtros">Ocultar alertas de filtros</span>
+                            </button>
+                        </div>
+                        <div id="corpo-alerta-filtros">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left font-bold text-gray-500">Colaborador</th>
+                                            <th class="px-3 py-2 text-left font-bold text-gray-500">Filtro</th>
+                                            <th class="px-3 py-2 text-left font-bold text-gray-500">Máscara</th>
+                                            <th class="px-3 py-2 text-center font-bold text-gray-500">Instalação</th>
+                                            <th class="px-3 py-2 text-center font-bold text-gray-500">Vencimento</th>
+                                            <th class="px-3 py-2 text-center font-bold text-gray-500">Situação</th>
+                                            <th class="px-3 py-2 text-center font-bold text-gray-500">Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        @foreach($filtrosAlerta as $flt)
+                                            @php $diasAlertaFiltro = (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($flt->ss_ef_tx_vencimento)->startOfDay(), false); @endphp
+                                            <tr class="hover:bg-gray-50">
+                                                <td class="px-3 py-2 font-bold text-gray-900">{{ $flt->colaborador->ss_c_tx_nome ?? 'N/D' }}</td>
+                                                <td class="px-3 py-2 font-semibold text-cyan-900">
+                                                    {{ $flt->ss_ef_tx_tipo_nome }}
+                                                    @if($flt->ss_ef_tx_ca)
+                                                        <span class="text-gray-400 font-normal">(CA {{ $flt->ss_ef_tx_ca }})</span>
+                                                    @endif
+                                                </td>
+                                                <td class="px-3 py-2 text-gray-700">{{ $flt->epi->ss_e_tx_item ?? 'Máscara N/D' }}</td>
+                                                <td class="px-3 py-2 text-center text-gray-600">{{ $flt->ss_ef_tx_data_instalacao ? date('d/m/Y', strtotime($flt->ss_ef_tx_data_instalacao)) : '-' }}</td>
+                                                <td class="px-3 py-2 text-center text-gray-600">{{ $flt->ss_ef_tx_vencimento ? date('d/m/Y', strtotime($flt->ss_ef_tx_vencimento)) : '-' }}</td>
+                                                <td class="px-3 py-2 text-center">
+                                                    @if($diasAlertaFiltro < 0)
+                                                        <span class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Vencido</span>
+                                                    @elseif($diasAlertaFiltro === 0)
+                                                        <span class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Vence hoje</span>
+                                                    @else
+                                                        <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">Vence em 30 dias</span>
+                                                    @endif
+                                                </td>
+                                                <td class="px-3 py-2 text-center whitespace-nowrap">
+                                                    <button onclick="abrirModalVencimentoFiltro({{ $flt->ss_ef_nb_id }}, '{{ addslashes($flt->ss_ef_tx_tipo_nome) }}', '{{ $flt->ss_ef_tx_vencimento ?? '' }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
+                                                        <i class="fas fa-calendar-alt mr-1"></i> Editar Vencimento
+                                                    </button>
+                                                    <button onclick="abrirModalDescarteFiltro({{ $flt->ss_ef_nb_id }}, '{{ addslashes($flt->ss_ef_tx_tipo_nome) }}')" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold cursor-pointer" title="Descartar apenas o filtro (a máscara não é alterada)">
+                                                        <i class="fas fa-trash-alt mr-1"></i> Descartar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
 
@@ -469,6 +540,12 @@
                 <i class="fas fa-undo-alt mr-2"></i> Devoluções & Inspeção
                 @if($devolucoesPendentesCount > 0)
                     <span class="ml-1.5 px-1.5 py-0.5 bg-rose-500 text-white text-[10px] font-bold rounded-full">{{ $devolucoesPendentesCount }}</span>
+                @endif
+            </button>
+            <button type="button" onclick="mudarAba('filtros')" id="tab-btn-filtros" class="nav-tab-btn px-5 py-3 text-sm flex items-center cursor-pointer">
+                <i class="fas fa-head-side-mask mr-2"></i> Filtros de Máscara
+                @if($filtrosAlerta->isNotEmpty())
+                    <span class="ml-1.5 px-1.5 py-0.5 bg-rose-500 text-white text-[10px] font-bold rounded-full" title="Filtros vencidos ou vencendo em 30 dias">{{ $filtrosAlerta->count() }}</span>
                 @endif
             </button>
             <a href="{{ route('epi.gestao-assinaturas') }}" class="nav-tab-btn px-5 py-3 text-sm flex items-center text-emerald-700 hover:text-emerald-900 cursor-pointer">
@@ -1731,6 +1808,171 @@
                 </div>
             </div>
 
+            <!-- ABA: FILTROS DE MÁSCARA (RESPIRADORES) -->
+            <div id="tab-content-filtros" class="aba-content hidden">
+                <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900 flex items-center">
+                            <i class="fas fa-head-side-mask text-cyan-700 mr-2"></i> Filtros de Máscara (Respiradores)
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-1 max-w-2xl">Controle dos filtros instalados nas máscaras que estão com os colaboradores. Filtros <strong>não são EPIs</strong>: o descarte encerra apenas o filtro e nunca altera a máscara, a entrega ou o estoque.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="abrirModalTiposFiltro()" class="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-xs font-bold shadow cursor-pointer">
+                            <i class="fas fa-cog mr-1"></i> Tipos de Filtro
+                        </button>
+                        <button type="button" onclick="abrirModalVincularFiltro()" class="px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg text-xs font-bold shadow cursor-pointer">
+                            <i class="fas fa-plus-circle mr-1"></i> Vincular Filtro
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between flex-wrap gap-2">
+                        <span class="text-xs font-bold text-gray-700 uppercase"><i class="fas fa-list-ul mr-1"></i> Filtros ativos ({{ $filtrosAtivos->count() }})</span>
+                        <span class="text-[10px] text-gray-500 font-semibold">Alerta de vencimento: 30 dias antes</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-xs">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-bold text-gray-500">Colaborador</th>
+                                    <th class="px-3 py-2 text-left font-bold text-gray-500">Máscara</th>
+                                    <th class="px-3 py-2 text-left font-bold text-gray-500">Filtro</th>
+                                    <th class="px-3 py-2 text-center font-bold text-gray-500">Qtd</th>
+                                    <th class="px-3 py-2 text-center font-bold text-gray-500">Instalação</th>
+                                    <th class="px-3 py-2 text-center font-bold text-gray-500">Vencimento</th>
+                                    <th class="px-3 py-2 text-center font-bold text-gray-500">Falta p/ troca</th>
+                                    <th class="px-3 py-2 text-center font-bold text-gray-500">Situação</th>
+                                    <th class="px-3 py-2 text-center font-bold text-gray-500">Assinatura</th>
+                                    <th class="px-3 py-2 text-center font-bold text-gray-500">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @forelse($filtrosAtivos as $flt)
+                                    @php
+                                        $diasRestantesFiltro = (int) now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($flt->ss_ef_tx_vencimento)->startOfDay(), false);
+                                    @endphp
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-2 font-bold text-gray-900">{{ $flt->colaborador->ss_c_tx_nome ?? 'N/D' }}</td>
+                                        <td class="px-3 py-2 text-gray-700">
+                                            {{ $flt->epi->ss_e_tx_item ?? 'Máscara N/D' }}
+                                            @if($flt->epi && $flt->epi->ss_e_tx_ca)
+                                                <span class="text-gray-400 font-normal">(CA {{ $flt->epi->ss_e_tx_ca }})</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 font-semibold text-cyan-900">
+                                            {{ $flt->ss_ef_tx_tipo_nome }}
+                                            @if($flt->ss_ef_tx_ca)
+                                                <span class="text-gray-400 font-normal">(CA {{ $flt->ss_ef_tx_ca }})</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-center font-bold text-gray-800">{{ $flt->ss_ef_nb_quantidade }}</td>
+                                        <td class="px-3 py-2 text-center text-gray-600">{{ $flt->ss_ef_tx_data_instalacao ? date('d/m/Y', strtotime($flt->ss_ef_tx_data_instalacao)) : '-' }}</td>
+                                        <td class="px-3 py-2 text-center text-gray-600">{{ $flt->ss_ef_tx_vencimento ? date('d/m/Y', strtotime($flt->ss_ef_tx_vencimento)) : '-' }}</td>
+                                        <td class="px-3 py-2 text-center font-bold {{ $diasRestantesFiltro < 0 ? 'text-rose-600' : ($diasRestantesFiltro <= 30 ? 'text-amber-700' : 'text-emerald-700') }}">
+                                            @if($diasRestantesFiltro === 0)
+                                                Vence hoje
+                                            @elseif($diasRestantesFiltro > 0)
+                                                Faltam {{ $diasRestantesFiltro }} {{ $diasRestantesFiltro === 1 ? 'dia' : 'dias' }}
+                                            @else
+                                                Vencido há {{ abs($diasRestantesFiltro) }} {{ abs($diasRestantesFiltro) === 1 ? 'dia' : 'dias' }}
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-center">
+                                            @if($diasRestantesFiltro < 0)
+                                                <span class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Vencido</span>
+                                            @elseif($diasRestantesFiltro === 0)
+                                                <span class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold">Vence hoje</span>
+                                            @elseif($diasRestantesFiltro <= 30)
+                                                <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">Vence em 30 dias</span>
+                                            @else
+                                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold">Em dia</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-center">
+                                            @if($flt->ss_ef_tx_assinatura || $flt->ss_ef_tx_status_assinatura === 'assinada')
+                                                <button onclick="verAssinaturaFiltro('{{ $flt->ss_ef_tx_assinatura }}')" class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px] font-bold cursor-pointer"><i class="fas fa-signature mr-1"></i> Ver</button>
+                                            @elseif($flt->ss_ef_tx_status_assinatura === 'negada')
+                                                <span class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold" title="Assinatura recusada">Negada</span>
+                                            @else
+                                                <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold" title="O colaborador assina na página de assinaturas">Pendente</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-center whitespace-nowrap">
+                                            <button onclick="abrirModalVencimentoFiltro({{ $flt->ss_ef_nb_id }}, '{{ addslashes($flt->ss_ef_tx_tipo_nome) }}', '{{ $flt->ss_ef_tx_vencimento ?? '' }}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer" title="Editar data de vencimento">
+                                                <i class="fas fa-calendar-alt mr-1"></i> Vencimento
+                                            </button>
+                                            <button onclick="abrirModalDescarteFiltro({{ $flt->ss_ef_nb_id }}, '{{ addslashes($flt->ss_ef_tx_tipo_nome) }}')" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold cursor-pointer" title="Descartar apenas o filtro (a máscara não é alterada)">
+                                                <i class="fas fa-trash-alt mr-1"></i> Descartar
+                                            </button>
+                                            <button onclick="excluirFiltro({{ $flt->ss_ef_nb_id }})" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold cursor-pointer" title="Excluir lançamento (correção de erro)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="10" class="px-3 py-6 text-center text-gray-400 font-semibold">Nenhum filtro de máscara ativo. Use o botão "Vincular Filtro" para lançar.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Histórico de descartes -->
+                <div class="mt-4">
+                    <button type="button" onclick="toggleFiltrosDescartados()" class="text-xs font-bold text-gray-600 hover:text-gray-900 cursor-pointer">
+                        <i class="fas fa-history mr-1"></i> <span id="texto-toggle-descartados-filtro">Exibir</span> histórico de descartes ({{ $filtrosDescartados->count() }})
+                    </button>
+                    <div id="filtros-descartados-tabela" class="hidden mt-3 border border-gray-200 rounded-lg overflow-hidden">
+                        <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Colaborador</th>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Filtro</th>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-500">Máscara</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Qtd</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Instalação</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Vencimento</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Motivo</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Descarte</th>
+                                        <th class="px-3 py-2 text-center font-bold text-gray-500">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @forelse($filtrosDescartados as $flt)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-3 py-2 font-bold text-gray-900">{{ $flt->colaborador->ss_c_tx_nome ?? 'N/D' }}</td>
+                                            <td class="px-3 py-2 font-semibold text-cyan-900">{{ $flt->ss_ef_tx_tipo_nome }}</td>
+                                            <td class="px-3 py-2 text-gray-700">{{ $flt->epi->ss_e_tx_item ?? 'Máscara N/D' }}</td>
+                                            <td class="px-3 py-2 text-center font-bold text-gray-800">{{ $flt->ss_ef_nb_quantidade }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ $flt->ss_ef_tx_data_instalacao ? date('d/m/Y', strtotime($flt->ss_ef_tx_data_instalacao)) : '-' }}</td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ $flt->ss_ef_tx_vencimento ? date('d/m/Y', strtotime($flt->ss_ef_tx_vencimento)) : '-' }}</td>
+                                            <td class="px-3 py-2 text-center">
+                                                <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">{{ $flt->motivo_descarte_label ?? 'Descartado' }}</span>
+                                            </td>
+                                            <td class="px-3 py-2 text-center text-gray-600">{{ $flt->ss_ef_tx_data_descarte ? date('d/m/Y', strtotime($flt->ss_ef_tx_data_descarte)) : '-' }}</td>
+                                            <td class="px-3 py-2 text-center">
+                                                <button onclick="excluirFiltro({{ $flt->ss_ef_nb_id }})" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold cursor-pointer" title="Excluir lançamento (correção de erro)">
+                                                    <i class="fas fa-trash mr-1"></i> Excluir
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="9" class="px-3 py-6 text-center text-gray-400 font-semibold">Nenhum filtro descartado até o momento.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -2216,6 +2458,223 @@
         </div>
     </div>
 </div>
+
+<!-- MODAL: VINCULAR FILTRO À MÁSCARA (RESPIRADOR) -->
+<div id="modal-vincular-filtro" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+        <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fas fa-head-side-mask text-cyan-700 mr-2"></i> Vincular Filtro à Máscara
+        </h3>
+        <p class="text-xs text-gray-600 mb-4">Escolha o colaborador, a máscara (entrega ativa de EPI), o tipo de filtro e o vencimento. O filtro entra como assinatura pendente — igual às entregas de EPI — e o colaborador assina na página de assinaturas.</p>
+
+        <form id="form-vincular-filtro" onsubmit="return false;">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Colaborador *</label>
+                    <select id="flt-colaborador" onchange="carregarEntregasFiltro(this.value)" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                        <option value="">-- Selecione o Colaborador --</option>
+                        @foreach($colaboradores as $c)
+                            <option value="{{ $c->ss_c_nb_id }}">{{ $c->ss_c_tx_nome }} ({{ $c->ss_c_tx_cargo ?? 'Sem Cargo' }} - Mat: {{ $c->ss_c_tx_matricula ?? 'S/N' }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Máscara (entrega ativa do colaborador) *</label>
+                    <select id="flt-entrega" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                        <option value="">-- Selecione a máscara --</option>
+                    </select>
+                    <div id="flt-entrega-info" class="text-[10px] text-gray-400 mt-1"></div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Tipo de Filtro *</label>
+                    <select id="flt-tipo" onchange="atualizarVencimentoSugeridoFiltro(true)" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                        <option value="">-- Selecione o tipo --</option>
+                        @foreach($tiposFiltro->where('ss_eft_tx_status', 'ativo') as $t)
+                            <option value="{{ $t->ss_eft_nb_id }}" data-vida-util="{{ (int) $t->ss_eft_nb_vida_util_dias }}">
+                                {{ $t->ss_eft_tx_nome }}@if($t->ss_eft_tx_ca) (CA {{ $t->ss_eft_tx_ca }})@endif
+                            </option>
+                        @endforeach
+                    </select>
+                    @if($tiposFiltro->where('ss_eft_tx_status', 'ativo')->isEmpty())
+                        <div class="text-[10px] text-amber-700 mt-1"><i class="fas fa-info-circle mr-1"></i>Nenhum tipo ativo. Cadastre um tipo em "Tipos de Filtro".</div>
+                    @endif
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Quantidade (1 par = 2) *</label>
+                    <input type="number" id="flt-quantidade" min="1" max="99" value="2" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Instalação *</label>
+                    <input type="date" id="flt-data-instalacao" value="{{ date('Y-m-d') }}" onchange="atualizarVencimentoSugeridoFiltro(true)" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Data de Vencimento *</label>
+                    <input type="date" id="flt-vencimento" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                    <div class="text-[10px] text-gray-400 mt-1">Sugerida pela duração padrão do tipo; ajuste se necessário.</div>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Observação</label>
+                    <textarea id="flt-observacao" rows="2" class="w-full text-xs border-gray-300 rounded-lg shadow-sm" placeholder="Ex: Filtro instalado no ato da entrega da máscara..."></textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 p-2.5 rounded-lg">
+                        <i class="fas fa-info-circle mr-1"></i> A assinatura será coletada diretamente pelo colaborador no sistema: ele recebe a notificação no sino do topo e assina na página de assinaturas, onde os itens recebidos ficam listados.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" onclick="fecharModalVincularFiltro()" class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300">Cancelar</button>
+                <button type="button" onclick="salvarVincularFiltro()" class="px-5 py-2 bg-cyan-700 text-white text-xs font-bold rounded-lg hover:bg-cyan-800 shadow">
+                    <i class="fas fa-check-circle mr-1"></i> Vincular Filtro (Sem Assinatura)
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: DESCARTAR FILTRO (SOMENTE O FILTRO) -->
+<div id="modal-descarte-filtro" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fas fa-trash-alt text-amber-600 mr-2"></i> Descartar Filtro
+        </h3>
+        <p id="desc-descarte-filtro" class="text-xs text-gray-600 mb-4"></p>
+
+        <form id="form-descarte-filtro" onsubmit="return false;">
+            <div class="mb-3">
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Motivo do descarte *</label>
+                <select id="flt-descarte-motivo" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                    @foreach(\App\Models\EpiFiltro::MOTIVOS_DESCARTE as $chave => $rotulo)
+                        <option value="{{ $chave }}">{{ $rotulo }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Data do descarte *</label>
+                <input type="date" id="flt-descarte-data" value="{{ date('Y-m-d') }}" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+            </div>
+            <div class="mb-3">
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Observação</label>
+                <textarea id="flt-descarte-obs" rows="2" class="w-full text-xs border-gray-300 rounded-lg shadow-sm" placeholder="Ex: Filtro vencido, substituído por par novo..."></textarea>
+            </div>
+            <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                <i class="fas fa-info-circle mr-1"></i> O descarte encerra <strong>apenas o filtro</strong>. A máscara do colaborador permanece ativa e não há movimentação de estoque.
+            </p>
+
+            <div class="flex justify-end space-x-3 mt-5">
+                <button type="button" onclick="fecharModalDescarteFiltro()" class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300">Cancelar</button>
+                <button type="button" onclick="salvarDescarteFiltro()" class="px-5 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 shadow">Descartar Filtro</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR VENCIMENTO DO FILTRO -->
+<div id="modal-vencimento-filtro" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fas fa-calendar-alt text-blue-600 mr-2"></i> Editar Vencimento do Filtro
+        </h3>
+        <p id="desc-vencimento-filtro" class="text-xs text-gray-600 mb-4"></p>
+
+        <form id="form-vencimento-filtro" onsubmit="return false;">
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nova Data de Vencimento *</label>
+                <input type="date" id="input-vencimento-filtro" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" onclick="fecharModalVencimentoFiltro()" class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300">Cancelar</button>
+                <button type="button" onclick="salvarVencimentoFiltro()" class="px-5 py-2 bg-blue-700 text-white text-xs font-bold rounded-lg hover:bg-blue-800 shadow">Salvar Vencimento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: TIPOS DE FILTRO (MINI-CATÁLOGO) -->
+<div id="modal-tipos-filtro" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+        <h3 class="text-lg font-bold text-gray-900 mb-2 flex items-center">
+            <i class="fas fa-cog text-gray-700 mr-2"></i> Tipos de Filtro
+        </h3>
+        <p class="text-xs text-gray-600 mb-4">Mini-catálogo dos filtros usados nas máscaras. A duração padrão (dias) sugere automaticamente a data de vencimento no lançamento.</p>
+
+        <div class="border border-gray-200 rounded-lg overflow-hidden mb-5">
+            <div class="overflow-x-auto max-h-[300px] overflow-y-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-bold text-gray-500">Nome</th>
+                            <th class="px-3 py-2 text-left font-bold text-gray-500">Fabricante</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">CA</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Duração (dias)</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Status</th>
+                            <th class="px-3 py-2 text-center font-bold text-gray-500">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @forelse($tiposFiltro as $t)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-3 py-2 font-bold text-gray-900">{{ $t->ss_eft_tx_nome }}</td>
+                                <td class="px-3 py-2 text-gray-600">{{ $t->ss_eft_tx_fabricante ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center text-gray-600">{{ $t->ss_eft_tx_ca ?? '-' }}</td>
+                                <td class="px-3 py-2 text-center text-gray-600">{{ (int) $t->ss_eft_nb_vida_util_dias > 0 ? $t->ss_eft_nb_vida_util_dias : 'Não definida' }}</td>
+                                <td class="px-3 py-2 text-center">
+                                    @if($t->ss_eft_tx_status === 'ativo')
+                                        <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[10px] font-bold">Ativo</span>
+                                    @else
+                                        <span class="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-[10px] font-bold">Inativo</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-center whitespace-nowrap">
+                                    <button onclick="toggleTipoFiltro({{ $t->ss_eft_nb_id }})" class="px-2 py-1 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-[10px] font-bold cursor-pointer mr-1">
+                                        {{ $t->ss_eft_tx_status === 'ativo' ? 'Inativar' : 'Ativar' }}
+                                    </button>
+                                    <button onclick="excluirTipoFiltro({{ $t->ss_eft_nb_id }})" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold cursor-pointer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-3 py-6 text-center text-gray-400 font-semibold">Nenhum tipo de filtro cadastrado ainda.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h4 class="text-xs font-bold text-gray-700 uppercase mb-2"><i class="fas fa-plus-circle mr-1"></i> Cadastrar novo tipo</h4>
+        <form id="form-tipo-filtro" onsubmit="return false;">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nome do Filtro *</label>
+                    <input type="text" id="tipo-filtro-nome" class="w-full text-xs border-gray-300 rounded-lg shadow-sm" placeholder="Ex: Filtro P3 para respirador semifacial">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Fabricante / Marca</label>
+                    <input type="text" id="tipo-filtro-fabricante" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nº CA</label>
+                    <input type="text" id="tipo-filtro-ca" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Duração padrão (dias)</label>
+                    <input type="number" id="tipo-filtro-vida-util" min="0" max="3650" value="0" class="w-full text-xs border-gray-300 rounded-lg shadow-sm">
+                    <div class="text-[10px] text-gray-400 mt-1">Usada para sugerir o vencimento no lançamento. 0 = sem sugestão (preencher a data manualmente).</div>
+                </div>
+            </div>
+
+            <div class="mt-5 flex justify-end space-x-3">
+                <button type="button" onclick="fecharModalTiposFiltro()" class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300">Fechar</button>
+                <button type="button" onclick="salvarTipoFiltro()" class="px-5 py-2 bg-gray-800 text-white text-xs font-bold rounded-lg hover:bg-gray-900 shadow">Cadastrar Tipo</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @section('extra_js')
@@ -2268,7 +2727,7 @@
 
     // Função global de troca de abas
     window.mudarAba = function(nomeAba) {
-        var abas = ['sacola', 'catalogo', 'estoque', 'fardamento', 'kits', 'fichas', 'filiais', 'devolucoes'];
+        var abas = ['sacola', 'catalogo', 'estoque', 'fardamento', 'kits', 'fichas', 'filiais', 'devolucoes', 'filtros'];
         abas.forEach(function(aba) {
             var content = document.getElementById('tab-content-' + aba);
             var btn = document.getElementById('tab-btn-' + aba);
@@ -2324,11 +2783,14 @@
         // Restaura a aba ativa vinda da URL (ex: filtro aplicado no catálogo)
         try {
             var abaUrl = new URLSearchParams(window.location.search).get('tab');
-            var abasValidas = ['sacola', 'catalogo', 'estoque', 'fardamento', 'kits', 'fichas', 'filiais', 'devolucoes'];
+            var abasValidas = ['sacola', 'catalogo', 'estoque', 'fardamento', 'kits', 'fichas', 'filiais', 'devolucoes', 'filtros'];
             if (abaUrl && abasValidas.indexOf(abaUrl) !== -1) {
                 window.mudarAba(abaUrl);
             }
         } catch (e) {}
+
+        // Restaura a visibilidade dos alertas de filtros (preferência local do usuário)
+        aplicarPreferenciaAlertaFiltros();
     });
 
     function atualizarFilialGlobal(filialId) {
@@ -4053,5 +4515,417 @@
         var semRegistro = document.getElementById('mov-sem-registro');
         if (semRegistro) semRegistro.classList.toggle('hidden', rows.length > 1);
     }
+
+    // ===== FILTROS DE MÁSCARA (RESPIRADORES) =====
+    // Filtros não são EPIs: nenhuma ação daqui movimenta estoque, cria devolução
+    // ou altera a entrega da máscara do colaborador. A assinatura segue a regra
+    // das entregas de EPI: fica pendente e o colaborador assina na página de
+    // assinaturas (notificação no sino do topo).
+    let filtroEmDescarte = null;
+    let filtroEmVencimento = null;
+
+    function recarregarAbaFiltros() {
+        try {
+            var url = new URL(window.location.href);
+            url.searchParams.set('tab', 'filtros');
+            window.location.href = url.toString();
+        } catch (e) {
+            window.location.reload();
+        }
+    }
+
+    // Alerta de filtros no topo: botão de ocultar/exibir (preferência local)
+    function aplicarPreferenciaAlertaFiltros() {
+        var corpo = document.getElementById('corpo-alerta-filtros');
+        if (!corpo) return;
+        var oculto = false;
+        try { oculto = localStorage.getItem('epi_alerta_filtros_oculto') === '1'; } catch (e) {}
+        corpo.classList.toggle('hidden', oculto);
+        var texto = document.getElementById('texto-toggle-alerta-filtros');
+        if (texto) texto.textContent = oculto ? 'Exibir alertas de filtros' : 'Ocultar alertas de filtros';
+        var btn = document.getElementById('btn-toggle-alerta-filtros');
+        if (btn) {
+            var icone = btn.querySelector('i');
+            if (icone) icone.className = oculto ? 'fas fa-eye mr-1' : 'fas fa-eye-slash mr-1';
+        }
+    }
+
+    window.alternarAlertaFiltros = function() {
+        var corpo = document.getElementById('corpo-alerta-filtros');
+        if (!corpo) return;
+        var ocultar = !corpo.classList.contains('hidden');
+        try { localStorage.setItem('epi_alerta_filtros_oculto', ocultar ? '1' : '0'); } catch (e) {}
+        aplicarPreferenciaAlertaFiltros();
+    };
+
+    window.toggleFiltrosDescartados = function() {
+        var tabela = document.getElementById('filtros-descartados-tabela');
+        var texto = document.getElementById('texto-toggle-descartados-filtro');
+        if (!tabela) return;
+        var mostrar = tabela.classList.contains('hidden');
+        tabela.classList.toggle('hidden', !mostrar);
+        if (texto) texto.textContent = mostrar ? 'Ocultar' : 'Exibir';
+    };
+
+    window.verAssinaturaFiltro = function(base64) {
+        if (!base64) {
+            Swal.fire('Atenção', 'Este filtro ainda não possui assinatura registrada.', 'info');
+            return;
+        }
+        Swal.fire({ title: 'Assinatura Digital (Filtro)', imageUrl: base64, imageAlt: 'Assinatura', confirmButtonText: 'Fechar' });
+    };
+
+    // ----- Modal: vincular filtro -----
+    window.abrirModalVincularFiltro = function() {
+        var modal = document.getElementById('modal-vincular-filtro');
+        if (!modal) return;
+        var selColab = document.getElementById('flt-colaborador');
+        if (selColab) selColab.value = '';
+        var selEntrega = document.getElementById('flt-entrega');
+        if (selEntrega) selEntrega.innerHTML = '<option value="">-- Selecione a máscara --</option>';
+        var info = document.getElementById('flt-entrega-info');
+        if (info) info.textContent = '';
+        var selTipo = document.getElementById('flt-tipo');
+        if (selTipo) selTipo.value = '';
+        var qtd = document.getElementById('flt-quantidade');
+        if (qtd) qtd.value = '2';
+        var dtInst = document.getElementById('flt-data-instalacao');
+        if (dtInst) dtInst.value = new Date().toISOString().slice(0, 10);
+        var venc = document.getElementById('flt-vencimento');
+        if (venc) venc.value = '';
+        var obs = document.getElementById('flt-observacao');
+        if (obs) obs.value = '';
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    window.fecharModalVincularFiltro = function() {
+        var modal = document.getElementById('modal-vincular-filtro');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.setProperty('display', 'none', 'important');
+        }
+    };
+
+    window.carregarEntregasFiltro = function(colaboradorId) {
+        var sel = document.getElementById('flt-entrega');
+        var info = document.getElementById('flt-entrega-info');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-- Selecione a máscara --</option>';
+        if (info) info.textContent = '';
+        if (!colaboradorId) return;
+
+        if (info) info.textContent = 'Carregando entregas ativas...';
+
+        fetch('{{ url("/epi/colaborador") }}/' + colaboradorId + '/entregas', { headers: { 'Accept': 'application/json' } })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (!res || res.status !== 'success') {
+                    if (info) info.textContent = 'Falha ao carregar as entregas do colaborador.';
+                    return;
+                }
+                var dados = res.data || [];
+                if (!dados.length) {
+                    if (info) info.textContent = 'Este colaborador não possui entregas ativas.';
+                    return;
+                }
+                dados.forEach(function(ent) {
+                    var texto = ent.item || 'EPI';
+                    if (ent.variacao) texto += ' / ' + ent.variacao;
+                    if (ent.ca) texto += ' (CA ' + ent.ca + ')';
+                    texto += ' — entrega ' + (ent.data_entrega || '-');
+                    var grupoTxt = ((ent.grupo || '') + ' ' + (ent.subgrupo || '') + ' ' + (ent.item || '')).toLowerCase();
+                    if (grupoTxt.indexOf('respir') !== -1 || grupoTxt.indexOf('máscara') !== -1 || grupoTxt.indexOf('mascara') !== -1) {
+                        texto += ' [Máscara/Respirador]';
+                    }
+                    var opt = document.createElement('option');
+                    opt.value = ent.id;
+                    opt.textContent = texto;
+                    sel.appendChild(opt);
+                });
+                if (info) info.textContent = dados.length + ' entrega(s) ativa(s). Selecione a máscara que receberá o filtro.';
+            })
+            .catch(function() {
+                if (info) info.textContent = 'Falha ao carregar as entregas do colaborador.';
+            });
+    };
+
+    window.atualizarVencimentoSugeridoFiltro = function(forcar) {
+        var selTipo = document.getElementById('flt-tipo');
+        var inst = document.getElementById('flt-data-instalacao');
+        var venc = document.getElementById('flt-vencimento');
+        if (!selTipo || !inst || !venc) return;
+        var opt = selTipo.options[selTipo.selectedIndex];
+        var vida = opt ? parseInt(opt.getAttribute('data-vida-util') || '0', 10) : 0;
+        if (!vida || vida <= 0 || !inst.value) return;
+        if (!forcar && venc.value) return;
+        var base = new Date(inst.value + 'T12:00:00');
+        if (isNaN(base.getTime())) return;
+        base.setDate(base.getDate() + vida);
+        venc.value = base.toISOString().slice(0, 10);
+    };
+
+    window.salvarVincularFiltro = function() {
+        var colaboradorId = document.getElementById('flt-colaborador').value;
+        var entregaId = document.getElementById('flt-entrega').value;
+        var tipoId = document.getElementById('flt-tipo').value;
+        var quantidade = document.getElementById('flt-quantidade').value;
+        var dtInstalacao = document.getElementById('flt-data-instalacao').value;
+        var vencimento = document.getElementById('flt-vencimento').value;
+
+        if (!colaboradorId) { Swal.fire('Atenção', 'Selecione o colaborador.', 'warning'); return; }
+        if (!entregaId) { Swal.fire('Atenção', 'Selecione a máscara (entrega ativa) que receberá o filtro.', 'warning'); return; }
+        if (!tipoId) { Swal.fire('Atenção', 'Selecione o tipo de filtro.', 'warning'); return; }
+        if (!dtInstalacao) { Swal.fire('Atenção', 'Informe a data de instalação.', 'warning'); return; }
+        if (!vencimento) { Swal.fire('Atenção', 'Informe a data de vencimento do filtro.', 'warning'); return; }
+
+        var formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('ss_ef_nb_entrega_id', entregaId);
+        formData.append('ss_ef_nb_tipo_id', tipoId);
+        formData.append('ss_ef_nb_quantidade', quantidade || '2');
+        formData.append('ss_ef_tx_data_instalacao', dtInstalacao);
+        formData.append('ss_ef_tx_vencimento', vencimento);
+        var obs = document.getElementById('flt-observacao').value;
+        if (obs) formData.append('ss_ef_tx_observacao', obs);
+
+        fetch('{{ route('epi.filtros.store') }}', {
+            method: 'POST', headers: { 'Accept': 'application/json' }, body: formData
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'success') {
+                fecharModalVincularFiltro();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Filtro vinculado!',
+                    text: data.message || '',
+                    timer: 2600,
+                    showConfirmButton: false
+                }).then(function() { recarregarAbaFiltros(); });
+            } else {
+                Swal.fire('Erro', data.message || 'Falha ao vincular o filtro.', 'error');
+            }
+        })
+        .catch(function() { Swal.fire('Erro', 'Falha na requisição.', 'error'); });
+    };
+
+    // ----- Modal: descartar filtro (somente o filtro) -----
+    window.abrirModalDescarteFiltro = function(id, nome) {
+        var modal = document.getElementById('modal-descarte-filtro');
+        if (!modal) return;
+        filtroEmDescarte = id;
+        document.getElementById('desc-descarte-filtro').textContent = 'Descartar o filtro "' + (nome || '') + '"? A máscara do colaborador NÃO será alterada.';
+        document.getElementById('flt-descarte-motivo').value = 'vencido';
+        document.getElementById('flt-descarte-data').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('flt-descarte-obs').value = '';
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    window.fecharModalDescarteFiltro = function() {
+        var modal = document.getElementById('modal-descarte-filtro');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.setProperty('display', 'none', 'important');
+        }
+    };
+
+    window.salvarDescarteFiltro = function() {
+        if (!filtroEmDescarte) return;
+        var formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('ss_ef_tx_motivo_descarte', document.getElementById('flt-descarte-motivo').value);
+        formData.append('ss_ef_tx_data_descarte', document.getElementById('flt-descarte-data').value);
+        var obs = document.getElementById('flt-descarte-obs').value;
+        if (obs) formData.append('ss_ef_tx_observacao', obs);
+
+        fetch('{{ url("/epi/filtros") }}/' + filtroEmDescarte + '/descartar', {
+            method: 'POST', headers: { 'Accept': 'application/json' }, body: formData
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'success') {
+                fecharModalDescarteFiltro();
+                Swal.fire({ icon: 'success', title: 'Filtro descartado!', text: data.message || '', timer: 2200, showConfirmButton: false })
+                    .then(function() { recarregarAbaFiltros(); });
+            } else {
+                Swal.fire('Erro', data.message || 'Falha ao descartar o filtro.', 'error');
+            }
+        })
+        .catch(function() { Swal.fire('Erro', 'Falha na requisição.', 'error'); });
+    };
+
+    // ----- Modal: editar vencimento do filtro -----
+    window.abrirModalVencimentoFiltro = function(id, nome, vencimentoAtual) {
+        var modal = document.getElementById('modal-vencimento-filtro');
+        if (!modal) return;
+        filtroEmVencimento = id;
+        document.getElementById('desc-vencimento-filtro').textContent = 'Ajuste a data de vencimento do filtro: "' + (nome || '') + '".';
+        document.getElementById('input-vencimento-filtro').value = vencimentoAtual || '';
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    window.fecharModalVencimentoFiltro = function() {
+        var modal = document.getElementById('modal-vencimento-filtro');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.setProperty('display', 'none', 'important');
+        }
+    };
+
+    window.salvarVencimentoFiltro = function() {
+        if (!filtroEmVencimento) return;
+        var novaData = document.getElementById('input-vencimento-filtro').value;
+        if (!novaData) { Swal.fire('Atenção', 'Informe a nova data de vencimento.', 'warning'); return; }
+
+        var formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('ss_ef_tx_vencimento', novaData);
+
+        fetch('{{ url("/epi/filtros") }}/' + filtroEmVencimento + '/vencimento', {
+            method: 'POST', headers: { 'Accept': 'application/json' }, body: formData
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'success') {
+                fecharModalVencimentoFiltro();
+                Swal.fire({ icon: 'success', title: 'Vencimento atualizado!', text: data.message || '', timer: 2000, showConfirmButton: false })
+                    .then(function() { recarregarAbaFiltros(); });
+            } else {
+                Swal.fire('Erro', data.message || 'Falha ao atualizar o vencimento.', 'error');
+            }
+        })
+        .catch(function() { Swal.fire('Erro', 'Falha na requisição.', 'error'); });
+    };
+
+    // ----- Excluir lançamento de filtro (correção de erro) -----
+    window.excluirFiltro = function(id) {
+        Swal.fire({
+            title: 'Excluir lançamento do filtro?',
+            text: 'Use apenas para corrigir erro de digitação. A máscara e a entrega NÃO são alteradas.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Excluir',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#e11d48'
+        }).then(function(resultado) {
+            if (!resultado.isConfirmed) return;
+            var formData = new FormData();
+            formData.append('_token', '{{ csrf_token() }}');
+            formData.append('_method', 'DELETE');
+
+            fetch('{{ url("/epi/filtros") }}/' + id, {
+                method: 'POST', headers: { 'Accept': 'application/json' }, body: formData
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Lançamento excluído!', timer: 1800, showConfirmButton: false })
+                        .then(function() { recarregarAbaFiltros(); });
+                } else {
+                    Swal.fire('Erro', data.message || 'Falha ao excluir o lançamento.', 'error');
+                }
+            })
+            .catch(function() { Swal.fire('Erro', 'Falha na requisição.', 'error'); });
+        });
+    };
+
+    // ----- Modal: tipos de filtro (mini-catálogo) -----
+    window.abrirModalTiposFiltro = function() {
+        var modal = document.getElementById('modal-tipos-filtro');
+        if (!modal) return;
+        document.getElementById('tipo-filtro-nome').value = '';
+        document.getElementById('tipo-filtro-fabricante').value = '';
+        document.getElementById('tipo-filtro-ca').value = '';
+        document.getElementById('tipo-filtro-vida-util').value = '0';
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    window.fecharModalTiposFiltro = function() {
+        var modal = document.getElementById('modal-tipos-filtro');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.setProperty('display', 'none', 'important');
+        }
+    };
+
+    window.salvarTipoFiltro = function() {
+        var nome = document.getElementById('tipo-filtro-nome').value.trim();
+        if (!nome) { Swal.fire('Atenção', 'Informe o nome do filtro.', 'warning'); return; }
+
+        var formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('ss_eft_tx_nome', nome);
+        formData.append('ss_eft_tx_fabricante', document.getElementById('tipo-filtro-fabricante').value);
+        formData.append('ss_eft_tx_ca', document.getElementById('tipo-filtro-ca').value);
+        formData.append('ss_eft_nb_vida_util_dias', document.getElementById('tipo-filtro-vida-util').value || '0');
+
+        fetch('{{ route('epi.filtros.tipos.store') }}', {
+            method: 'POST', headers: { 'Accept': 'application/json' }, body: formData
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'success') {
+                fecharModalTiposFiltro();
+                Swal.fire({ icon: 'success', title: 'Tipo cadastrado!', timer: 1800, showConfirmButton: false })
+                    .then(function() { recarregarAbaFiltros(); });
+            } else {
+                Swal.fire('Erro', data.message || 'Falha ao cadastrar o tipo.', 'error');
+            }
+        })
+        .catch(function() { Swal.fire('Erro', 'Falha na requisição.', 'error'); });
+    };
+
+    window.toggleTipoFiltro = function(id) {
+        var formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        fetch('{{ url("/epi/filtros/tipos") }}/' + id + '/toggle', {
+            method: 'POST', headers: { 'Accept': 'application/json' }, body: formData
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'success') {
+                Swal.fire({ icon: 'success', title: data.message || 'Tipo atualizado!', timer: 1500, showConfirmButton: false })
+                    .then(function() { recarregarAbaFiltros(); });
+            } else {
+                Swal.fire('Erro', data.message || 'Falha ao atualizar o tipo.', 'error');
+            }
+        })
+        .catch(function() { Swal.fire('Erro', 'Falha na requisição.', 'error'); });
+    };
+
+    window.excluirTipoFiltro = function(id) {
+        Swal.fire({
+            title: 'Excluir tipo de filtro?',
+            text: 'Tipos já usados em lançamentos não podem ser excluídos (apenas inativados).',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Excluir',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#e11d48'
+        }).then(function(resultado) {
+            if (!resultado.isConfirmed) return;
+            var formData = new FormData();
+            formData.append('_token', '{{ csrf_token() }}');
+            formData.append('_method', 'DELETE');
+
+            fetch('{{ url("/epi/filtros/tipos") }}/' + id, {
+                method: 'POST', headers: { 'Accept': 'application/json' }, body: formData
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Tipo excluído!', timer: 1600, showConfirmButton: false })
+                        .then(function() { recarregarAbaFiltros(); });
+                } else {
+                    Swal.fire('Erro', data.message || 'Falha ao excluir o tipo.', 'error');
+                }
+            })
+            .catch(function() { Swal.fire('Erro', 'Falha na requisição.', 'error'); });
+        });
+    };
 </script>
 @endsection

@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\EmployeeTraining;
 use App\Models\EpiColaborador;
 use App\Models\EpiEntrega;
+use App\Models\EpiFiltro;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -23,7 +24,7 @@ class EmployeeFichaController extends Controller
             'employeeTrainings' => function ($query) {
                 $query->orderBy('data_treinamento', 'desc');
             },
-            'certificates.training'
+            'certificates.training',
         ])->where('qrcode_token', $token)->firstOrFail();
 
         // Filtrar certificados da plataforma
@@ -50,7 +51,21 @@ class EmployeeFichaController extends Controller
             }
         }
 
-        return view('ficha_publica', compact('usuario', 'dssCertificates', 'plataformaTrainings', 'epiModuloEntregas'));
+        // Filtros de máscara (itens de reposição vinculados às entregas acima).
+        // Não são EPIs: exibidos apenas como complemento da ficha.
+        $epiModuloFiltros = collect();
+        if (Schema::hasTable('ss_colaborador') && Schema::hasTable('ss_epi_filtro')) {
+            $colaboradorFiltros = EpiColaborador::where('ss_c_tx_cpf', $usuario->cpf)->first();
+            if ($colaboradorFiltros) {
+                $epiModuloFiltros = EpiFiltro::with(['epi'])
+                    ->where('ss_ef_nb_colaborador_id', $colaboradorFiltros->ss_c_nb_id)
+                    ->orderByDesc('ss_ef_tx_data_instalacao')
+                    ->orderByDesc('ss_ef_nb_id')
+                    ->get();
+            }
+        }
+
+        return view('ficha_publica', compact('usuario', 'dssCertificates', 'plataformaTrainings', 'epiModuloEntregas', 'epiModuloFiltros'));
     }
 
     public function manage($id)
@@ -102,7 +117,7 @@ class EmployeeFichaController extends Controller
     {
         $usuario = User::findOrFail($userId);
         $usuario->update([
-            'qrcode_token' => Str::random(32)
+            'qrcode_token' => Str::random(32),
         ]);
 
         return redirect()->back()->with('success', 'Novo QR Code gerado com sucesso!');
