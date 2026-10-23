@@ -2628,6 +2628,9 @@
                                     @endif
                                 </td>
                                 <td class="px-3 py-2 text-center whitespace-nowrap">
+                                    <button onclick='editarTipoFiltro(@json($t))' class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold cursor-pointer mr-1">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
                                     <button onclick="toggleTipoFiltro({{ $t->ss_eft_nb_id }})" class="px-2 py-1 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-[10px] font-bold cursor-pointer mr-1">
                                         {{ $t->ss_eft_tx_status === 'ativo' ? 'Inativar' : 'Ativar' }}
                                     </button>
@@ -2646,8 +2649,9 @@
             </div>
         </div>
 
-        <h4 class="text-xs font-bold text-gray-700 uppercase mb-2"><i class="fas fa-plus-circle mr-1"></i> Cadastrar novo tipo</h4>
+        <h4 id="tipo-filtro-form-titulo" class="text-xs font-bold text-gray-700 uppercase mb-2"><i class="fas fa-plus-circle mr-1"></i> Cadastrar novo tipo</h4>
         <form id="form-tipo-filtro" onsubmit="return false;">
+            <input type="hidden" id="tipo-filtro-id">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div class="md:col-span-2">
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Nome do Filtro *</label>
@@ -2670,7 +2674,7 @@
 
             <div class="mt-5 flex justify-end space-x-3">
                 <button type="button" onclick="fecharModalTiposFiltro()" class="px-4 py-2 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300">Fechar</button>
-                <button type="button" onclick="salvarTipoFiltro()" class="px-5 py-2 bg-gray-800 text-white text-xs font-bold rounded-lg hover:bg-gray-900 shadow">Cadastrar Tipo</button>
+                <button type="button" onclick="salvarTipoFiltro()" id="btn-salvar-tipo-filtro" class="px-5 py-2 bg-gray-800 text-white text-xs font-bold rounded-lg hover:bg-gray-900 shadow">Cadastrar Tipo</button>
             </div>
         </form>
     </div>
@@ -4836,12 +4840,42 @@
     window.abrirModalTiposFiltro = function() {
         var modal = document.getElementById('modal-tipos-filtro');
         if (!modal) return;
+        var idEl = document.getElementById('tipo-filtro-id');
+        if (idEl) idEl.value = '';
         document.getElementById('tipo-filtro-nome').value = '';
         document.getElementById('tipo-filtro-fabricante').value = '';
         document.getElementById('tipo-filtro-ca').value = '';
         document.getElementById('tipo-filtro-vida-util').value = '0';
+        var titulo = document.getElementById('tipo-filtro-form-titulo');
+        if (titulo) titulo.innerHTML = '<i class="fas fa-plus-circle mr-1"></i> Cadastrar novo tipo';
+        var btn = document.getElementById('btn-salvar-tipo-filtro');
+        if (btn) btn.textContent = 'Cadastrar Tipo';
         modal.classList.remove('hidden');
         modal.style.setProperty('display', 'flex', 'important');
+    };
+
+    window.editarTipoFiltro = function(t) {
+        var modal = document.getElementById('modal-tipos-filtro');
+        if (!modal) return;
+        // Garante que o modal está aberto
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+
+        var idEl = document.getElementById('tipo-filtro-id');
+        if (idEl) idEl.value = t.ss_eft_nb_id;
+        document.getElementById('tipo-filtro-nome').value = t.ss_eft_tx_nome || '';
+        document.getElementById('tipo-filtro-fabricante').value = t.ss_eft_tx_fabricante || '';
+        document.getElementById('tipo-filtro-ca').value = t.ss_eft_tx_ca || '';
+        document.getElementById('tipo-filtro-vida-util').value = (t.ss_eft_nb_vida_util_dias != null) ? t.ss_eft_nb_vida_util_dias : '0';
+
+        var titulo = document.getElementById('tipo-filtro-form-titulo');
+        if (titulo) titulo.innerHTML = '<i class="fas fa-edit mr-1"></i> Editar tipo #' + t.ss_eft_nb_id;
+        var btn = document.getElementById('btn-salvar-tipo-filtro');
+        if (btn) btn.textContent = 'Salvar Alterações';
+
+        // Rola até o formulário
+        var form = document.getElementById('form-tipo-filtro');
+        if (form && form.scrollIntoView) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
     window.fecharModalTiposFiltro = function() {
@@ -4856,6 +4890,9 @@
         var nome = document.getElementById('tipo-filtro-nome').value.trim();
         if (!nome) { Swal.fire('Atenção', 'Informe o nome do filtro.', 'warning'); return; }
 
+        var id = document.getElementById('tipo-filtro-id') ? document.getElementById('tipo-filtro-id').value : '';
+        var isEdit = !!id;
+
         var formData = new FormData();
         formData.append('_token', '{{ csrf_token() }}');
         formData.append('ss_eft_tx_nome', nome);
@@ -4863,17 +4900,21 @@
         formData.append('ss_eft_tx_ca', document.getElementById('tipo-filtro-ca').value);
         formData.append('ss_eft_nb_vida_util_dias', document.getElementById('tipo-filtro-vida-util').value || '0');
 
-        fetch('{{ route('epi.filtros.tipos.store') }}', {
+        var url = isEdit
+            ? '{{ url("/epi/filtros/tipos") }}/' + id + '/atualizar'
+            : '{{ route('epi.filtros.tipos.store') }}';
+
+        fetch(url, {
             method: 'POST', headers: { 'Accept': 'application/json' }, body: formData
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.status === 'success') {
                 fecharModalTiposFiltro();
-                Swal.fire({ icon: 'success', title: 'Tipo cadastrado!', timer: 1800, showConfirmButton: false })
+                Swal.fire({ icon: 'success', title: isEdit ? 'Tipo atualizado!' : 'Tipo cadastrado!', timer: 1800, showConfirmButton: false })
                     .then(function() { recarregarAbaFiltros(); });
             } else {
-                Swal.fire('Erro', data.message || 'Falha ao cadastrar o tipo.', 'error');
+                Swal.fire('Erro', data.message || 'Falha ao salvar o tipo.', 'error');
             }
         })
         .catch(function() { Swal.fire('Erro', 'Falha na requisição.', 'error'); });

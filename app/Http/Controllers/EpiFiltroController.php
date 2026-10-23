@@ -298,6 +298,32 @@ class EpiFiltroController extends Controller
     }
 
     /**
+     * Atualiza os dados de um tipo de filtro do mini-catálogo.
+     */
+    public function tipoUpdate(Request $request, $id)
+    {
+        $this->ensureTablesExist();
+
+        $tipo = EpiFiltroTipo::findOrFail($id);
+
+        $validated = $request->validate([
+            'ss_eft_tx_nome' => 'required|string|max:150',
+            'ss_eft_tx_fabricante' => 'nullable|string|max:150',
+            'ss_eft_tx_ca' => 'nullable|string|max:50',
+            'ss_eft_nb_vida_util_dias' => 'nullable|integer|min:0|max:3650',
+        ]);
+
+        $tipo->update([
+            'ss_eft_tx_nome' => $validated['ss_eft_tx_nome'],
+            'ss_eft_tx_fabricante' => $validated['ss_eft_tx_fabricante'] ?? null,
+            'ss_eft_tx_ca' => $validated['ss_eft_tx_ca'] ?? null,
+            'ss_eft_nb_vida_util_dias' => (int) ($validated['ss_eft_nb_vida_util_dias'] ?? 0),
+        ]);
+
+        return $this->resposta($request, 'success', 'Tipo de filtro atualizado com sucesso!');
+    }
+
+    /**
      * Ativa/inativa um tipo de filtro do mini-catálogo.
      */
     public function tipoToggle(Request $request, $id)
