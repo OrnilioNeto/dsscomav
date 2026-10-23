@@ -39,6 +39,8 @@ serve_with_limits.sh
 
 # Banco de dados local
 database/database.sqlite
+database/demo.sqlite
+database/*.sqlite
 
 # Arquivos temporários e IDEs
 .DS_Store
@@ -63,3 +65,5 @@ bootstrap/cache/*.php
 
 # Marketing / Instagram (conteúdo local, não versionado)
 /instagram/
+# Marketing (local)
+/marketing/
