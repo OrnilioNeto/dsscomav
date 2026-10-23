@@ -114,11 +114,9 @@ class CertificatePdfService
         // Logo do tenant centralizada no topo
         $logoPath = $tenant?->logoFilePath('logo_certificado')
             ?? $tenant?->logoFilePath('logo')
-            ?? (file_exists(public_path('images/logo-certificado.png'))
-                ? public_path('images/logo-certificado.png')
-                : (file_exists(public_path('images/logo-comav-transportes.png'))
-                    ? public_path('images/logo-comav-transportes.png')
-                    : null));
+            ?? (file_exists(public_path('images/logo-comav-transportes.png'))
+                ? public_path('images/logo-comav-transportes.png')
+                : null);
 
         if ($logoPath) {
             $this->drawImageFit($pdf, $logoPath, 0, 13, self::PAGE_W, 16, 'C');
