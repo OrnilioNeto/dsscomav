@@ -99,6 +99,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/filtros/{id}', [EpiFiltroController::class, 'destroy'])->name('epi.filtros.destroy');
         Route::post('/filtros/tipos', [EpiFiltroController::class, 'tipoStore'])->name('epi.filtros.tipos.store');
         Route::post('/filtros/tipos/{id}/toggle', [EpiFiltroController::class, 'tipoToggle'])->name('epi.filtros.tipos.toggle');
+        Route::match(['post', 'put'], '/filtros/tipos/{id}/atualizar', [EpiFiltroController::class, 'tipoUpdate'])->name('epi.filtros.tipos.update');
         Route::delete('/filtros/tipos/{id}', [EpiFiltroController::class, 'tipoDestroy'])->name('epi.filtros.tipos.destroy');
 
         // Gestão de Assinaturas (apenas gestores)

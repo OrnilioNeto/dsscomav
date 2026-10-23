@@ -10,7 +10,7 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $modules = ['users', 'trainings', 'certificates', 'rankings', 'splash', 'social', 'epi', 'projeto_pedagogico', 'rewatch', 'prazos', 'permissions'];
+        $modules = ['users', 'trainings', 'certificates', 'rankings', 'splash', 'social', 'epi', 'projeto_pedagogico', 'rewatch', 'prazos', 'permissions', 'auditoria', 'folgas'];
 
         // 1. Admin Role
         $admin = Role::where('nome', 'admin')->first();
