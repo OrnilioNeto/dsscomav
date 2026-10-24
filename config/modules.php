@@ -63,6 +63,10 @@ return [
         'label' => 'Lembretes WhatsApp',
         'description' => 'Disparo de lembretes de treinamento via WhatsApp',
     ],
+    'cronograma_conteudo' => [
+        'label' => 'Cronograma de Conteúdo',
+        'description' => 'Planejamento e acompanhamento dos conteúdos (DSS/treinamentos)',
+    ],
     'auditoria' => [
         'label' => 'Auditoria',
         'description' => 'Trilha de ações, acessos e alterações do sistema',
