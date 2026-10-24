@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Training;
 use App\Models\TrainingMaterial;
+use App\Modules\CronogramaConteudo\Models\CronogramaConteudo;
 use App\Models\TrainingQuestion;
 use App\Models\User;
 use App\Support\SafeUpload;
@@ -35,7 +36,13 @@ class TrainingController extends Controller
     {
         $funcionarios = $this->getAssignableUsers();
 
-        return view('treinamentos.create', compact('funcionarios'));
+        $cronogramaPendentes = CronogramaConteudo::query()
+            ->orderBy('data_prevista_liberacao')
+            ->get()
+            ->filter(fn ($item) => $item->matchedTraining() === null)
+            ->values();
+
+        return view('treinamentos.create', compact('funcionarios', 'cronogramaPendentes'));
     }
 
     public function store(Request $request)
@@ -62,6 +69,7 @@ class TrainingController extends Controller
             'questoes.*.opcoes' => 'required_with:questoes|array|min:2|max:4',
             'questoes.*.opcoes.*' => 'required|string|max:255',
             'questoes.*.resposta_correta' => 'required_with:questoes|integer|min:0',
+            'cronograma_conteudo_id' => 'nullable|integer|exists:cronograma_conteudos,id',
         ];
 
         // Treinamento direcionado: atribuições opcionais no cadastro (pode preencher depois)
@@ -149,6 +157,9 @@ class TrainingController extends Controller
             $training->assignedUsers()->sync($request->input('funcionarios', []));
         }
 
+        // Vincula ao cronograma de conteúdo (se selecionado ou por correspondência de nome)
+        $this->vincularCronograma($training, $request->input('cronograma_conteudo_id'));
+
         // Processar materiais de apoio enviados durante a criação
         // Importante: quando nome/descrição são opcionais, pode não existir
         // payload em input('materiais'), mas os arquivos ainda chegam em file('materiais').
@@ -234,7 +245,16 @@ class TrainingController extends Controller
         $training = Training::with('materials', 'assignedUsers', 'questions')->findOrFail($id);
         $funcionarios = $this->getAssignableUsers();
 
-        return view('treinamentos.edit', compact('training', 'funcionarios'));
+        $cronogramaItens = CronogramaConteudo::query()
+            ->orderBy('data_prevista_liberacao')
+            ->get();
+
+        $cronogramaSelecionadoId = $cronogramaItens->first(function ($item) use ($training) {
+            return (int) $item->training_id === (int) $training->id
+                || ($item->matchedTraining() && (int) $item->matchedTraining()->id === (int) $training->id);
+        })?->id;
+
+        return view('treinamentos.edit', compact('training', 'funcionarios', 'cronogramaItens', 'cronogramaSelecionadoId'));
     }
 
     public function update(Request $request, $id)
@@ -261,6 +281,7 @@ class TrainingController extends Controller
             'questoes.*.opcoes' => 'required_with:questoes|array|min:2|max:4',
             'questoes.*.opcoes.*' => 'required|string|max:255',
             'questoes.*.resposta_correta' => 'required_with:questoes|integer|min:0',
+            'cronograma_conteudo_id' => 'nullable|integer|exists:cronograma_conteudos,id',
         ];
 
         // Treinamento direcionado: atribuições opcionais no cadastro (pode preencher depois)
@@ -344,6 +365,8 @@ class TrainingController extends Controller
         } else {
             $training->assignedUsers()->sync([]);
         }
+
+        $this->vincularCronograma($training, $request->input('cronograma_conteudo_id'));
 
         return redirect()->route('treinamentos.show', $training)->with('success', 'Treinamento atualizado!');
     }
@@ -467,6 +490,34 @@ class TrainingController extends Controller
         }
 
         return ['minutos' => $minutos, 'segundos' => $segundos];
+    }
+
+    /**
+     * Vincula um treinamento a um item do cronograma de conteúdo.
+     */
+    private function vincularCronograma(Training $training, $cronogramaId = null): void
+    {
+        try {
+            if ($cronogramaId) {
+                $item = CronogramaConteudo::find($cronogramaId);
+                if ($item) {
+                    $item->update(['training_id' => $training->id]);
+                    return;
+                }
+            }
+
+            // Auto-vínculo por correspondência de nome (quando não selecionado)
+            $match = CronogramaConteudo::query()
+                ->whereNull('training_id')
+                ->get()
+                ->first(fn ($i) => mb_strtolower(trim((string) $i->nome)) === mb_strtolower(trim((string) $training->titulo)));
+
+            if ($match) {
+                $match->update(['training_id' => $training->id]);
+            }
+        } catch (\Throwable $e) {
+            // Não quebra o fluxo de cadastro de treinamento
+        }
     }
 
     /**

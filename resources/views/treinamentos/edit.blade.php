@@ -24,7 +24,27 @@
 
             <div>
                 <label class="block text-gray-700 font-semibold mb-2">Título *</label>
-                <input type="text" name="titulo" value="{{ $training->titulo }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                <input type="text" name="titulo" id="titulo-input" value="{{ $training->titulo }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+            </div>
+
+            <div>
+                <label class="block text-gray-700 font-semibold mb-2">Vincular ao Cronograma de Conteúdo (opcional)</label>
+                @if(isset($cronogramaItens) && $cronogramaItens->count())
+                <select name="cronograma_conteudo_id" id="cronograma-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    <option value="">-- Não vincular --</option>
+                    @foreach($cronogramaItens as $item)
+                        <option value="{{ $item->id }}" @selected((int) $cronogramaSelecionadoId === (int) $item->id) data-nome="{{ $item->nome }}" data-data="{{ $item->data_prevista_liberacao?->format('Y-m-d') }}">
+                            {{ $item->nome }}{{ $item->data_prevista_liberacao ? ' ('.$item->data_prevista_liberacao->format('d/m/Y').')' : '' }}
+                            @if($item->matchedTraining() && (int)$item->matchedTraining()->id !== (int)$training->id) (já vinculado) @endif
+                        </option>
+                    @endforeach
+                </select>
+                @else
+                <p class="text-xs text-gray-500 border border-dashed border-gray-300 rounded-lg px-3 py-2">
+                    Nenhum conteúdo cadastrado no cronograma.
+                    <a href="{{ route('admin.cronograma.index') }}" class="text-blue-700 hover:underline">Abrir cronograma</a>.
+                </p>
+                @endif
             </div>
 
             <div>

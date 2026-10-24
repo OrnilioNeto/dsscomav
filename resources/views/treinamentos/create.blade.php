@@ -23,7 +23,25 @@
 
             <div>
                 <label class="block text-gray-700 font-semibold mb-2">Título *</label>
-                <input type="text" name="titulo" value="{{ old('titulo') }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                <input type="text" name="titulo" id="titulo-input" value="{{ old('titulo') }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+            </div>
+
+            <div>
+                <label class="block text-gray-700 font-semibold mb-2">Vincular ao Cronograma de Conteúdo (opcional)</label>
+                @if(isset($cronogramaPendentes) && $cronogramaPendentes->count())
+                <select name="cronograma_conteudo_id" id="cronograma-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900">
+                    <option value="">-- Não vincular --</option>
+                    @foreach($cronogramaPendentes as $item)
+                        <option value="{{ $item->id }}" data-nome="{{ $item->nome }}" data-data="{{ $item->data_prevista_liberacao?->format('Y-m-d') }}">{{ $item->nome }}{{ $item->data_prevista_liberacao ? ' ('.$item->data_prevista_liberacao->format('d/m/Y').')' : '' }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Ao selecionar, o título e a data prevista de liberação podem ser preenchidos automaticamente.</p>
+                @else
+                <p class="text-xs text-gray-500 border border-dashed border-gray-300 rounded-lg px-3 py-2">
+                    Nenhum conteúdo pendente no cronograma. Cadastre itens em
+                    <a href="{{ route('admin.cronograma.index') }}" class="text-blue-700 hover:underline">Cronograma de Conteúdo</a>.
+                </p>
+                @endif
             </div>
 
             <div>
@@ -674,5 +692,26 @@
                 : digits;
         });
     })();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const select = document.getElementById('cronograma-select');
+    const titulo = document.getElementById('titulo-input');
+    const dataLiberacao = document.getElementById('data-liberacao-local');
+    if (!select) return;
+    select.addEventListener('change', function () {
+        const opt = select.options[select.selectedIndex];
+        if (!opt || !opt.value) return;
+        const nome = opt.getAttribute('data-nome');
+        const data = opt.getAttribute('data-data');
+        if (titulo && nome && !titulo.value.trim()) {
+            titulo.value = nome;
+        }
+        if (dataLiberacao && data) {
+            // converte para datetime-local (YYYY-MM-DDTHH:MM)
+            dataLiberacao.value = data + 'T08:00';
+        }
+    });
+});
 </script>
 @endsection

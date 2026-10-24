@@ -6,6 +6,17 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.78] - 2026-10-24
+
+### Adicionado
+- **Módulo Cronograma de Conteúdo**: nova página (`/admin/cronograma-conteudo`) para planejar e acompanhar os conteúdos (DSS/treinamentos) já liberados e os próximos, com cadastro/edição de nome, data prevista de liberação e observações.
+- **Status automático** do cronograma: Listado (sem data), Previsão (com data, sem treinamento), Programado (vinculado a treinamento criado) e Realizado (ao chegar na data de liberação).
+- **Vínculo com Treinamentos**: seletor de item do cronograma na tela de criar/editar treinamento, com preenchimento automático de título/data e auto-vínculo por correspondência de nome.
+- **Flags de materiais prontos** (PPTX, PDF, Vídeo, YouTube) no cadastro/edição, com badges na listagem para identificar o que falta finalizar.
+
+### Alterado
+- Multi-tenancy: tabela `cronograma_conteudos` com `tenant_id` e escopo por tenant.
+
 ## [2.0.77] - 2026-10-16
 
 ### Adicionado
