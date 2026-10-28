@@ -115,27 +115,25 @@
             </div>
         @else
             <div class="relative w-full overflow-hidden rounded-xl bg-black" style="padding-top: 56.25%;">
-                @if($training->tipo_video === 'youtube')
-                    <iframe
-                        id="training-video"
-                        class="absolute inset-0 h-full w-full"
-                        src="{{ $training->getVideoEmbed() }}"
-                        title="{{ $training->titulo }}"
-                        frameborder="0"
-                        allow="autoplay; encrypted-media; picture-in-picture"
-                        allowfullscreen
-                    ></iframe>
-                @else
-                    <iframe
-                        id="training-video"
-                        class="absolute inset-0 h-full w-full"
-                        src="{{ $training->getVideoEmbed() }}"
-                        title="{{ $training->titulo }}"
-                        frameborder="0"
-                        allow="autoplay; encrypted-media; picture-in-picture"
-                        allowfullscreen
-                    ></iframe>
-                @endif
+                <iframe
+                    id="training-video"
+                    class="absolute inset-0 h-full w-full"
+                    src="{{ $training->getVideoEmbed() }}"
+                    title="{{ $training->titulo }}"
+                    frameborder="0"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                ></iframe>
+            </div>
+            <div class="mt-4 flex gap-2 justify-center">
+                <button id="play-btn" type="button" class="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition">
+                    <i class="fas fa-play mr-2"></i>Play
+                </button>
+                <button id="pause-btn" type="button" class="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition">
+                    <i class="fas fa-pause mr-2"></i>Pausa
+                </button>
+                <button id="mute-btn" type="button" class="bg-blue-900 text-white px-6 py-2 rounded-lg hover:bg-blue-800 transition">
+                    <i class="fas fa-volume-mute mr-2"></i>Mudo
+                </button>
             </div>
         @endif
 
@@ -327,39 +325,43 @@
 </a>
 
 <script>
+(function () {
+    'use strict';
+
     const progressUrl = '{{ route('treinamentos.atualizar-progresso', $training->id) }}';
     const assessmentUrl = '{{ route('treinamentos.avaliacao', $training->id) }}';
     const dashboardUrl = '{{ route('dashboard') }}';
     const csrfToken = '{{ csrf_token() }}';
     const hasAssessment = {{ $assessment ? 'true' : 'false' }};
-    // Re-identificação por senha: somente para o tipo "Treinamento" (DSS dispensa)
     const passwordRequired = {{ $training->tipo === 'treinamento' ? 'true' : 'false' }};
     const trainingType = '{{ $training->tipo_video }}';
     const registeredDurationSeconds = {{ max(1, $training->duracaoSegundos()) }};
 
-    let currentProgress = {{ $progress->porcentagem_assistida }};
+    let currentProgress = {{ (int) $progress->porcentagem_assistida }};
     let assessmentUnlocked = {{ $assessmentUnlocked ? 'true' : 'false' }};
     let lastUpdateTime = 0;
     let lastSafeTime = {{ (int) $progress->tempo_assistido }};
 
     let ultimoTempo = lastSafeTime;
     let watchedSeconds = lastSafeTime;
-    let dataInicioLocal = null; // ISO string from client local time
-    let referenceDuration = registeredDurationSeconds; // will be overridden by video.duration when available
+    let dataInicioLocal = null;
+    let referenceDuration = registeredDurationSeconds;
     let ultimoEnvio = 0;
     let playStartedAt = null;
     let playBaseTime = lastSafeTime;
-    let hasReallyStartedPlayback = false; // flag para evitar contar sem play real
+    let hasReallyStartedPlayback = false;
     let youtubePlayer = null;
     let youtubeTrackingTimer = null;
     let youtubeDuration = registeredDurationSeconds;
-    
-    // Constantes de bloqueio (conforme prompt)
-    const AVANÇO_MÁXIMO_UX = 2; // segundos - limiar cliente (UX)
-    const AVANÇO_MÁXIMO_SERVIDOR = 10; // segundos - validado no servidor
+    let lastTickTimestamp = Date.now();
 
     function unlockAssessment() {
         if (!hasAssessment || assessmentUnlocked) return;
+
+        const minimoSegundos = Math.round(registeredDurationSeconds * 0.95);
+        if (watchedSeconds < minimoSegundos && currentProgress < 99) {
+            return;
+        }
 
         const form = document.getElementById('assessment-form');
         const panel = document.getElementById('assessment-panel');
@@ -394,39 +396,19 @@
 
     function updateProgress(percent) {
         currentProgress = Math.floor(percent);
-        document.getElementById('progress-percent').textContent = currentProgress + '%';
-        document.getElementById('progress-bar').style.width = currentProgress + '%';
+        const progressPercentEl = document.getElementById('progress-percent');
+        const progressBarEl = document.getElementById('progress-bar');
+        const lockProgressEl = document.getElementById('assessment-lock-progress');
 
-        const lockProgress = document.getElementById('assessment-lock-progress');
-        if (lockProgress) {
-            lockProgress.textContent = currentProgress + '%';
-        }
+        if (progressPercentEl) progressPercentEl.textContent = currentProgress + '%';
+        if (progressBarEl) progressBarEl.style.width = currentProgress + '%';
+        if (lockProgressEl) lockProgressEl.textContent = currentProgress + '%';
 
         const now = Date.now();
         if (now - lastUpdateTime < 5000) return;
         lastUpdateTime = now;
 
-        fetch(progressUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
-            },
-            body: JSON.stringify({
-                tempo_assistido: watchedSeconds,
-                porcentagem_assistida: currentProgress
-            })
-        }).then(r => r.json()).then(data => {
-            if (data.prazo_expirado) {
-                alert(data.error || 'O prazo para concluir este treinamento expirou.');
-                window.location.href = dashboardUrl;
-                return;
-            }
-
-            if (data.show_assessment || currentProgress >= 99) {
-                unlockAssessment();
-            }
-        }).catch(e => console.error(e));
+        salvarProgresso(currentProgress);
     }
 
     function handleAssessmentSubmit(e) {
@@ -501,7 +483,7 @@
                 data = await r.json();
             } else {
                 const text = await r.text();
-                throw new Error(`Resposta não-JSON (${r.status}). Possível sessão expirada ou erro de rota. Trecho: ${text.slice(0, 120)}`);
+                throw new Error(`Resposta não-JSON (${r.status}). Possível sessão expirada ou erro de rota.`);
             }
 
             if (!r.ok) {
@@ -550,164 +532,140 @@
 
     document.getElementById('assessment-form')?.addEventListener('submit', handleAssessmentSubmit);
 
+    // =========================================================================
+    // PLAYER HTML5 (UPLOAD)
+    // =========================================================================
     if (trainingType === 'upload') {
         const video = document.getElementById('training-video');
-        video.controls = false;
+        if (video) {
+            video.controls = false;
 
-        // Aguarda metadata para obter video.duration
-        video.addEventListener('loadedmetadata', () => {
-            const videoDuration = Math.floor(video.duration || registeredDurationSeconds);
-            referenceDuration = Math.max(1, Math.min(videoDuration, registeredDurationSeconds));
-            // Ajusta currentTime para último progresso
-            video.currentTime = Math.min(ultimoTempo, referenceDuration);
-            console.log('[INIT] ultimoTempo=' + ultimoTempo + ', videoDuration=' + video.duration + ', referencia=' + referenceDuration + 's');
-        });
+            video.addEventListener('loadedmetadata', () => {
+                const videoDuration = Math.floor(video.duration || registeredDurationSeconds);
+                referenceDuration = Math.max(1, Math.min(videoDuration, registeredDurationSeconds));
+                video.currentTime = Math.min(ultimoTempo, referenceDuration);
+            });
 
-        // CAMADA 1: RAF LOOP removido - causing loop oscillation
-        // Bloqueio agora feito via seeking event + timeupdate
+            document.addEventListener('keydown', (e) => {
+                const target = e.target;
+                if (target instanceof HTMLElement &&
+                    (target.closest('input, textarea, select, button') || target.isContentEditable)) {
+                    return;
+                }
 
-        // CAMADA 2: BLOQUEAR TECLADO - TODAS as keys que avançam vídeo
-        // (não bloqueia digitação/seleção nos campos da avaliação e demais formulários)
-        document.addEventListener('keydown', (e) => {
-            const target = e.target;
-            if (target instanceof HTMLElement &&
-                (target.closest('input, textarea, select, button') || target.isContentEditable)) {
-                return;
-            }
+                if (['ArrowRight', 'ArrowLeft', ' ', 'j', 'l', 'k'].includes(e.key)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            }, true);
 
-            if (['ArrowRight', 'ArrowLeft', ' ', 'j', 'l', 'k'].includes(e.key)) {
+            video.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
-        }, true);
+            }, false);
 
-        // Também bloquear wheel (scroll)
-        video.addEventListener('wheel', (e) => {
-            e.preventDefault();
-        }, false);
+            let blockSeeking = false;
+            video.addEventListener('seeking', function () {
+                const tempo = video.currentTime;
+                if (tempo > ultimoTempo + 0.01) {
+                    blockSeeking = true;
+                    video.currentTime = ultimoTempo;
+                    setTimeout(() => { blockSeeking = false; }, 500);
+                }
+            }, false);
 
-        // CAMADA 3: SEEKING EVENT - detecta clique na barra - BLOQUEIO PRINCIPAL
-        let blockSeeking = false;
-        video.addEventListener('seeking', function () {
-            const tempo = video.currentTime;
-            
-            // Bloqueia qualquer tentativa de avanço além de ultimoTempo
-            if (tempo > ultimoTempo + 0.01) {
-                blockSeeking = true;
-                video.currentTime = ultimoTempo;
-                console.log('SEEKING BLK: tentou ' + tempo.toFixed(2) + ' -> revert para ' + ultimoTempo.toFixed(2));
-                
-                // Desbloqueia após 500ms para permitir play normal depois
-                setTimeout(() => { blockSeeking = false; }, 500);
-            }
-        }, false);
+            video.addEventListener('play', function () {
+                hasReallyStartedPlayback = true;
+                playStartedAt = Date.now();
+                playBaseTime = Math.max(0, watchedSeconds);
+                if (!dataInicioLocal) {
+                    dataInicioLocal = new Date().toISOString();
+                    salvarProgresso((watchedSeconds / referenceDuration) * 100);
+                }
+            });
 
-        video.addEventListener('play', function () {
-            hasReallyStartedPlayback = true; // marcar que play foi acionado
-            playStartedAt = Date.now();
-            playBaseTime = Math.max(0, watchedSeconds); // base é o que foi contado até agora
-            if (!dataInicioLocal) {
-                dataInicioLocal = new Date().toISOString();
-                salvarProgresso((watchedSeconds / referenceDuration) * 100);
-            }
-            console.log('[PLAY] watchedSeconds=' + watchedSeconds + ' playBaseTime=' + playBaseTime);
-        });
+            video.addEventListener('pause', function () {
+                if (hasReallyStartedPlayback && playStartedAt) {
+                    const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
+                    watchedSeconds = Math.max(watchedSeconds, Math.min(referenceDuration, Math.floor(playBaseTime + elapsed)));
+                    ultimoTempo = Math.max(ultimoTempo, video.currentTime);
+                    salvarProgresso((watchedSeconds / referenceDuration) * 100);
+                }
+                playStartedAt = null;
+            });
 
-        video.addEventListener('pause', function () {
-            if (hasReallyStartedPlayback && playStartedAt) {
-                const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
-                watchedSeconds = Math.max(watchedSeconds, Math.min(referenceDuration, Math.floor(playBaseTime + elapsed)));
-                ultimoTempo = Math.max(ultimoTempo, video.currentTime);
-                salvarProgresso((watchedSeconds / referenceDuration) * 100);
-                console.log('[PAUSE] watchedSeconds=' + watchedSeconds);
-            }
-            playStartedAt = null;
-        });
+            video.addEventListener('timeupdate', function () {
+                const tempo = video.currentTime;
 
-        video.addEventListener('timeupdate', function () {
-            const tempo = video.currentTime;
+                if (blockSeeking) {
+                    return;
+                }
 
-            // Se está em processo de bloqueio, ignora tudo
-            if (blockSeeking) {
-                return;
-            }
+                if (tempo > ultimoTempo + 0.01) {
+                    video.currentTime = ultimoTempo;
+                    return;
+                }
 
-            // FALLBACK: Se por algum motivo chegou além de ultimoTempo, reverte
-            if (tempo > ultimoTempo + 0.01) {
-                video.currentTime = ultimoTempo;
-                console.log('TIMEUPDATE BLK: tentou ' + tempo.toFixed(2) + ' -> revert para ' + ultimoTempo.toFixed(2));
-                return;
-            }
+                if (hasReallyStartedPlayback && playStartedAt && !video.paused) {
+                    const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
+                    watchedSeconds = Math.max(watchedSeconds, Math.min(referenceDuration, Math.floor(playBaseTime + elapsed)));
+                }
 
-            // CRÍTICO: NUNCA incrementa watchedSeconds sem play real ter sido acionado
-            if (hasReallyStartedPlayback && playStartedAt && !video.paused) {
-                const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
-                watchedSeconds = Math.max(watchedSeconds, Math.min(referenceDuration, Math.floor(playBaseTime + elapsed)));
-            }
+                ultimoTempo = Math.max(ultimoTempo, tempo);
 
-            const tempoAntes = ultimoTempo;
-            ultimoTempo = Math.max(ultimoTempo, tempo);
-            if (ultimoTempo > tempoAntes) {
-                console.log('UPDATE: ultimoTempo ' + tempoAntes.toFixed(2) + ' -> ' + ultimoTempo.toFixed(2));
-            }
+                const ref = referenceDuration || Math.max(1, registeredDurationSeconds);
+                const percent = Math.min(100, (watchedSeconds / ref) * 100);
+                updateProgress(percent);
 
-            const ref = referenceDuration || Math.max(1, registeredDurationSeconds);
-            const percent = Math.min(100, (watchedSeconds / ref) * 100);
-            updateProgress(percent);
+                const agora = Date.now();
+                if (agora - ultimoEnvio > 5000) {
+                    salvarProgresso(percent);
+                    ultimoEnvio = agora;
+                }
 
-            const agora = Date.now();
-            if (agora - ultimoEnvio > 5000) {
-                salvarProgresso(percent);
-                ultimoEnvio = agora;
-            }
+                if (percent >= 99 && watchedSeconds >= (ref * 0.95)) {
+                    unlockAssessment();
+                }
+            });
 
-            if (percent >= 99 && hasReallyStartedPlayback) {
-                unlockAssessment();
-            }
-        });
+            video.addEventListener('ended', function () {
+                if (!hasReallyStartedPlayback) return;
+                const ref = referenceDuration || Math.max(1, registeredDurationSeconds);
+                if (watchedSeconds >= (ref * 0.95)) {
+                    ultimoTempo = ref;
+                    watchedSeconds = ref;
+                    salvarProgresso(100, true);
+                    unlockAssessment();
+                } else {
+                    salvarProgresso((watchedSeconds / ref) * 100);
+                }
+                playStartedAt = null;
+            });
 
-        video.addEventListener('ended', function () {
-            if (!hasReallyStartedPlayback) return; // não fazer nada se nunca começou
-            ultimoTempo = referenceDuration || video.duration;
-            watchedSeconds = referenceDuration || Math.floor(video.duration || registeredDurationSeconds);
-            // marcar conclusão com horário local
-            salvarProgresso(100, true);
-            unlockAssessment();
-            playStartedAt = null;
-        });
+            document.getElementById('play-btn')?.addEventListener('click', () => video.play());
+            document.getElementById('pause-btn')?.addEventListener('click', () => video.pause());
+            document.getElementById('mute-btn')?.addEventListener('click', () => {
+                video.muted = !video.muted;
+            });
 
-        document.getElementById('play-btn').addEventListener('click', () => video.play());
-        document.getElementById('pause-btn').addEventListener('click', () => video.pause());
-        document.getElementById('mute-btn').addEventListener('click', () => {
-            video.muted = !video.muted;
-        });
+            video.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        video.addEventListener('contextmenu', (e) => e.preventDefault());
+            // Bloqueio de velocidade no elemento
+            try {
+                Object.defineProperty(video, 'playbackRate', {
+                    get() { return 1.0; },
+                    set(v) { return 1.0; },
+                    configurable: false
+                });
+            } catch (e) {}
+        }
 
+    // =========================================================================
+    // PLAYER YOUTUBE (IFRAME API)
+    // =========================================================================
     } else if (trainingType === 'youtube') {
         let youtubeBlockSeeking = false;
-        let youtubeLastTempo = 0; // rastreia o último tempo conhecido
-        
-        function loadYoutubeApi() {
-            if (window.YT && window.YT.Player) {
-                initializeYoutubePlayer();
-                return;
-            }
-
-            if (window.__youtubeApiLoading) {
-                return;
-            }
-
-            window.__youtubeApiLoading = true;
-            window.onYouTubeIframeAPIReady = function () {
-                initializeYoutubePlayer();
-            };
-
-            const script = document.createElement('script');
-            script.src = 'https://www.youtube.com/iframe_api';
-            document.head.appendChild(script);
-        }
+        let youtubeLastTempo = ultimoTempo;
 
         function initializeYoutubePlayer() {
             youtubePlayer = new YT.Player('training-video', {
@@ -718,7 +676,7 @@
                         const startTime = Math.min(ultimoTempo, youtubeDuration);
                         youtubePlayer.seekTo(startTime, true);
                         youtubeLastTempo = startTime;
-                        console.log('[YOUTUBE INIT] duration=' + youtubeDuration + ' start=' + startTime);
+                        lastTickTimestamp = Date.now();
                     },
                     onStateChange: function (event) {
                         if (event.data === YT.PlayerState.PLAYING) {
@@ -726,6 +684,8 @@
                             playStartedAt = Date.now();
                             playBaseTime = Math.max(0, watchedSeconds);
                             youtubeBlockSeeking = false;
+                            lastTickTimestamp = Date.now();
+
                             if (!dataInicioLocal) {
                                 dataInicioLocal = new Date().toISOString();
                                 salvarProgresso((watchedSeconds / youtubeDuration) * 100);
@@ -737,29 +697,31 @@
                                         return;
                                     }
 
-                                    const tempo = youtubePlayer.getCurrentTime();
-                                    const deltaTempo = tempo - youtubeLastTempo; // quanto avançou desde última leitura
+                                    const now = Date.now();
+                                    const deltaClock = Math.max(0.1, (now - lastTickTimestamp) / 1000);
+                                    lastTickTimestamp = now;
 
-                                    // Se fez um PULO grande (> 2s em uma leitura), bloqueia UMA VEZ
-                                    if (deltaTempo > AVANÇO_MÁXIMO_UX && !youtubeBlockSeeking) {
+                                    const tempo = youtubePlayer.getCurrentTime();
+                                    const deltaTempo = tempo - youtubeLastTempo;
+
+                                    // Detecção de seeking: avanço no vídeo foi maior do que o tempo de relógio + tolerância de 1.5s
+                                    if (deltaTempo > (deltaClock + 1.5) && !youtubeBlockSeeking) {
                                         youtubeBlockSeeking = true;
-                                        const maxPermitido = youtubeLastTempo + AVANÇO_MÁXIMO_UX;
+                                        const maxPermitido = youtubeLastTempo + Math.max(1, deltaClock);
                                         youtubePlayer.seekTo(maxPermitido, true);
                                         youtubeLastTempo = maxPermitido;
-                                        console.log('[YOUTUBE] BLOQUEADO: tentou pulo de ' + tempo.toFixed(2) + ' (Δ=' + deltaTempo.toFixed(2) + 's) -> revert para ' + maxPermitido.toFixed(2));
-                                        
-                                        setTimeout(() => { youtubeBlockSeeking = false; }, 1000);
+                                        setTimeout(() => { youtubeBlockSeeking = false; }, 800);
                                         return;
                                     }
 
-                                    // Playback normal: atualiza referências
+                                    // Reprodução normal contínua:
                                     if (hasReallyStartedPlayback && playStartedAt) {
                                         const elapsed = Math.max(0, (Date.now() - playStartedAt) / 1000);
                                         watchedSeconds = Math.max(watchedSeconds, Math.min(youtubeDuration, Math.floor(playBaseTime + elapsed)));
                                     }
 
                                     ultimoTempo = Math.max(ultimoTempo, tempo);
-                                    youtubeLastTempo = tempo; // sempre atualiza lastTempo
+                                    youtubeLastTempo = tempo;
 
                                     const percent = Math.min(100, (watchedSeconds / Math.max(1, youtubeDuration)) * 100);
                                     updateProgress(percent);
@@ -770,7 +732,7 @@
                                         ultimoEnvio = agora;
                                     }
 
-                                    if (percent >= 99 && hasReallyStartedPlayback) {
+                                    if (percent >= 99 && watchedSeconds >= (youtubeDuration * 0.95)) {
                                         unlockAssessment();
                                     }
                                 }, 1000);
@@ -791,10 +753,14 @@
 
                             if (event.data === YT.PlayerState.ENDED) {
                                 if (!hasReallyStartedPlayback) return;
-                                ultimoTempo = youtubeDuration;
-                                watchedSeconds = youtubeDuration;
-                                salvarProgresso(100, true);
-                                unlockAssessment();
+                                if (watchedSeconds >= (youtubeDuration * 0.95)) {
+                                    ultimoTempo = youtubeDuration;
+                                    watchedSeconds = youtubeDuration;
+                                    salvarProgresso(100, true);
+                                    unlockAssessment();
+                                } else {
+                                    salvarProgresso((watchedSeconds / youtubeDuration) * 100);
+                                }
                             }
 
                             if (youtubeTrackingTimer) {
@@ -805,86 +771,107 @@
                     }
                 }
             });
+
+            // Conectar botões Play / Pause / Mute do layout para YouTube
+            document.getElementById('play-btn')?.addEventListener('click', () => {
+                if (youtubePlayer && typeof youtubePlayer.playVideo === 'function') {
+                    youtubePlayer.playVideo();
+                }
+            });
+            document.getElementById('pause-btn')?.addEventListener('click', () => {
+                if (youtubePlayer && typeof youtubePlayer.pauseVideo === 'function') {
+                    youtubePlayer.pauseVideo();
+                }
+            });
+            document.getElementById('mute-btn')?.addEventListener('click', () => {
+                if (youtubePlayer && typeof youtubePlayer.isMuted === 'function') {
+                    if (youtubePlayer.isMuted()) {
+                        youtubePlayer.unMute();
+                    } else {
+                        youtubePlayer.mute();
+                    }
+                }
+            });
+        }
+
+        function loadYoutubeApi() {
+            if (window.YT && window.YT.Player) {
+                initializeYoutubePlayer();
+                return;
+            }
+
+            if (window.__youtubeApiLoading) {
+                return;
+            }
+
+            window.__youtubeApiLoading = true;
+            window.onYouTubeIframeAPIReady = function () {
+                initializeYoutubePlayer();
+                try {
+                    delete window.onYouTubeIframeAPIReady;
+                } catch (e) {}
+            };
+
+            const script = document.createElement('script');
+            script.src = 'https://www.youtube.com/iframe_api';
+            document.head.appendChild(script);
         }
 
         loadYoutubeApi();
-    }
 
-    // =========================================================================
-    // BLOQUEIO DE VELOCIDADE DE REPRODUÇÃO
-    // =========================================================================
-    // Força playbackRate = 1.0 sempre, impedindo que usuário acelere ou desacelere
-
-    if (trainingType === 'upload') {
-        const video = document.getElementById('training-video');
-
-        // 1. Bloqueia propriedade playbackRate através de Object.defineProperty
-        Object.defineProperty(video, 'playbackRate', {
-            get() {
-                return 1.0;
-            },
-            set(value) {
-                console.warn('🔒 Velocidade de reprodução bloqueada. Apenas 1x permitido.');
-                return 1.0;
-            },
-            configurable: false
-        });
-
-        // 2. Monitora mudanças de playbackRate com ratechange event
-        video.addEventListener('ratechange', (e) => {
-            if (video.playbackRate !== 1.0) {
-                console.warn('🔒 Bloqueado: Tentativa de mudar para playbackRate:', video.playbackRate);
-                video.playbackRate = 1.0;
-            }
-        });
-
-        // 3. Bloqueia atributo playbackRate no HTML (caso modificado dinamicamente)
-        const observer = new MutationObserver(() => {
-            if (video.playbackRate !== 1.0) {
-                video.playbackRate = 1.0;
-            }
-        });
-
-        observer.observe(video, {
-            attributes: true,
-            attributeFilter: ['playbackRate']
-        });
-
-        console.log('✅ Bloqueio de velocidade ativado para vídeo upload');
-    } else if (trainingType === 'youtube') {
-        // Para YouTube, o controle de velocidade é gerenciado pelo iframe
-        // YouTube Player API não expõe playbackRate, então conferir periodicamente
+        // Monitorar e travar velocidade no YouTube para 1.0x
         setInterval(() => {
             if (youtubePlayer && typeof youtubePlayer.getPlaybackRate === 'function') {
                 const currentRate = youtubePlayer.getPlaybackRate();
                 if (currentRate !== 1.0) {
                     youtubePlayer.setPlaybackRate(1.0);
-                    console.warn('🔒 Bloqueado: Velocidade YouTube restaurada para 1.0');
                 }
             }
-        }, 500);
-
-        console.log('✅ Bloqueio de velocidade ativado para YouTube');
+        }, 800);
     }
 
-    function salvarProgresso(percent) {
+    // =========================================================================
+    // BLOQUEIO GLOBAL DE VELOCIDADE NO NAVEGADOR
+    // =========================================================================
+    try {
+        Object.defineProperty(HTMLMediaElement.prototype, 'playbackRate', {
+            get() { return 1.0; },
+            set(v) { return 1.0; },
+            configurable: false
+        });
+    } catch (e) {}
+
+    function salvarProgresso(percent, isFinal = false) {
         const payload = {
             tempo_assistido: watchedSeconds,
             porcentagem_assistida: Math.floor(percent),
         };
 
         if (dataInicioLocal) payload.data_inicio_assistencia = dataInicioLocal;
-        if (percent >= 100) payload.data_finalizacao_assistencia = new Date().toISOString();
+        if (percent >= 100 || isFinal) payload.data_finalizacao_assistencia = new Date().toISOString();
 
         fetch(progressUrl, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': csrfToken
             },
             body: JSON.stringify(payload)
-        }).catch(e => console.error(e));
-    }
+        }).then(r => r.json()).then(data => {
+            if (data.prazo_expirado) {
+                alert(data.error || 'O prazo para concluir este treinamento expirou.');
+                window.location.href = dashboardUrl;
+                return;
+            }
 
+            if (data.show_assessment || percent >= 99) {
+                unlockAssessment();
+            }
+        }).catch(e => console.error('[PROGRESS]', e));
+    }
+})();
 </script>
 @endsection

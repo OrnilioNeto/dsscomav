@@ -9,6 +9,7 @@ use App\Models\Training;
 use App\Models\UserProgress;
 use App\Services\YoutubeStreamResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -402,11 +403,13 @@ class TrainingController extends Controller
             ], 403);
         }
 
+        $agora = now(config('app.timezone'));
+
         $progress = $progress ?: UserProgress::create(
             [
                 'user_id' => $user->id,
                 'training_id' => $training->id,
-                'data_inicio' => now(config('app.timezone')),
+                'data_inicio' => $agora,
                 'tempo_assistido' => 0,
                 'porcentagem_assistida' => 0,
                 'concluido' => false,
@@ -414,31 +417,62 @@ class TrainingController extends Controller
             ]
         );
 
-        $tempoAnterior = (int) $progress->tempo_assistido;
-
-        $avancoPermitido = 10;
-        if ($tempoCliente > $tempoAnterior && ($tempoCliente - $tempoAnterior) > $avancoPermitido) {
-            $tempoCliente = $tempoAnterior + $avancoPermitido;
+        if (! $progress->data_inicio) {
+            $progress->update(['data_inicio' => $agora]);
+            $progress->refresh();
         }
 
-        $tempoAssistido = max($tempoAnterior, $tempoCliente);
-        $porcentagemAssistida = max((int) $porcentagem, (int) $progress->porcentagem_assistida);
+        $tempoAnterior = (int) $progress->tempo_assistido;
+        $deltaDesejado = $tempoCliente - $tempoAnterior;
+
+        if ($deltaDesejado > 0) {
+            if ($isTestUser) {
+                $tempoAssistido = $tempoCliente;
+            } else {
+                $cacheKey = "api_last_beat:{$user->id}:{$training->id}";
+                $lastBeat = Cache::get($cacheKey);
+
+                if ($lastBeat) {
+                    $segundosDecorrido = max(0, $agora->timestamp - (int) $lastBeat);
+                } else {
+                    $segundosDecorrido = $progress->updated_at ? max(0, $agora->diffInSeconds($progress->updated_at)) : 10;
+                }
+
+                $segundosDesdeInicio = max(0, $agora->diffInSeconds($progress->data_inicio));
+
+                if ($segundosDecorrido > 600) {
+                    $maxAvancoPermitido = 15;
+                } else {
+                    $maxAvancoPermitido = max(10, $segundosDecorrido + 15);
+                }
+
+                $avancoEfetivo = min($deltaDesejado, $maxAvancoPermitido);
+                $tempoCandidato = $tempoAnterior + $avancoEfetivo;
+                $tetoAbsoluto = $segundosDesdeInicio + 30;
+                $tempoAssistido = min($duracao, $tempoCandidato, $tetoAbsoluto);
+            }
+        } else {
+            $tempoAssistido = $tempoAnterior;
+        }
+
+        Cache::put("api_last_beat:{$user->id}:{$training->id}", $agora->timestamp, now()->addHours(6));
+
+        $porcentagemAssistida = min(100, (int) round(($tempoAssistido / $duracao) * 100));
 
         $updateData = [
             'tempo_assistido' => $tempoAssistido,
             'porcentagem_assistida' => $porcentagemAssistida,
         ];
 
-        if (! $progress->data_inicio) {
-            $updateData['data_inicio'] = now(config('app.timezone'));
-        }
-
         $progress->update($updateData);
 
         $fresh = $progress->fresh();
-        $showAssessment = $training->hasAssessment() && ($isTestUser || $fresh->porcentagem_assistida >= 99) && ! $fresh->avaliacao_aprovada;
+        $minimoTempoExigido = (int) round($duracao * 0.95);
+        $videoConcluido = ($fresh->porcentagem_assistida >= 99 && $fresh->tempo_assistido >= $minimoTempoExigido);
 
-        if (($isTestUser || $fresh->porcentagem_assistida >= 99) && $fresh->avaliacao_aprovada && ! $fresh->concluido) {
+        $showAssessment = $training->hasAssessment() && ($isTestUser || $videoConcluido) && ! $fresh->avaliacao_aprovada;
+
+        if (($isTestUser || $videoConcluido) && $fresh->avaliacao_aprovada && ! $fresh->concluido) {
             $fresh->update([
                 'concluido' => true,
                 'data_conclusao' => now(config('app.timezone')),
@@ -522,22 +556,32 @@ class TrainingController extends Controller
             ]
         );
 
+        if (! $isTestUser && (int) $progress->porcentagem_assistida < 99) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'A avaliação será liberada após você concluir 100% do vídeo.',
+            ], 422);
+        }
+
         $isCorrect = (int) $request->answer === (int) $training->avaliacao_resposta_correta;
 
         if (! $isCorrect) {
             $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
 
             if (! $isTestUser && $tentativas >= 2) {
-                $progress->update($this->filterUserProgressColumns([
+                $resetPayload = [
                     'avaliacao_tentativas' => 0,
                     'avaliacao_aprovada' => false,
                     'concluido' => false,
                     'porcentagem_assistida' => 0,
                     'tempo_assistido' => 0,
-                    'data_inicio' => now(config('app.timezone')),
                     'data_conclusao' => null,
                     'avaliacao_resposta_usuario' => null,
-                ]));
+                ];
+                if (! $progress->data_inicio) {
+                    $resetPayload['data_inicio'] = now(config('app.timezone'));
+                }
+                $progress->update($this->filterUserProgressColumns($resetPayload));
 
                 return response()->json([
                     'status' => 'error',
@@ -621,6 +665,25 @@ class TrainingController extends Controller
                 'avaliacao_tentativas' => 0,
             ]
         );
+
+        $duracao = max(1, $training->duracaoSegundos());
+        $minimoTempoExigido = (int) round($duracao * 0.95);
+
+        if (! $user->isTestUser()) {
+            if ((int) $progress->tempo_assistido < $minimoTempoExigido || (int) $progress->porcentagem_assistida < 99) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Você precisa assistir a pelo menos 95% do treinamento antes de concluir.',
+                ], 422);
+            }
+
+            if ($training->hasAssessment() && ! $progress->avaliacao_aprovada) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'É necessário ser aprovado na avaliação antes de concluir o treinamento.',
+                ], 422);
+            }
+        }
 
         if (! $progress->concluido) {
             $progress->update([
