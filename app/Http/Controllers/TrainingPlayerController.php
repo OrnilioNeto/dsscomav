@@ -64,6 +64,9 @@ class TrainingPlayerController extends Controller
             $progress->update(['data_inicio' => now(config('app.timezone'))]);
         }
 
+        session()->put("player_session_{$training->id}", now()->timestamp);
+        session()->put("player_last_beat_{$training->id}", now()->timestamp);
+
         TrainingLog::registrar($training->id, $user->id, 'curso_iniciado', 'Acesso ao player do treinamento.');
 
         // Questões exibidas abaixo do vídeo; liberadas apenas após a conclusão (100%).
@@ -123,25 +126,66 @@ class TrainingPlayerController extends Controller
         // Capear tempo à duração máxima
         $tempoCliente = min($tempoCliente, $duracao);
 
-        $tempoAnterior = (int) $progress->tempo_assistido;
+        $agora = now(config('app.timezone'));
 
-        // REGRA DE BLOQUEIO: máximo avanço de 10 segundos por requisição
-        $avancoPermitido = 10;
-        if ($tempoCliente > $tempoAnterior && ($tempoCliente - $tempoAnterior) > $avancoPermitido) {
-            $tempoCliente = $tempoAnterior + $avancoPermitido;
+        // Garantir que data_inicio existe
+        if (! $progress->data_inicio) {
+            $progress->update(['data_inicio' => $agora]);
+            $progress->refresh();
         }
 
-        $tempoAssistido = max($tempoAnterior, $tempoCliente);
-        $porcentagemAssistida = min(100, max((int) $porcentagem, (int) $progress->porcentagem_assistida));
+        $tempoAnterior = (int) $progress->tempo_assistido;
+        $deltaDesejado = $tempoCliente - $tempoAnterior;
+
+        if ($deltaDesejado > 0) {
+            if ($isTestUser) {
+                $tempoAssistido = $tempoCliente;
+            } else {
+                // Rastreamento de tempo físico decorrido (wall-clock):
+                // 1. Tempo decorrido desde o último heartbeat registrado nesta sessão web
+                $lastBeat = session()->get("player_last_beat_{$training->id}");
+
+                // Fallback: se a sessão não tiver o timestamp, utiliza updated_at do banco
+                if ($lastBeat) {
+                    $segundosDecorrido = max(0, $agora->timestamp - (int) $lastBeat);
+                } else {
+                    $segundosDecorrido = $progress->updated_at ? max(0, $agora->diffInSeconds($progress->updated_at)) : 10;
+                }
+
+                // 2. Teto acumulado desde o início do treinamento
+                $segundosDesdeInicio = max(0, $agora->diffInSeconds($progress->data_inicio));
+
+                if ($segundosDecorrido > 600) {
+                    // Retomada após longa ausência/inatividade: avanço máximo inicial de 15s
+                    $maxAvancoPermitido = 15;
+                } else {
+                    // Reprodução contínua ou com throttling em mobile/background:
+                    // Tolera o tempo real decorrido no relógio + 15s de tolerância de rede
+                    $maxAvancoPermitido = max(10, $segundosDecorrido + 15);
+                }
+
+                $avancoEfetivo = min($deltaDesejado, $maxAvancoPermitido);
+                $tempoCandidato = $tempoAnterior + $avancoEfetivo;
+
+                // Teto absoluto: tempo acumulado não pode superar o tempo decorrido desde o início + 30s
+                $tetoAbsoluto = $segundosDesdeInicio + 30;
+                $tempoAssistido = min($duracao, $tempoCandidato, $tetoAbsoluto);
+            }
+        } else {
+            // Tempo reportado é menor ou igual ao já salvo (ex.: seek para trás ou pausa)
+            $tempoAssistido = $tempoAnterior;
+        }
+
+        // Atualiza a marcação do último heartbeat na sessão
+        session()->put("player_last_beat_{$training->id}", $agora->timestamp);
+
+        // O percentual assistido é SEMPRE recalculado no servidor a partir do tempo real e da duração
+        $porcentagemAssistida = min(100, (int) round(($tempoAssistido / $duracao) * 100));
 
         $updateData = [
             'tempo_assistido' => $tempoAssistido,
             'porcentagem_assistida' => $porcentagemAssistida,
         ];
-
-        if (! $progress->data_inicio) {
-            $updateData['data_inicio'] = now(config('app.timezone'));
-        }
 
         $porcentagemAnterior = (int) $progress->porcentagem_assistida;
 
@@ -149,15 +193,18 @@ class TrainingPlayerController extends Controller
 
         $fresh = $progress->fresh();
 
-        // Registra a liberação da avaliação quando o vídeo atinge a conclusão.
+        $minimoTempoExigido = (int) round($duracao * 0.95);
+        $videoConcluido = ($fresh->porcentagem_assistida >= 99 && $fresh->tempo_assistido >= $minimoTempoExigido);
+
+        // Registra a liberação da avaliação quando o vídeo atinge a conclusão real.
         if ($training->hasAssessment() && ! $fresh->avaliacao_aprovada
-            && $porcentagemAnterior < 99 && (int) $fresh->porcentagem_assistida >= 99) {
+            && $porcentagemAnterior < 99 && ($isTestUser || $videoConcluido)) {
             TrainingLog::registrar($training->id, $user->id, 'avaliacao_iniciada', 'Avaliação liberada após conclusão do vídeo.');
         }
 
-        $showAssessment = $training->hasAssessment() && ($isTestUser || $fresh->porcentagem_assistida >= 99) && ! $fresh->avaliacao_aprovada;
+        $showAssessment = $training->hasAssessment() && ($isTestUser || $videoConcluido) && ! $fresh->avaliacao_aprovada;
 
-        if (($isTestUser || $fresh->porcentagem_assistida >= 99) && $fresh->avaliacao_aprovada && ! $fresh->concluido) {
+        if (($isTestUser || $videoConcluido) && $fresh->avaliacao_aprovada && ! $fresh->concluido) {
             $conclusionData = ['concluido' => true];
             $conclusionData['data_conclusao'] = now(config('app.timezone'));
 
@@ -326,7 +373,7 @@ class TrainingPlayerController extends Controller
                 $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
 
                 if (! $isTestUser && $tentativas >= 2) {
-                    $progress->update($this->filterUserProgressColumns([
+                    $resetPayload = [
                         'avaliacao_tentativas' => 0,
                         'avaliacao_aprovada' => false,
                         'avaliacao_nota' => null,
@@ -334,10 +381,13 @@ class TrainingPlayerController extends Controller
                         'concluido' => false,
                         'porcentagem_assistida' => 0,
                         'tempo_assistido' => 0,
-                        'data_inicio' => now(config('app.timezone')),
                         'data_conclusao' => null,
                         'avaliacao_resposta_usuario' => null,
-                    ]));
+                    ];
+                    if (! $progress->data_inicio) {
+                        $resetPayload['data_inicio'] = now(config('app.timezone'));
+                    }
+                    $progress->update($this->filterUserProgressColumns($resetPayload));
                     session()->forget("avaliacao_{$training->id}_map");
 
                     TrainingLog::registrar($training->id, $user->id, 'avaliacao_reset', 'Duas tentativas reprovadas; conteúdo reassistido para liberar nova avaliação.');
@@ -422,17 +472,20 @@ class TrainingPlayerController extends Controller
             $tentativas = (int) ($progress->avaliacao_tentativas ?? 0) + 1;
 
             if (! $isTestUser && $tentativas >= 2) {
-                $progress->update($this->filterUserProgressColumns([
+                $resetPayload = [
                     'avaliacao_tentativas' => 0,
                     'avaliacao_aprovada' => false,
                     'avaliacao_nota' => null,
                     'concluido' => false,
                     'porcentagem_assistida' => 0,
                     'tempo_assistido' => 0,
-                    'data_inicio' => now(config('app.timezone')),
                     'data_conclusao' => null,
                     'avaliacao_resposta_usuario' => null,
-                ]));
+                ];
+                if (! $progress->data_inicio) {
+                    $resetPayload['data_inicio'] = now(config('app.timezone'));
+                }
+                $progress->update($this->filterUserProgressColumns($resetPayload));
 
                 TrainingLog::registrar($training->id, $user->id, 'avaliacao_reset', 'Duas tentativas reprovadas; conteúdo reassistido para liberar nova avaliação.');
 
@@ -494,6 +547,23 @@ class TrainingPlayerController extends Controller
                 'error' => 'O prazo para assistir e concluir este treinamento expirou. Fale com seu gestor para liberar um novo prazo.',
                 'prazo_expirado' => true,
             ], 403);
+        }
+
+        $duracao = max(1, $training->duracaoSegundos());
+        $minimoTempoExigido = (int) round($duracao * 0.95);
+
+        if (! $user->isTestUser()) {
+            if ((int) $progress->tempo_assistido < $minimoTempoExigido || (int) $progress->porcentagem_assistida < 99) {
+                return response()->json([
+                    'error' => 'Você precisa assistir a pelo menos 95% do treinamento antes de concluir.',
+                ], 422);
+            }
+
+            if ($training->hasAssessment() && ! $progress->avaliacao_aprovada) {
+                return response()->json([
+                    'error' => 'É necessário ser aprovado na avaliação antes de concluir o treinamento.',
+                ], 422);
+            }
         }
 
         if (! $progress->concluido) {
