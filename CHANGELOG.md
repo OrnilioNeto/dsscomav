@@ -6,6 +6,27 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.79] - 2026-10-28
+
+### Segurança e Integridade
+- **Proteção Antiburle Avançada no Player de Vídeo**:
+  - Isolamento de escopo JavaScript via IIFE `(function () { 'use strict'; ... })();`, removendo variáveis e rotinas de salvamento do escopo global `window` (bloqueando injeção e alteração via console DevTools / F12).
+  - Bloqueio rígido de aceleração de reprodução: congelamento do protótipo `HTMLMediaElement.prototype.playbackRate` (`configurable: false`), travando a velocidade estritamente em `1.0x`.
+  - Desativação de controles e atalhos de teclado nativos no player YouTube (`controls=0&disablekb=1&modestbranding=1&rel=0&iv_load_policy=3&fs=0`).
+  - Barreira de segurança e validação de relógio físico no backend: validação de tempo decorrido de parede (`diffInSeconds(now, data_inicio)` e batimentos de sessão), rejeitando no servidor saltos irreais e bloqueando a liberação da avaliação se o usuário não tiver assistido a no mínimo 95% do tempo físico do vídeo.
+  - Cálculo de porcentagem exclusivamente no servidor: o backend descarta o percentual enviado pelo cliente e o recalcula matematicamente através de `(tempo_assistido / duracao) * 100`.
+
+### Corrigido
+- **Precisão de Tempo Assistido e Segundos**:
+  - Correção na apuração da duração total exata `(carga_horaria * 60) + carga_horaria_segundos` em todo o ciclo de vida do treinamento (player, relatórios Excel e emissão de certificados).
+  - Eliminação de truncamento prematuro de segundos finais do vídeo ao concluir treinamentos.
+  - Preservação da `data_inicio` original em caso de reprovação na avaliação (`avaliacao_reset`), mantendo a rastreabilidade integral da jornada do aluno.
+  - Sincronização entre `user_progress` e `certificates`: ambos agora guardam o tempo integral idêntico, evitando discrepâncias entre relatórios analíticos e certificados impressos.
+
+### Auditoria e Conformidade
+- **Laudo Técnico Pericial NR-01 Anexo II**: elaborado documento oficial de auditoria em `docs/operacao/LAUDO_AUDITORIA_TEMPO_VIDEO.md` detalhando a causa raiz, a correção aplicada e a justificativa legal das regularizações retroativas de tempo assistido.
+- **Comando de Reconciliação**: criado comando artisan `training:reconcile-watched-times` com registro de auditoria em `audit_logs` e `training_logs`.
+
 ## [2.0.78] - 2026-10-24
 
 ### Adicionado
