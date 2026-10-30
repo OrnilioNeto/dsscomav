@@ -6,6 +6,18 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.80] - 2026-10-30
+
+### Corrigido
+- **Campos de fardamento no cadastro web de usuários**: restaurados os campos
+  "Tamanho da Camisa", "Tamanho da Calça" e "Numeração da Bota" nas telas de
+  criar (`/usuarios/create`) e editar (`/usuarios/edit`) usuário, dentro da
+  seção "Dados de Fardamento". O bloco havia sido removido acidentalmente no
+  commit `064a89a` ("criando api para o app"). O backend já estava intacto
+  (colunas em `users`, `$fillable`, validação e whitelist no `UserController`),
+  então os tamanhos voltam a ser gravados pelo painel e passam a alimentar a
+  aba **Fardamento** do módulo de EPI.
+
 ## [2.0.79] - 2026-10-28
 
 ### Segurança e Integridade
