@@ -30,6 +30,7 @@ use App\Http\Controllers\TrainingRewatchController;
 use App\Http\Controllers\TrainingVacationExemptionController;
 use App\Http\Controllers\UserController;
 use App\Http\Middleware\CheckRole;
+use App\Modules\Frota\Http\Controllers\AcessoController;
 use Illuminate\Support\Facades\Route;
 
 // Rota inicial
@@ -128,19 +129,32 @@ Route::middleware('auth')->group(function () {
         return view('legal.certificacao');
     })->name('certificacao.conformidade');
 
-    // Visualizar e completar treinamentos
-    Route::get('/treinamentos/{id}/player', [TrainingPlayerController::class, 'show'])->name('treinamentos.player');
-    Route::post('/treinamentos/{id}/atualizar-progresso', [TrainingPlayerController::class, 'updateProgress'])->name('treinamentos.atualizar-progresso');
-    Route::post('/treinamentos/{id}/avaliacao', [TrainingPlayerController::class, 'submitAssessment'])->name('treinamentos.avaliacao')->middleware('throttle:10,1');
-    Route::post('/treinamentos/{id}/completar', [TrainingPlayerController::class, 'complete'])->name('treinamentos.completar');
+    // Portão de acesso aos treinamentos (jornada do motorista no rastreamento).
+    // Fica fora do middleware para não gerar loop de redirecionamento.
+    Route::get('/treinamentos/bloqueado', [AcessoController::class, 'bloqueado'])
+        ->name('treinamentos.bloqueado');
+    Route::get('/treinamentos/acesso-status', [AcessoController::class, 'status'])
+        ->middleware('throttle:30,1')
+        ->name('treinamentos.acesso-status');
+
+    // Visualizar e completar treinamentos (somente com jornada identificada
+    // ou liberação manual da gestão).
+    Route::middleware('driver.training')->group(function () {
+        Route::get('/treinamentos/{id}/player', [TrainingPlayerController::class, 'show'])->name('treinamentos.player');
+        Route::post('/treinamentos/{id}/atualizar-progresso', [TrainingPlayerController::class, 'updateProgress'])->name('treinamentos.atualizar-progresso');
+        Route::post('/treinamentos/{id}/avaliacao', [TrainingPlayerController::class, 'submitAssessment'])->name('treinamentos.avaliacao')->middleware('throttle:10,1');
+        Route::post('/treinamentos/{id}/completar', [TrainingPlayerController::class, 'complete'])->name('treinamentos.completar');
+
+        // Certificados do usuário
+        Route::get('/treinamentos/{id}/certificado', [CertificateController::class, 'downloadForTraining'])->name('certificados.por-training');
+
+        // Download de Materiais de Apoio
+        Route::get('/materiais/{materialId}/download', [TrainingMaterialController::class, 'download'])->name('materiais.download');
+    });
 
     // Certificados do usuário
     Route::get('/meus-certificados', [CertificateController::class, 'myCertificates'])->name('certificados.meus');
-    Route::get('/treinamentos/{id}/certificado', [CertificateController::class, 'downloadForTraining'])->name('certificados.por-training');
     Route::get('/certificados/{id}/download', [CertificateController::class, 'downloadCertificate'])->name('certificados.download');
-
-    // Download de Materiais de Apoio
-    Route::get('/materiais/{materialId}/download', [TrainingMaterialController::class, 'download'])->name('materiais.download');
 
     // Rotas do Admin e Super Admin (filtradas dinamicamente via permissões e middleware admin)
     Route::middleware('admin')->group(function () {

@@ -222,7 +222,7 @@
                                 <div class="text-xs text-gray-500">{{ $cert->data_validade->format('d/m/Y') }}</div>
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-gray-700">{{ gmdate('H:i:s', $cert->tempo_assistido ?? 0) }}</td>
+                        <td class="px-4 py-3 text-gray-700">{{ gmdate('H:i:s', (int) ($cert->tempo_assistido_segundos ?? 0)) }}</td>
                         <td class="px-4 py-3 text-center">
                             @if($cert->valido)
                                 <span class="bg-green-100 text-green-900 px-3 py-1 rounded-full text-sm font-semibold">✓ Válido</span>

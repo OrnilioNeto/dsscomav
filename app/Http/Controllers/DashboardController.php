@@ -9,6 +9,7 @@ use App\Models\Training;
 use App\Models\TrainingVacationExemption;
 use App\Models\User;
 use App\Models\UserProgress;
+use App\Modules\Frota\Services\DriverPresenceService;
 use App\Services\RankingRuleResolverService;
 use Illuminate\Http\Request;
 
@@ -265,6 +266,22 @@ class DashboardController extends Controller
 
         $rankingLevel = $this->calculateLevel($userRank);
 
+        try {
+            $acessoTreinamentos = app(DriverPresenceService::class)->avaliar($user);
+        } catch (\Throwable $e) {
+            report($e);
+            $acessoTreinamentos = [
+                'liberado' => true,
+                'origem' => 'indisponivel',
+                'motivo' => 'Não foi possível verificar sua jornada agora.',
+                'detalhe' => null,
+                'verificado_em' => null,
+                'liberacao' => null,
+                'motorista' => null,
+                'horas_sessao' => null,
+            ];
+        }
+
         return view('dashboard.usuario', [
             'treinamentosDisponíveis' => $treinamentosDisponíveis,
             'treinamentosBloqueados' => $treinamentosBloqueados,
@@ -280,6 +297,7 @@ class DashboardController extends Controller
             'rankingLevel' => $rankingLevel,
             'totalPoints' => $totalPoints,
             'userRank' => $userRank,
+            'acessoTreinamentos' => $acessoTreinamentos,
         ]);
     }
 

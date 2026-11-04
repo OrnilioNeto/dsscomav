@@ -46,6 +46,42 @@
         <i class="fas fa-tachometer-alt text-blue-900 mr-3"></i>Meu Dashboard
     </h1>
 
+    @if(! $acessoTreinamentos['liberado'])
+        <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-red-900">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-lock mt-1"></i>
+                <div class="flex-1">
+                    <p class="font-bold">Treinamentos bloqueados no momento</p>
+                    <p class="text-sm mt-1">{{ $acessoTreinamentos['motivo'] }}</p>
+                    <a href="{{ route('treinamentos.bloqueado') }}" class="inline-block mt-2 text-sm font-bold text-red-700 underline">
+                        Entenda como liberar o acesso
+                    </a>
+                </div>
+            </div>
+        </div>
+    @elseif(in_array($acessoTreinamentos['origem'], ['manual', 'grace', 'fail_open'], true))
+        <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-unlock mt-1"></i>
+                <div class="flex-1">
+                    <p class="font-bold">
+                        @if($acessoTreinamentos['origem'] === 'manual')
+                            Acesso liberado manualmente
+                        @else
+                            Acesso mantido por tolerância
+                        @endif
+                    </p>
+                    <p class="text-sm mt-1">{{ $acessoTreinamentos['motivo'] }}</p>
+                    @if($acessoTreinamentos['liberacao']?->fim)
+                        <p class="text-xs mt-1">
+                            Válido até {{ $acessoTreinamentos['liberacao']->fim->format('d/m/Y H:i') }}.
+                        </p>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Perfil e Nível -->
     <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 flex flex-col md:flex-row items-center gap-6 border border-gray-100">
         <div class="profile-moldura {{ $rankingLevel['class'] }}">
@@ -126,7 +162,24 @@
     </div>
 
     <!-- Treinamentos Disponíveis -->
-    <div class="space-y-4" id="secoes-treinamentos">
+    <div class="relative">
+        @if(! $acessoTreinamentos['liberado'])
+            <div class="absolute inset-0 z-20 flex items-start justify-center rounded-xl bg-white/70 px-4 pt-8 backdrop-blur-[1px] md:pt-12">
+                <div class="max-w-md rounded-xl border border-amber-200 bg-white px-6 py-5 text-center shadow-xl">
+                    <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+                        <i class="fas fa-lock text-amber-600 text-xl"></i>
+                    </div>
+                    <p class="font-bold text-gray-800">Treinamentos indisponíveis</p>
+                    <p class="text-sm text-gray-600 mt-1">{{ $acessoTreinamentos['motivo'] }}</p>
+                    <a href="{{ route('treinamentos.bloqueado') }}"
+                       class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
+                        <i class="fas fa-circle-info"></i> Ver detalhes
+                    </a>
+                </div>
+            </div>
+        @endif
+
+        <div class="space-y-4" id="secoes-treinamentos">
 
         {{-- ═══════════════════════════════════════════════════════════ --}}
         {{-- MEUS TREINAMENTOS (direcionados pela administração)         --}}
@@ -596,6 +649,7 @@
             </div>
         @endif
 
+        </div>
     </div>
 
     <!-- Link para Certificados -->

@@ -601,7 +601,10 @@
                     return;
                 }
 
-                if (tempo > ultimoTempo + 0.01) {
+                // Só bloqueia salto manual (seek). O avanço normal do vídeo
+                // dispara timeupdate a cada ~0,25s e precisa ser aceito —
+                // a checagem antiga (+0,01s) prendia o vídeo no início.
+                if (tempo > ultimoTempo + 1.5) {
                     video.currentTime = ultimoTempo;
                     return;
                 }

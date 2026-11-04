@@ -91,6 +91,7 @@ class ModuleInfrastructureTest extends TestCase
         $slugs = [
             'users', 'trainings', 'certificates', 'rankings', 'splash', 'social',
             'epi', 'projeto_pedagogico', 'folgas', 'rewatch', 'auditoria', 'permissions',
+            'frota', 'integracao_autotrac',
         ];
 
         foreach ($slugs as $slug) {

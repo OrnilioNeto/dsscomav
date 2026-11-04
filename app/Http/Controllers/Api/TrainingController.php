@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Certificate;
 use App\Models\Training;
 use App\Models\UserProgress;
+use App\Modules\Frota\Services\DriverPresenceService;
 use App\Services\YoutubeStreamResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -186,6 +187,12 @@ class TrainingController extends Controller
             $progress->update(['data_inicio' => now(config('app.timezone'))]);
         }
 
+        // Âncoras de tempo da sessão do app (mesma semântica do player web).
+        // Sem elas, o primeiro POST após >10 min assistindo era truncado em 15s.
+        $cacheKey = "api_session_start:{$user->id}:{$training->id}";
+        Cache::put($cacheKey, now()->timestamp, now()->addHours(12));
+        Cache::put("api_last_beat:{$user->id}:{$training->id}", now()->timestamp, now()->addHours(6));
+
         $data = $this->serializeTraining($training, $progress->fresh());
         $data['stream_url'] = $this->resolveStreamUrl($training);
 
@@ -249,6 +256,16 @@ class TrainingController extends Controller
 
         if (! $user->canAccessTraining($training)) {
             return response()->json(['status' => 'error', 'message' => 'Acesso negado'], 403);
+        }
+
+        // Mesmo portão dos demais endpoints de treinamento: o motorista precisa
+        // estar em jornada (ou com liberação manual) também no proxy de vídeo.
+        if (! app(DriverPresenceService::class)->avaliar($user)['liberado']) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'DRIVER_TRAINING_BLOCKED',
+                'message' => 'Treinamentos disponíveis apenas durante o horário de trabalho.',
+            ], 403);
         }
 
         $streamUrl = $this->resolveStreamUrl($training);
@@ -429,27 +446,26 @@ class TrainingController extends Controller
             if ($isTestUser) {
                 $tempoAssistido = $tempoCliente;
             } else {
-                $cacheKey = "api_last_beat:{$user->id}:{$training->id}";
-                $lastBeat = Cache::get($cacheKey);
+                // Âncora da sessão do app (gravada em show()). Cobre telas
+                // bloqueadas/background e requisições agrupadas pelo SO.
+                $sessionStart = (int) Cache::get("api_session_start:{$user->id}:{$training->id}", 0);
 
-                if ($lastBeat) {
-                    $segundosDecorrido = max(0, $agora->timestamp - (int) $lastBeat);
-                } else {
-                    $segundosDecorrido = $progress->updated_at ? max(0, $agora->diffInSeconds($progress->updated_at)) : 10;
+                if ($sessionStart <= 0 || $sessionStart > $agora->timestamp) {
+                    $sessionStart = (int) Cache::get("api_last_beat:{$user->id}:{$training->id}", 0);
                 }
+
+                if ($sessionStart <= 0) {
+                    $sessionStart = $progress->updated_at ? $progress->updated_at->timestamp : $agora->timestamp;
+                }
+
+                $segundosSessao = max(0, $agora->timestamp - $sessionStart);
+                $tetoSessao = $tempoAnterior + $segundosSessao + 30;
 
                 $segundosDesdeInicio = max(0, $agora->diffInSeconds($progress->data_inicio));
+                $tetoGlobal = $segundosDesdeInicio + 30;
 
-                if ($segundosDecorrido > 600) {
-                    $maxAvancoPermitido = 15;
-                } else {
-                    $maxAvancoPermitido = max(10, $segundosDecorrido + 15);
-                }
-
-                $avancoEfetivo = min($deltaDesejado, $maxAvancoPermitido);
-                $tempoCandidato = $tempoAnterior + $avancoEfetivo;
-                $tetoAbsoluto = $segundosDesdeInicio + 30;
-                $tempoAssistido = min($duracao, $tempoCandidato, $tetoAbsoluto);
+                $tempoCandidato = min($duracao, $tempoCliente);
+                $tempoAssistido = min($tempoCandidato, $tetoSessao, $tetoGlobal);
             }
         } else {
             $tempoAssistido = $tempoAnterior;

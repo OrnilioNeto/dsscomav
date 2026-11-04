@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Scopes\TenantScope;
 use App\Models\User;
+use App\Modules\Frota\Services\DriverPresenceService;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -44,7 +45,36 @@ class AuthController extends Controller
             'is_super_admin' => $user->isSuperAdmin(),
             'permissions' => $this->getPermissions($user),
             'em_ferias' => $user->isOnVacation(),
+            'acesso_treinamentos' => $this->acessoTreinamentos($user),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function acessoTreinamentos(User $user): array
+    {
+        try {
+            $acesso = app(DriverPresenceService::class)->avaliar($user);
+
+            return [
+                'liberado' => $acesso['liberado'],
+                'origem' => $acesso['origem'],
+                'motivo' => $acesso['motivo'],
+                'verificado_em' => optional($acesso['verificado_em'])->toIso8601String(),
+                'liberado_ate' => optional($acesso['liberacao'])->fim?->toIso8601String(),
+            ];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [
+                'liberado' => true,
+                'origem' => 'indisponivel',
+                'motivo' => 'Não foi possível verificar sua jornada agora.',
+                'verificado_em' => null,
+                'liberado_ate' => null,
+            ];
+        }
     }
 
     private function getPermissions(User $user): array

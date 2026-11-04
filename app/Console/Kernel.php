@@ -19,6 +19,9 @@ class Kernel extends ConsoleKernel
             ->everyFiveMinutes()
             ->between((string) config('whatsapp.window_start', '08:00'), (string) config('whatsapp.window_end', '18:00'))
             ->withoutOverlapping();
+        $schedule->command('frota:sync')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
     }
 
     /**
