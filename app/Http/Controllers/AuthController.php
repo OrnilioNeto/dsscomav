@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Scopes\TenantScope;
 use App\Models\User;
+use App\Modules\Frota\Services\DriverPresenceService;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -74,6 +75,14 @@ class AuthController extends Controller
 
             Auth::login($user);
             $request->session()->regenerate();
+
+            // Aquece o status de jornada (não bloqueia o login se a integração
+            // estiver fora do ar). A regra é aplicada nas rotas de treinamento.
+            try {
+                app(DriverPresenceService::class)->avaliar($user);
+            } catch (\Throwable $e) {
+                report($e);
+            }
 
             return redirect()->route('dashboard');
         } catch (\Throwable $e) {

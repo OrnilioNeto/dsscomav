@@ -23,6 +23,7 @@ use App\Http\Middleware\TrimStrings;
 use App\Http\Middleware\TrustProxies;
 use App\Http\Middleware\ValidateSignature;
 use App\Http\Middleware\VerifyCsrfToken;
+use App\Modules\Frota\Http\Middleware\EnsureDriverTrainingAccess;
 use Illuminate\Auth\Middleware\AuthenticateWithBasicAuth;
 use Illuminate\Auth\Middleware\Authorize;
 use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
@@ -112,6 +113,7 @@ class Kernel extends HttpKernel
         'api.admin' => ApiCheckAdmin::class,
         'tenant' => ResolveTenant::class,
         'module' => CheckModule::class,
+        'driver.training' => EnsureDriverTrainingAccess::class,
     ];
 
     /**
@@ -137,5 +139,6 @@ class Kernel extends HttpKernel
         'api.admin' => ApiCheckAdmin::class,
         'tenant' => ResolveTenant::class,
         'module' => CheckModule::class,
+        'driver.training' => EnsureDriverTrainingAccess::class,
     ];
 }

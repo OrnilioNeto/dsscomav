@@ -67,3 +67,6 @@ bootstrap/cache/*.php
 /instagram/
 # Marketing (local)
 /marketing/
+
+# Documentação externa recebida (PDFs de integração/contrato, não versionar)
+/Documentacao/

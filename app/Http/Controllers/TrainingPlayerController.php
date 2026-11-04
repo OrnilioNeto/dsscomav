@@ -141,35 +141,36 @@ class TrainingPlayerController extends Controller
             if ($isTestUser) {
                 $tempoAssistido = $tempoCliente;
             } else {
-                // Rastreamento de tempo físico decorrido (wall-clock):
-                // 1. Tempo decorrido desde o último heartbeat registrado nesta sessão web
-                $lastBeat = session()->get("player_last_beat_{$training->id}");
+                // Âncora da sessão: instante em que o player foi carregado ($show).
+                // É o limite físico de quanto o usuário pode ter assistido desde
+                // então — o cliente não consegue "adiantar" além do relógio real.
+                $sessionStart = (int) session()->get("player_session_{$training->id}", 0);
 
-                // Fallback: se a sessão não tiver o timestamp, utiliza updated_at do banco
-                if ($lastBeat) {
-                    $segundosDecorrido = max(0, $agora->timestamp - (int) $lastBeat);
-                } else {
-                    $segundosDecorrido = $progress->updated_at ? max(0, $agora->diffInSeconds($progress->updated_at)) : 10;
+                // Se a sessão foi regenerada/perdida, usa o último heartbeat.
+                if ($sessionStart <= 0 || $sessionStart > $agora->timestamp) {
+                    $sessionStart = (int) session()->get("player_last_beat_{$training->id}", 0);
                 }
 
-                // 2. Teto acumulado desde o início do treinamento
+                // Último fallback: updated_at do progresso no banco.
+                if ($sessionStart <= 0) {
+                    $sessionStart = $progress->updated_at ? $progress->updated_at->timestamp : $agora->timestamp;
+                }
+
+                // Tempo real decorrido desde o carregamento do player. Isso cobre
+                // mobile em background, tela bloqueada, rede instável e lotes de
+                // requisições atrasadas (o problema do teto de 15s por gap > 10min).
+                $segundosSessao = max(0, $agora->timestamp - $sessionStart);
+
+                // Teto desta sessão: o que já estava salvo + o tempo real da sessão
+                // + 30s de tolerância de processamento/rede.
+                $tetoSessao = $tempoAnterior + $segundosSessao + 30;
+
+                // Teto global: não pode superar o tempo decorrido desde o 1º acesso.
                 $segundosDesdeInicio = max(0, $agora->diffInSeconds($progress->data_inicio));
+                $tetoGlobal = $segundosDesdeInicio + 30;
 
-                if ($segundosDecorrido > 600) {
-                    // Retomada após longa ausência/inatividade: avanço máximo inicial de 15s
-                    $maxAvancoPermitido = 15;
-                } else {
-                    // Reprodução contínua ou com throttling em mobile/background:
-                    // Tolera o tempo real decorrido no relógio + 15s de tolerância de rede
-                    $maxAvancoPermitido = max(10, $segundosDecorrido + 15);
-                }
-
-                $avancoEfetivo = min($deltaDesejado, $maxAvancoPermitido);
-                $tempoCandidato = $tempoAnterior + $avancoEfetivo;
-
-                // Teto absoluto: tempo acumulado não pode superar o tempo decorrido desde o início + 30s
-                $tetoAbsoluto = $segundosDesdeInicio + 30;
-                $tempoAssistido = min($duracao, $tempoCandidato, $tetoAbsoluto);
+                $tempoCandidato = min($duracao, $tempoCliente);
+                $tempoAssistido = min($tempoCandidato, $tetoSessao, $tetoGlobal);
             }
         } else {
             // Tempo reportado é menor ou igual ao já salvo (ex.: seek para trás ou pausa)

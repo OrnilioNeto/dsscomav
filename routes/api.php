@@ -51,16 +51,20 @@ Route::prefix('v1')->group(function () {
         Route::post('/debug/video-log', [MiscController::class, 'videoLog']);
 
         // ---- Treinamentos ----
-        Route::get('/trainings', [TrainingController::class, 'index']);
-        Route::get('/trainings/{id}', [TrainingController::class, 'show']);
-        Route::get('/trainings/{id}/stream', [TrainingController::class, 'stream']);
-        Route::post('/trainings/{id}/progress', [TrainingController::class, 'updateProgress']);
-        Route::post('/trainings/{id}/assessment', [TrainingController::class, 'submitAssessment']);
-        Route::post('/trainings/{id}/complete', [TrainingController::class, 'complete']);
-        Route::get('/trainings/{id}/certificate', [CertificateController::class, 'downloadForTraining']);
+        // Motoristas só acessam com jornada identificada no rastreamento
+        // (ou liberação manual da gestão). Demais perfis passam direto.
+        Route::middleware('driver.training')->group(function () {
+            Route::get('/trainings', [TrainingController::class, 'index']);
+            Route::get('/trainings/{id}', [TrainingController::class, 'show']);
+            Route::get('/trainings/{id}/stream', [TrainingController::class, 'stream']);
+            Route::post('/trainings/{id}/progress', [TrainingController::class, 'updateProgress']);
+            Route::post('/trainings/{id}/assessment', [TrainingController::class, 'submitAssessment']);
+            Route::post('/trainings/{id}/complete', [TrainingController::class, 'complete']);
+            Route::get('/trainings/{id}/certificate', [CertificateController::class, 'downloadForTraining']);
 
-        // ---- Materiais ----
-        Route::get('/materials/{materialId}/download', [TrainingMaterialController::class, 'download']);
+            // ---- Materiais ----
+            Route::get('/materials/{materialId}/download', [TrainingMaterialController::class, 'download']);
+        });
 
         // ---- Certificados ----
         Route::get('/certificates/mine', [CertificateController::class, 'mine']);

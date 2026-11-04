@@ -6,6 +6,35 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.1.0] - 2026-11-04
+
+### Adicionado
+- **Módulo Frota e Jornada (acesso de motoristas aos treinamentos)**:
+  - Integração com a **Autotrac ATIC API** (`/v1/drivers`, `/v1/driverstatus`,
+    `/v1/driverlogs`) via cURL nativo, credenciais criptografadas e tela de
+    configuração (`/admin/frota/configuracao`).
+  - Motoristas (`motorista`/`motorista_monitor`) só acessam as rotas de
+    treinamento (web e API) quando estão com jornada aberta no rastreador.
+    Login, dashboard, perfil, EPI, social, ranking e certificados já emitidos
+    continuam liberados.
+  - Tolerância configurável de 30 min quando a Autotrac está indisponível e
+    bloqueio de sessões acima de 12h (ambos configuráveis).
+  - **Liberação manual** pela gestão, com motivo opcional, validade e
+    auditoria (`/admin/frota/liberacoes-treinamento`, exportação CSV).
+  - Comandos `frota:sync` (agendado a cada 5 min) e `frota:diagnostico`.
+  - **Kill switch global** `AUTOTRAC_GATE_ENABLED` (padrão `false`): a regra fica
+    desligada até a configuração das credenciais; o sync agendado não roda
+    (use `frota:sync --force` para testar).
+  - Permissões novas: `frota` e `integracao_autotrac`.
+  - Documentação em `docs/modulos/FROTA.md`.
+
+### Alterado
+- `routes/web.php` e `routes/api.php`: rotas de treinamento passam pelo
+  middleware `driver.training`.
+- Dashboard do usuário e respostas da API (`login`, `me`, `dashboard`) exibem
+  o estado `acesso_treinamentos`.
+- `.gitignore`: pasta `/Documentacao/` (documentação externa) não é versionada.
+
 ## [2.0.80] - 2026-10-30
 
 ### Corrigido

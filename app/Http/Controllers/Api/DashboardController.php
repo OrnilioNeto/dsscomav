@@ -9,6 +9,7 @@ use App\Models\RankingMonthlyScore;
 use App\Models\Training;
 use App\Models\User;
 use App\Models\UserProgress;
+use App\Modules\Frota\Services\DriverPresenceService;
 use App\Services\RankingRuleResolverService;
 use Illuminate\Http\Request;
 
@@ -158,7 +159,36 @@ class DashboardController extends Controller
             'tempo_total_formatado' => gmdate('H:i:s', $tempoTotal),
             'treinamentos_completos' => $treinamentosCompletos,
             'ranking' => $stats,
+            'acesso_treinamentos' => $this->acessoTreinamentos($request->user()),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function acessoTreinamentos(User $user): array
+    {
+        try {
+            $acesso = app(DriverPresenceService::class)->avaliar($user);
+
+            return [
+                'liberado' => $acesso['liberado'],
+                'origem' => $acesso['origem'],
+                'motivo' => $acesso['motivo'],
+                'verificado_em' => optional($acesso['verificado_em'])->toIso8601String(),
+                'liberado_ate' => optional($acesso['liberacao'])->fim?->toIso8601String(),
+            ];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [
+                'liberado' => true,
+                'origem' => 'indisponivel',
+                'motivo' => 'Não foi possível verificar sua jornada agora.',
+                'verificado_em' => null,
+                'liberado_ate' => null,
+            ];
+        }
     }
 
     public function profileStats(Request $request, RankingRuleResolverService $resolver)

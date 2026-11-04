@@ -67,6 +67,14 @@ return [
         'label' => 'Cronograma de Conteúdo',
         'description' => 'Planejamento e acompanhamento dos conteúdos (DSS/treinamentos)',
     ],
+    'frota' => [
+        'label' => 'Frota e Jornada',
+        'description' => 'Motoristas online no rastreamento e liberação de acesso aos treinamentos',
+    ],
+    'integracao_autotrac' => [
+        'label' => 'Integração Autotrac',
+        'description' => 'Credenciais e sincronização da API ATIC (Autotrac)',
+    ],
     'auditoria' => [
         'label' => 'Auditoria',
         'description' => 'Trilha de ações, acessos e alterações do sistema',
