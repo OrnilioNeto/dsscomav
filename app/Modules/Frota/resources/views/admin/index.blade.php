@@ -180,7 +180,7 @@
                                     <div class="text-xs text-gray-500">{{ $motorista->user->nome }}</div>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-gray-600">{{ $motorista->cpf ? mask_cpf($motorista->cpf) : '—' }}</td>
+                            <td class="px-4 py-3 text-gray-600">{{ $motorista->cpf ? format_cpf($motorista->cpf) : '—' }}</td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold {{ $statusClasses }}">
                                     {{ $motorista->status_label }}

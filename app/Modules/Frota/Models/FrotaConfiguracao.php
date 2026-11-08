@@ -78,14 +78,18 @@ class FrotaConfiguracao extends Model
         ];
     }
 
-    public function estaConfigurada(): bool
+    public function podeAutenticar(): bool
     {
-        return (bool) $this->ativo
-            && filled($this->base_url)
-            && filled($this->account_code)
+        return filled($this->base_url)
             && filled($this->subscription_key)
             && filled($this->usuario)
             && filled($this->senha);
+    }
+
+    public function estaConfigurada(): bool
+    {
+        return filled($this->account_code)
+            && $this->podeAutenticar();
     }
 
     /**

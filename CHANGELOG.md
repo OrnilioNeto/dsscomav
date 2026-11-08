@@ -6,7 +6,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
-## [2.1.0] - 2026-11-04
+## [2.0.81] - 2026-11-08
 
 ### Adicionado
 - **Módulo Frota e Jornada (acesso de motoristas aos treinamentos)**:
@@ -22,9 +22,8 @@ dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`)
   - **Liberação manual** pela gestão, com motivo opcional, validade e
     auditoria (`/admin/frota/liberacoes-treinamento`, exportação CSV).
   - Comandos `frota:sync` (agendado a cada 5 min) e `frota:diagnostico`.
-  - **Kill switch global** `AUTOTRAC_GATE_ENABLED` (padrão `false`): a regra fica
-    desligada até a configuração das credenciais; o sync agendado não roda
-    (use `frota:sync --force` para testar).
+  - **Kill switch global** `AUTOTRAC_GATE_ENABLED`: a regra fica desligada
+    enquanto `false` e ativa a verificação de jornada quando `true`.
   - Permissões novas: `frota` e `integracao_autotrac`.
   - Documentação em `docs/modulos/FROTA.md`.
 
@@ -33,6 +32,14 @@ dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`)
   middleware `driver.training`.
 - Dashboard do usuário e respostas da API (`login`, `me`, `dashboard`) exibem
   o estado `acesso_treinamentos`.
+- Tela `/admin/frota/configuracao`: o botão "Testar conexão" agora valida
+  diretamente os campos preenchidos no formulário e auto-preenche o código
+  da conta descoberto.
+- Telas de gestão de frota (`/admin/frota`, `/admin/frota/historico`,
+  `/admin/frota/liberacoes-treinamento`): exibição de CPF completo para
+  gestores autorizados via helper `format_cpf()`.
+- `docker/entrypoint.sh`: preservação das variáveis do `.env` ao reiniciar
+  o container local sem sobrescrever alterações do desenvolvedor.
 - `.gitignore`: pasta `/Documentacao/` (documentação externa) não é versionada.
 
 ## [2.0.80] - 2026-10-30

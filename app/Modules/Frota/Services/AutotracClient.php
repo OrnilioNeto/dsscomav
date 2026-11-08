@@ -38,6 +38,11 @@ class AutotracClient
         return $this->configuracao()->estaConfigurada();
     }
 
+    public function podeAutenticar(): bool
+    {
+        return $this->configuracao()->podeAutenticar();
+    }
+
     /**
      * GET /v1/accounts — também usado como teste de conexão.
      *
@@ -107,8 +112,13 @@ class AutotracClient
     private function get(string $path, array $query = []): array
     {
         $config = $this->configuracao();
+        $isDiscoveryOrTest = (ltrim($path, '/') === 'v1/accounts');
 
-        if (! $config->estaConfigurada()) {
+        if ($isDiscoveryOrTest) {
+            if (! $config->podeAutenticar()) {
+                return $this->falha(null, 'Preencha a Base URL, Chave, Usuário e Senha para testar a conexão.');
+            }
+        } elseif (! $config->estaConfigurada()) {
             return $this->falha(null, 'Integração Autotrac não configurada.');
         }
 
@@ -126,17 +136,16 @@ class AutotracClient
 
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
-            CURLOPT_USERPWD => $config->usuario.':'.$config->senha,
             CURLOPT_HTTPHEADER => [
                 'Ocp-Apim-Subscription-Key: '.$config->subscription_key,
+                'Authorization: Basic '.$config->usuario.':'.$config->senha,
                 'Accept: application/json',
                 'Content-Type: application/json',
             ],
             CURLOPT_CONNECTTIMEOUT => $this->connectTimeout ?? max(1, (int) config('autotrac.connect_timeout', 5)),
             CURLOPT_TIMEOUT => $this->timeout ?? max(2, (int) config('autotrac.timeout', 15)),
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => (bool) config('autotrac.ssl_verify', true),
+            CURLOPT_SSL_VERIFYHOST => config('autotrac.ssl_verify', true) ? 2 : 0,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
         ]);

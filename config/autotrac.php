@@ -18,9 +18,13 @@ return [
 
     'subscription_key' => env('AUTOTRAC_SUBSCRIPTION_KEY'),
 
+    'telemetria_key' => env('AUTOTRAC_TELEMETRIA_KEY'),
+
     'username' => env('AUTOTRAC_USERNAME'),
 
     'password' => env('AUTOTRAC_PASSWORD'),
+
+    'ssl_verify' => filter_var(env('AUTOTRAC_SSL_VERIFY', env('APP_ENV') === 'production'), FILTER_VALIDATE_BOOLEAN),
 
     'enabled' => filter_var(env('AUTOTRAC_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
 
