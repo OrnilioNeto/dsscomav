@@ -91,7 +91,7 @@
                             <td class="px-4 py-3">
                                 <div class="font-semibold text-gray-800">{{ $liberacao->user?->nome ?? '—' }}</div>
                                 <div class="text-xs text-gray-500">
-                                    {{ $liberacao->user?->cpf ? mask_cpf($liberacao->user->cpf) : '' }}
+                                    {{ $liberacao->user?->cpf ? format_cpf($liberacao->user->cpf) : '' }}
                                     {{ $liberacao->user?->tipo_usuario ? ' • '.tipo_usuario_label($liberacao->user->tipo_usuario) : '' }}
                                 </div>
                             </td>

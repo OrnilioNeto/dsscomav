@@ -65,16 +65,23 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 mb-1">Código da conta (accountCode)</label>
                     <input type="text" name="account_code" value="{{ old('account_code', $config->account_code) }}"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Ex.: 1234">
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Ex.: 14830">
+                    <p class="text-[11px] text-gray-500 mt-1">Identificador da empresa na Autotrac (ex.: 14830 para COMAV).</p>
                 </div>
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 mb-1">Ocp-Apim-Subscription-Key</label>
                     <input type="password" name="subscription_key" autocomplete="new-password"
                            value="{{ old('subscription_key') }}"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                           placeholder="{{ $config->chaveMascarada() }}">
-                    <p class="text-[11px] text-gray-500 mt-1">Deixe em branco para manter a chave atual.</p>
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                           placeholder="{{ filled($config->subscription_key) ? $config->chaveMascarada() : 'Cole a chave aqui' }}">
+                    <p class="text-[11px] mt-1 {{ filled($config->subscription_key) ? 'text-gray-500' : 'text-amber-600 font-semibold' }}">
+                        @if(filled($config->subscription_key))
+                            <i class="fas fa-check text-green-600 mr-1"></i>Chave salva ({{ $config->chaveMascarada() }}). Deixe em branco para manter.
+                        @else
+                            <i class="fas fa-triangle-exclamation mr-1"></i>Nenhuma chave cadastrada. Cole a chave (32 dígitos) aqui.
+                        @endif
+                    </p>
                 </div>
 
                 <div>
@@ -88,17 +95,23 @@
                     <label class="block text-xs font-semibold text-gray-500 mb-1">Senha (Basic)</label>
                     <input type="password" name="senha" autocomplete="new-password" value="{{ old('senha') }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                           placeholder="••••••••">
-                    <p class="text-[11px] text-gray-500 mt-1">Deixe em branco para manter a senha atual.</p>
+                           placeholder="{{ filled($config->senha) ? '••••••••' : 'Digite a senha da API' }}">
+                    <p class="text-[11px] mt-1 {{ filled($config->senha) ? 'text-gray-500' : 'text-amber-600 font-semibold' }}">
+                        @if(filled($config->senha))
+                            <i class="fas fa-check text-green-600 mr-1"></i>Senha salva. Deixe em branco para manter.
+                        @else
+                            <i class="fas fa-triangle-exclamation mr-1"></i>Nenhuma senha cadastrada. Digite a senha aqui.
+                        @endif
+                    </p>
                 </div>
             </div>
 
-            <div class="mt-4 flex flex-wrap gap-2">
+            <div class="mt-4 flex flex-wrap items-center gap-3">
                 <button type="button" id="btn-testar"
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-semibold">
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-semibold hover:bg-gray-700 transition">
                     <i class="fas fa-satellite-dish"></i> Testar conexão
                 </button>
-                <span class="text-[11px] text-gray-500 self-center">Salve antes de testar as credenciais novas.</span>
+                <span class="text-xs text-gray-500">Testa a conexão usando os dados preenchidos acima ou os já salvos.</span>
             </div>
 
             <div id="resultado-teste" class="hidden mt-3 rounded-lg px-4 py-3 text-sm"></div>
@@ -182,9 +195,18 @@
         }
 
         botao.addEventListener('click', function () {
+            const form = botao.closest('form');
+            const payload = {
+                base_url: form ? form.querySelector('[name="base_url"]')?.value : '',
+                account_code: form ? form.querySelector('[name="account_code"]')?.value : '',
+                subscription_key: form ? form.querySelector('[name="subscription_key"]')?.value : '',
+                usuario: form ? form.querySelector('[name="usuario"]')?.value : '',
+                senha: form ? form.querySelector('[name="senha"]')?.value : '',
+            };
+
             botao.disabled = true;
-            resultado.className = 'mt-3 rounded-lg px-4 py-3 text-sm bg-gray-50 text-gray-600';
-            resultado.textContent = 'Testando conexão...';
+            resultado.className = 'mt-3 rounded-lg px-4 py-3 text-sm bg-gray-50 text-gray-600 border border-gray-200';
+            resultado.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Testando conexão com a Autotrac...';
             resultado.classList.remove('hidden');
 
             fetch('{{ route('admin.frota.configuracao.testar') }}', {
@@ -194,7 +216,7 @@
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({})
+                body: JSON.stringify(payload)
             })
                 .then(async (resposta) => {
                     const dados = await resposta.json().catch(() => ({}));
@@ -206,15 +228,25 @@
                             .map((conta) => '#' + conta.code + ' — ' + conta.name)
                             .join(' | ');
                         resultado.className = 'mt-3 rounded-lg px-4 py-3 text-sm bg-green-50 text-green-800 border border-green-200';
-                        resultado.textContent = dados.message + (contas ? ' Contas: ' + contas : '');
+                        resultado.innerHTML = '<i class="fas fa-circle-check text-green-600 mr-1"></i> ' +
+                            dados.message + (contas ? '<br><span class="text-xs font-semibold mt-1 inline-block">Contas encontradas: ' + contas + '</span>' : '');
+
+                        // Se a conta 14830 foi retornada e o campo de conta estava vazio, preenche automaticamente
+                        if (dados.contas && dados.contas.length > 0 && form) {
+                            const accountInput = form.querySelector('[name="account_code"]');
+                            if (accountInput && !accountInput.value) {
+                                accountInput.value = dados.contas[0].code;
+                            }
+                        }
                     } else {
                         resultado.className = 'mt-3 rounded-lg px-4 py-3 text-sm bg-red-50 text-red-800 border border-red-200';
-                        resultado.textContent = (dados && dados.message) || 'Falha ao consultar a Autotrac.';
+                        resultado.innerHTML = '<i class="fas fa-circle-xmark text-red-600 mr-1"></i> ' +
+                            ((dados && dados.message) || 'Falha ao consultar a Autotrac.');
                     }
                 })
                 .catch(() => {
                     resultado.className = 'mt-3 rounded-lg px-4 py-3 text-sm bg-red-50 text-red-800 border border-red-200';
-                    resultado.textContent = 'Falha de rede ao testar a conexão.';
+                    resultado.innerHTML = '<i class="fas fa-triangle-exclamation text-red-600 mr-1"></i> Falha de rede ao testar a conexão.';
                 })
                 .finally(() => {
                     botao.disabled = false;

@@ -1,10 +1,12 @@
 #!/bin/sh
 set -e
 
-if [ -f /var/www/app/.env.adminer ]; then
-    cp /var/www/app/.env.adminer /var/www/app/.env
-elif [ ! -f /var/www/app/.env ] && [ -f /var/www/app/.env.example ]; then
-    cp /var/www/app/.env.example /var/www/app/.env
+if [ ! -f /var/www/app/.env ]; then
+    if [ -f /var/www/app/.env.adminer ]; then
+        cp /var/www/app/.env.adminer /var/www/app/.env
+    elif [ -f /var/www/app/.env.example ]; then
+        cp /var/www/app/.env.example /var/www/app/.env
+    fi
 fi
 
 mkdir -p /var/www/app/database

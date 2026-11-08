@@ -88,7 +88,7 @@
                         @endphp
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-semibold text-gray-800">{{ $jornada->driver_name ?? '—' }}</td>
-                            <td class="px-4 py-3 text-gray-600">{{ $jornada->driver_cpf ? mask_cpf($jornada->driver_cpf) : '—' }}</td>
+                            <td class="px-4 py-3 text-gray-600">{{ $jornada->driver_cpf ? format_cpf($jornada->driver_cpf) : '—' }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ $jornada->veiculo?->identificacao ?? '—' }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ $jornada->login_time?->format('d/m/Y H:i') ?? '—' }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ $jornada->logout_time?->format('d/m/Y H:i') ?? '—' }}</td>

@@ -41,8 +41,8 @@ class DiagnoseFrota extends Command
         $this->line('TTL: '.$config->ttl_segundos.'s | Grace: '.$config->grace_minutos.'min | Jornada máxima: '.$config->jornada_maxima_horas.'h');
         $this->newLine();
 
-        if (! $config->estaConfigurada()) {
-            $this->error('Integração não configurada. Preencha /admin/frota/configuracao ou o .env (AUTOTRAC_*).');
+        if (! $config->podeAutenticar()) {
+            $this->error('Credenciais incompletas. Preencha /admin/frota/configuracao ou o .env (AUTOTRAC_*).');
 
             return self::FAILURE;
         }
@@ -58,7 +58,12 @@ class DiagnoseFrota extends Command
             return self::FAILURE;
         }
 
-        foreach (($contas['body']['Data'] ?? []) as $conta) {
+        $body = $contas['body'];
+        $lista = isset($body['Data']) && is_array($body['Data'])
+            ? $body['Data']
+            : (is_array($body) ? $body : []);
+
+        foreach ($lista as $conta) {
             $this->line(sprintf('  Conta %s — %s', $conta['Code'] ?? '?', $conta['Name'] ?? '?'));
         }
 

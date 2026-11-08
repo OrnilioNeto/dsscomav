@@ -156,19 +156,40 @@ class FrotaController extends Controller
 
         $data['ativo'] = $request->boolean('ativo');
 
+        $config = FrotaConfiguracao::query()->orderBy('id')->first() ?? new FrotaConfiguracao;
+
         if (blank($data['subscription_key'] ?? null)) {
-            unset($data['subscription_key']);
+            if ($config->exists && filled($config->subscription_key)) {
+                unset($data['subscription_key']);
+            } elseif (filled(config('autotrac.subscription_key'))) {
+                $data['subscription_key'] = (string) config('autotrac.subscription_key');
+            } else {
+                unset($data['subscription_key']);
+            }
         }
 
         if (blank($data['senha'] ?? null)) {
-            unset($data['senha']);
+            if ($config->exists && filled($config->senha)) {
+                unset($data['senha']);
+            } elseif (filled(config('autotrac.password'))) {
+                $data['senha'] = (string) config('autotrac.password');
+            } else {
+                unset($data['senha']);
+            }
+        }
+
+        if (blank($data['usuario'] ?? null)) {
+            if ($config->exists && filled($config->usuario)) {
+                unset($data['usuario']);
+            } elseif (filled(config('autotrac.username'))) {
+                $data['usuario'] = (string) config('autotrac.username');
+            }
         }
 
         if (empty($data['tipos_motorista'])) {
             $data['tipos_motorista'] = ['motorista', 'motorista_monitor'];
         }
 
-        $config = FrotaConfiguracao::query()->orderBy('id')->first() ?? new FrotaConfiguracao;
         $config->fill($data);
         $config->save();
 
@@ -177,9 +198,28 @@ class FrotaController extends Controller
             ->with('success', 'Configuração salva.');
     }
 
-    public function testar(AutotracClient $client)
+    public function testar(Request $request, AutotracClient $client)
     {
-        $resposta = $client->contas();
+        $config = FrotaConfiguracao::atual();
+
+        if ($request->filled('base_url')) {
+            $config->base_url = (string) $request->input('base_url');
+        }
+        if ($request->filled('subscription_key')) {
+            $config->subscription_key = (string) $request->input('subscription_key');
+        }
+        if ($request->filled('usuario')) {
+            $config->usuario = (string) $request->input('usuario');
+        }
+        if ($request->filled('senha')) {
+            $config->senha = (string) $request->input('senha');
+        }
+        if ($request->filled('account_code')) {
+            $config->account_code = (string) $request->input('account_code');
+        }
+
+        $clienteTeste = new AutotracClient($config);
+        $resposta = $clienteTeste->contas();
 
         if (! $resposta['ok']) {
             return response()->json([
@@ -188,7 +228,10 @@ class FrotaController extends Controller
             ], 422);
         }
 
-        $contas = $resposta['body']['Data'] ?? [];
+        $body = $resposta['body'];
+        $contas = isset($body['Data']) && is_array($body['Data'])
+            ? $body['Data']
+            : (is_array($body) ? $body : []);
 
         return response()->json([
             'ok' => true,

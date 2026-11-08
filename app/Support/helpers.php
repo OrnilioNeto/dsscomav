@@ -95,6 +95,22 @@ if (! function_exists('mask_cpf')) {
     }
 }
 
+if (! function_exists('format_cpf')) {
+    /**
+     * Formata um CPF no padrão 000.000.000-00.
+     */
+    function format_cpf(?string $cpf): string
+    {
+        $digits = preg_replace('/\D/', '', (string) $cpf);
+
+        if (strlen($digits) !== 11) {
+            return $cpf ?? '—';
+        }
+
+        return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $digits);
+    }
+}
+
 if (! function_exists('mask_email')) {
     /**
      * Mascara um e-mail para exibição em páginas públicas (LGPD).
