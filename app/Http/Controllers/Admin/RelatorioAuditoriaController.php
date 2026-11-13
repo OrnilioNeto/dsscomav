@@ -7,6 +7,7 @@ use App\Models\Training;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\RelatorioAuditoriaService;
+use App\Support\PdfTableWidths;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use TCPDF;
@@ -98,6 +99,9 @@ class RelatorioAuditoriaController extends Controller
             'geradoPor' => $request->user()->nome,
             'hashRecorte' => $service->hashRecorte(),
         ])->render();
+
+        // Alinha as colunas do corpo com as larguras do cabeçalho (TCPDF).
+        $html = PdfTableWidths::align($html);
 
         $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator(plataforma_nome());

@@ -17,6 +17,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeFichaController;
 use App\Http\Controllers\EpiController;
 use App\Http\Controllers\EpiFiltroController;
+use App\Http\Controllers\EpiRelatorioController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfilePhotoController;
@@ -74,6 +75,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/catalogo/{id}/toggle', [EpiController::class, 'catalogoToggleStatus'])->name('epi.catalogo.toggle');
         Route::get('/modelo-csv', [EpiController::class, 'modeloCsv'])->name('epi.modelo-csv');
         Route::get('/export-csv', [EpiController::class, 'exportCsv'])->name('epi.export-csv');
+        Route::get('/relatorio/{relatorio}/pdf', [EpiRelatorioController::class, 'pdf'])->name('epi.relatorio.pdf');
         Route::post('/import-csv', [EpiController::class, 'importCsv'])->name('epi.import-csv');
         Route::post('/estoque', [EpiController::class, 'estoqueStore'])->name('epi.estoque.store');
         Route::post('/kits', [EpiController::class, 'kitStore'])->name('epi.kits.store');

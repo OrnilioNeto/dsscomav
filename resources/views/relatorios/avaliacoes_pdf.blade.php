@@ -10,14 +10,14 @@
         .meta-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
         .meta-table td { font-size: 7px; color: #374151; padding: 2px 4px; vertical-align: top; }
         .meta-label { font-weight: bold; color: #111827; width: 90px; }
-        .box-note { border: 1px solid #c7d2fe; background: #eef2ff; padding: 5px 7px; margin-top: 6px; font-size: 7px; color: #312e81; }
+        .box-note { border: 1px solid #c7d2fe; background-color: #eef2ff; padding: 5px 7px; margin-top: 6px; font-size: 7px; color: #312e81; }
         .section-title { font-size: 9px; font-weight: bold; color: #111827; border-bottom: 1.5px solid #1e3a8a; padding-bottom: 2px; margin-top: 10px; margin-bottom: 4px; }
         table.data { width: 100%; border-collapse: collapse; border: 1px solid #d1d5db; margin-top: 3px; }
         table.data thead { display: table-header-group; }
         table.data tr { page-break-inside: avoid; }
-        table.data th { background: #1e3a8a; color: #ffffff; font-size: 6.5px; font-weight: bold; padding: 3px 2px; border: 1px solid #93a3c4; text-align: center; }
+        table.data th { background-color: #1e3a8a; color: #ffffff; font-size: 6.5px; font-weight: bold; padding: 3px 2px; border: 1px solid #93a3c4; text-align: center; }
         table.data td { font-size: 6.5px; padding: 2.5px 3px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
-        table.data tr:nth-child(even) td { background: #f9fafb; }
+        table.data tr:nth-child(even) td { background-color: #f9fafb; }
         .center { text-align: center; }
         .kpi td { border: 1px solid #d1d5db; padding: 5px; text-align: center; width: 25%; }
         .kpi .value { font-size: 13px; font-weight: bold; color: #111827; }

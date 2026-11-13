@@ -6,6 +6,30 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.82] - 2026-11-13
+
+### Adicionado
+- **Módulo EPI — relatórios em PDF das abas de controle**: botão "Baixar PDF"
+  nas abas Catálogo, Controle de Estoque (saldos e movimentações), Fardamento,
+  Histórico de Entregas, Filiais, Devoluções e Filtros de Máscara.
+  - Novas rotas `GET /epi/relatorio/{relatorio}/pdf` (permissão `epi`) geradas
+    sob demanda com TCPDF, sem persistir arquivos.
+  - Os relatórios respeitam os filtros da tela (catálogo, busca/situação/limiar
+    do estoque, tipo/período/texto das movimentações e filial ativa).
+  - Exportações registradas na auditoria (`module: epi`).
+  - Lógica de fardamento extraída para `App\Services\EpiFardamentoService`
+    (compartilhada entre a tela e o PDF), sem mudança de regra.
+
+### Corrigido
+- **Cabeçalhos invisíveis nos PDFs (TCPDF)**: o CSS usava o atalho `background`
+  (não suportado pelo TCPDF) com texto branco, deixando os títulos das colunas
+  brancos sobre fundo branco. Trocado por `background-color` nos relatórios de
+  EPI, avaliações, auditoria, folgas e projeto pedagógico.
+- **Colunas desalinhadas nos PDFs**: o corpo das tabelas ficava com colunas de
+  largura igual enquanto o cabeçalho respeitava os percentuais. Novo
+  `App\Support\PdfTableWidths` recalcula/normaliza as larguras e replica na
+  primeira linha do corpo (EPI, avaliações e auditoria).
+
 ## [2.0.81] - 2026-11-08
 
 ### Adicionado

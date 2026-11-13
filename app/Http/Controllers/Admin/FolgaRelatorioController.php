@@ -147,9 +147,9 @@ class FolgaRelatorioController extends Controller
             body { font-family: sans-serif; font-size: 11px; color: #333; }
             h1 { font-size: 18px; color: #153B2E; border-bottom: 2px solid #153B2E; padding-bottom: 8px; }
             table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-            th { background: #153B2E; color: white; padding: 8px 6px; text-align: left; font-size: 10px; }
+            th { background-color: #153B2E; color: white; padding: 8px 6px; text-align: left; font-size: 10px; }
             td { padding: 6px; border-bottom: 1px solid #e5e7eb; font-size: 10px; }
-            tr:nth-child(even) { background: #f9fafb; }
+            tr:nth-child(even) td { background-color: #f9fafb; }
             .saldo-positivo { color: #059669; font-weight: bold; }
             .saldo-negativo { color: #dc2626; font-weight: bold; }
             .footer { margin-top: 20px; font-size: 9px; color: #999; text-align: center; }

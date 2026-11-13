@@ -12,7 +12,7 @@
         .cabecalho { border: 1px solid #d1d5db; border-left: 5px solid #153B2E; border-radius: 4px; padding: 8px 10px; margin-bottom: 12px; }
         table.meta { width: 100%; border-collapse: collapse; font-size: 9pt; }
         table.meta td { border: 1px solid #e5e7eb; padding: 5px 7px; }
-        table.meta .label { background: #f3f4f6; font-weight: bold; width: 22%; color: #153B2E; }
+        table.meta .label { background-color: #f3f4f6; font-weight: bold; width: 22%; color: #153B2E; }
         .item .conteudo { color: #374151; }
         .nota { font-size: 8.5pt; color: #6b7280; font-style: italic; margin: 8px 0 12px 0; }
     </style>
