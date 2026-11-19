@@ -744,6 +744,9 @@
                         <a href="{{ route('epi.export-csv') }}" class="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-200 flex items-center">
                             <i class="fas fa-file-export mr-1"></i> Exportar CSV
                         </a>
+                        <a href="{{ route('epi.relatorio.pdf', array_merge(['relatorio' => 'catalogo'], request()->only(['busca_catalogo', 'grupo_catalogo', 'status_catalogo']))) }}" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-200 flex items-center" title="Baixar o catálogo filtrado em PDF">
+                            <i class="fas fa-file-pdf mr-1"></i> Baixar PDF
+                        </a>
                         <button type="button" onclick="abrirModalImportCsv()" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-bold rounded-lg border border-blue-200 flex items-center cursor-pointer">
                             <i class="fas fa-file-import mr-1"></i> Importar CSV
                         </button>
@@ -864,9 +867,17 @@
                             Os saldos acompanham o seletor de filial no topo da página. Clique em um item para ver a distribuição entre filiais.
                         </p>
                     </div>
-                    <button type="button" onclick="abrirModalNovaEntradaEstoque()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
-                        <i class="fas fa-plus mr-1"></i> + Registrar Lançamento / Entrada
-                    </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a id="btn-pdf-estoque" href="{{ route('epi.relatorio.pdf', ['relatorio' => 'estoque', 'filial_id' => $filialSelecionada]) }}" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-200 flex items-center" title="Baixar os saldos de estoque em PDF (respeita os filtros da tela)">
+                            <i class="fas fa-file-pdf mr-1"></i> Saldos em PDF
+                        </a>
+                        <a id="btn-pdf-movimentacoes" href="{{ route('epi.relatorio.pdf', ['relatorio' => 'movimentacoes']) }}" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-200 flex items-center" title="Baixar as movimentações em PDF (respeita os filtros da tela)">
+                            <i class="fas fa-file-pdf mr-1"></i> Movimentações em PDF
+                        </a>
+                        <button type="button" onclick="abrirModalNovaEntradaEstoque()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
+                            <i class="fas fa-plus mr-1"></i> + Registrar Lançamento / Entrada
+                        </button>
+                    </div>
                 </div>
 
                 <!-- KPIs -->
@@ -1127,6 +1138,9 @@
                         <p class="text-xs text-gray-500 mt-1">Distribuição de tamanhos cadastrados dos colaboradores e saldo em banco (via Controle de Estoque) para apoiar os pedidos de uniformes.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
+                        <a id="btn-pdf-fardamento" href="{{ route('epi.relatorio.pdf', ['relatorio' => 'fardamento', 'filial_id' => $filialSelecionada]) }}" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-200 flex items-center" title="Baixar a gestão de fardamento em PDF">
+                            <i class="fas fa-file-pdf mr-1"></i> Baixar PDF
+                        </a>
                         <button type="button" onclick="abrirModalListaFuncionariosFardamento()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
                             <i class="fas fa-users mr-1"></i> Listar Funcionários
                         </button>
@@ -1432,10 +1446,15 @@
 
                     <!-- Tabela de Histórico de Entregas Recentes -->
                     <div class="lg:col-span-2 bg-white p-5 rounded-xl border border-gray-200">
-                        <h3 class="text-sm font-bold text-gray-900 mb-3 flex items-center">
-                            <i class="fas fa-history text-emerald-700 mr-2"></i> Histórico Recente de Entregas (Ativas)
-                            <span class="ml-2 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold">{{ count($entregasRecentes) }} registro(s)</span>
-                        </h3>
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                            <h3 class="text-sm font-bold text-gray-900 flex items-center">
+                                <i class="fas fa-history text-emerald-700 mr-2"></i> Histórico Recente de Entregas (Ativas)
+                                <span class="ml-2 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold">{{ count($entregasRecentes) }} registro(s)</span>
+                            </h3>
+                            <a href="{{ route('epi.relatorio.pdf', ['relatorio' => 'entregas']) }}" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-200 flex items-center" title="Baixar o histórico de entregas ativas em PDF">
+                                <i class="fas fa-file-pdf mr-1"></i> Baixar PDF
+                            </a>
+                        </div>
 
                         <div class="overflow-x-auto border border-gray-100 rounded-lg">
                             <table class="min-w-full divide-y divide-gray-200 text-xs">
@@ -1552,9 +1571,14 @@
                         </h3>
                         <p class="text-xs text-gray-500">Gerencie as filiais da empresa para habilitar seleções de filial e controle de estoque localizado.</p>
                     </div>
-                    <button type="button" onclick="abrirModalNovaFilial()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
-                        <i class="fas fa-plus mr-1"></i> + Cadastrar Nova Filial
-                    </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a href="{{ route('epi.relatorio.pdf', ['relatorio' => 'filiais']) }}" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-200 flex items-center" title="Baixar as filiais cadastradas em PDF">
+                            <i class="fas fa-file-pdf mr-1"></i> Baixar PDF
+                        </a>
+                        <button type="button" onclick="abrirModalNovaFilial()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
+                            <i class="fas fa-plus mr-1"></i> + Cadastrar Nova Filial
+                        </button>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto border border-gray-200 rounded-xl bg-white">
@@ -1646,9 +1670,14 @@
                         </h3>
                         <p class="text-xs text-gray-500">Encerre o controle de um EPI entregue informando o motivo e o destino (retorno ao estoque, descarte ou inspeção).</p>
                     </div>
-                    <button type="button" onclick="abrirModalDevolucao()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
-                        <i class="fas fa-plus mr-1"></i> + Registrar Devolução
-                    </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a href="{{ route('epi.relatorio.pdf', ['relatorio' => 'devolucoes']) }}" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-bold rounded-lg border border-rose-200 flex items-center" title="Baixar as devoluções (pendências e histórico) em PDF">
+                            <i class="fas fa-file-pdf mr-1"></i> Baixar PDF
+                        </a>
+                        <button type="button" onclick="abrirModalDevolucao()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow cursor-pointer">
+                            <i class="fas fa-plus mr-1"></i> + Registrar Devolução
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Pendências de Inspeção -->
@@ -1817,7 +1846,10 @@
                         </h3>
                         <p class="text-xs text-gray-500 mt-1 max-w-2xl">Controle dos filtros instalados nas máscaras que estão com os colaboradores. Filtros <strong>não são EPIs</strong>: o descarte encerra apenas o filtro e nunca altera a máscara, a entrega ou o estoque.</p>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex flex-wrap gap-2">
+                        <a href="{{ route('epi.relatorio.pdf', ['relatorio' => 'filtros']) }}" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 rounded-lg text-xs font-bold border border-rose-200 flex items-center" title="Baixar os filtros de máscara em PDF">
+                            <i class="fas fa-file-pdf mr-1"></i> Baixar PDF
+                        </a>
                         <button type="button" onclick="abrirModalTiposFiltro()" class="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-xs font-bold shadow cursor-pointer">
                             <i class="fas fa-cog mr-1"></i> Tipos de Filtro
                         </button>
@@ -2800,6 +2832,12 @@
     function atualizarFilialGlobal(filialId) {
         filialGlobalId = filialId;
         carregarEstoqueDisponivelAPI();
+
+        var linkPdfFardamento = document.getElementById('btn-pdf-fardamento');
+        if (linkPdfFardamento) {
+            var paramsFardamento = new URLSearchParams({ filial_id: filialGlobalId || 0 });
+            linkPdfFardamento.href = EPI_PDF_URL_FARDAMENTO + '?' + paramsFardamento.toString();
+        }
     }
 
     // Modo Entrega Retroativa: atualiza a ficha sem validar saldo e sem baixa de estoque
@@ -4312,6 +4350,11 @@
     let filtroEstoque = { busca: '', status: 'todos', limiar: 5, ordem: 'nome' };
     let filtroMovimentacoes = { tipo: 'todos', periodo: 0, busca: '' };
 
+    // URLs base dos relatórios em PDF (os filtros da tela são anexados na query string)
+    const EPI_PDF_URL_ESTOQUE = @json(route('epi.relatorio.pdf', ['relatorio' => 'estoque']));
+    const EPI_PDF_URL_MOVIMENTACOES = @json(route('epi.relatorio.pdf', ['relatorio' => 'movimentacoes']));
+    const EPI_PDF_URL_FARDAMENTO = @json(route('epi.relatorio.pdf', ['relatorio' => 'fardamento']));
+
     function setTextConteudo(id, valor) {
         var el = document.getElementById(id);
         if (el) el.textContent = valor;
@@ -4458,6 +4501,19 @@
         setTextConteudo('estoque-contagem', 'Exibindo ' + filtrados.length + ' de ' + dados.length + ' itens');
         var vazio = document.getElementById('estoque-vazio');
         if (vazio) vazio.classList.toggle('hidden', filtrados.length > 0);
+
+        // Mantém o PDF de saldos alinhado aos filtros/ordenação da tela
+        var linkPdfEstoque = document.getElementById('btn-pdf-estoque');
+        if (linkPdfEstoque) {
+            var paramsEstoque = new URLSearchParams({
+                filial_id: filialGlobalId || 0,
+                busca: filtroEstoque.busca || '',
+                status: filtroEstoque.status || 'todos',
+                limiar: filtroEstoque.limiar || 5,
+                ordem: filtroEstoque.ordem || 'nome'
+            });
+            linkPdfEstoque.href = EPI_PDF_URL_ESTOQUE + '?' + paramsEstoque.toString();
+        }
     }
 
     function toggleDetalheEstoque(id) {
@@ -4518,6 +4574,17 @@
         if (vazio) vazio.classList.toggle('hidden', visiveis > 0);
         var semRegistro = document.getElementById('mov-sem-registro');
         if (semRegistro) semRegistro.classList.toggle('hidden', rows.length > 1);
+
+        // Mantém o PDF de movimentações alinhado aos filtros da tela
+        var linkPdfMovimentacoes = document.getElementById('btn-pdf-movimentacoes');
+        if (linkPdfMovimentacoes) {
+            var paramsMovimentacoes = new URLSearchParams({
+                tipo: filtroMovimentacoes.tipo || 'todos',
+                periodo: filtroMovimentacoes.periodo || 0,
+                busca: filtroMovimentacoes.busca || ''
+            });
+            linkPdfMovimentacoes.href = EPI_PDF_URL_MOVIMENTACOES + '?' + paramsMovimentacoes.toString();
+        }
     }
 
     // ===== FILTROS DE MÁSCARA (RESPIRADORES) =====

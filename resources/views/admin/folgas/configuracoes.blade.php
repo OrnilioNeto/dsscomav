@@ -157,6 +157,7 @@
         <p>• Se o motorista tirar mais folgas do que tem, o banco <strong>zera e recomeça</strong> — não fica devendo folgas.</p>
         <p>• Dias sem lançamento são considerados como <strong>trabalho presumido</strong>.</p>
         <p>• Antes da data de início do controle, nada é contabilizado; o saldo inicial informado vale como saldo de partida.</p>
+        <p>• Afastamentos de <strong>semana completa</strong> (segunda a domingo) da semana de liberação de um treinamento isentam o conteúdo daquela semana. Afastamentos parciais não alteram a pendência. @if(config('folgas.isencao_treinamento_desde')) A regra vale para lançamentos a partir de <strong>{{ \Illuminate\Support\Carbon::parse(config('folgas.isencao_treinamento_desde'))->format('d/m/Y') }}</strong>. @else A regra vale para todo o histórico. @endif</p>
     </div>
 
 </div>

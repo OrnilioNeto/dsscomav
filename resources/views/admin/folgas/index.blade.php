@@ -473,10 +473,15 @@
                     <option value="licenca">Licença</option>
                 </select>
                 <p class="text-xs text-gray-500 mt-1">Todos os dias do intervalo (inclusive) recebem este tipo.</p>
+                <p class="text-xs text-amber-700 mt-2">
+                    <i class="fas fa-graduation-cap mr-1"></i>
+                    Se o período cobrir a semana inteira (segunda a domingo) da liberação de um treinamento,
+                    o conteúdo daquela semana fica isento para o colaborador.
+                </p>
             </div>
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Motivo</label>
-                <input type="text" name="motivo_folga" class="w-full border-gray-300 rounded-lg text-sm" placeholder="Ex: Férias, folga compensatória">
+                <input type="text" name="motivo_folga" class="w-full border-gray-300 rounded-lg text-sm" placeholder="Ex: Perícia, atestado médico, folga compensatória">
             </div>
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">Observação</label>
@@ -510,7 +515,7 @@
             <form action="{{ route('admin.folgas.programacao.store') }}" method="POST" class="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
                 @csrf
                 <h4 class="text-sm font-bold text-amber-800"><i class="fas fa-plus-circle mr-1"></i>Nova programação</h4>
-                <p class="text-xs text-amber-700">A folga é debitada automaticamente conforme a data chega (dia a dia).</p>
+                <p class="text-xs text-amber-700">A folga é debitada automaticamente conforme a data chega (dia a dia). Se a programação cobrir a semana inteira (segunda a domingo) da liberação de um treinamento, o conteúdo daquela semana fica isento.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Motorista</label>
@@ -541,7 +546,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 mb-1">Motivo</label>
-                        <input type="text" name="motivo" class="w-full border-gray-300 rounded-lg text-sm" placeholder="Ex: Férias, folga compensatória">
+                        <input type="text" name="motivo" class="w-full border-gray-300 rounded-lg text-sm" placeholder="Ex: Perícia, atestado médico, folga compensatória">
                         <textarea name="observacao" rows="1" class="w-full border-gray-300 rounded-lg text-sm mt-2" placeholder="Observação (opcional)"></textarea>
                     </div>
                 </div>

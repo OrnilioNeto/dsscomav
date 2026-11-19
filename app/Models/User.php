@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToTenant;
 use App\Notifications\RedefinirSenhaNotification;
+use App\Services\TrainingAbsenceService;
 use App\Support\RolePermissionCache;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -123,6 +124,16 @@ class User extends Authenticatable
     public function trainingExemptions()
     {
         return $this->hasMany(TrainingVacationExemption::class);
+    }
+
+    public function folgaDias()
+    {
+        return $this->hasMany(FolgaDia::class);
+    }
+
+    public function folgaProgramacoes()
+    {
+        return $this->hasMany(FolgaProgramacao::class);
     }
 
     public function employeeEpis()
@@ -277,6 +288,8 @@ class User extends Authenticatable
             $q->where('training_id', $training->id);
         });
 
+        TrainingAbsenceService::aplicarEscopoAusencia($query, $training);
+
         $dataLiberacao = $training->data_liberacao
             ?? $training->data_publicacao
             ?? $training->created_at;
@@ -333,6 +346,10 @@ class User extends Authenticatable
             return false;
         }
 
+        if (TrainingAbsenceService::isento($this, $training)) {
+            return false;
+        }
+
         if ($dataLiberacao) {
             $data = Carbon::parse($dataLiberacao)->toDateString();
 
@@ -342,6 +359,19 @@ class User extends Authenticatable
         }
 
         return true;
+    }
+
+    /**
+     * Indica se o conteúdo está isento para o usuário por isenção manual
+     * (férias) ou por afastamento de semana completa (folga/atestado/licença).
+     */
+    public function isExemptFromTraining(Training $training): bool
+    {
+        if ($this->trainingExemptions()->where('training_id', $training->id)->exists()) {
+            return true;
+        }
+
+        return TrainingAbsenceService::isento($this, $training);
     }
 
     public function getCpfFormatted()

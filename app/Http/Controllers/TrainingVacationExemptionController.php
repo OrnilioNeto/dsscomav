@@ -6,6 +6,7 @@ use App\Models\Training;
 use App\Models\TrainingVacationExemption;
 use App\Models\User;
 use App\Models\UserProgress;
+use App\Services\TrainingAbsenceService;
 use Illuminate\Http\Request;
 
 class TrainingVacationExemptionController extends Controller
@@ -23,10 +24,16 @@ class TrainingVacationExemptionController extends Controller
             ->get()
             ->keyBy('training_id');
 
-        $lista = $treinamentos->map(function ($training) use ($user, $progressMap, $exemptionMap) {
+        $ausencias = TrainingAbsenceService::dadosAusencia($user);
+
+        $lista = $treinamentos->map(function ($training) use ($user, $progressMap, $exemptionMap, $ausencias) {
             $podeAcessar = $user->canAccessTraining($training);
             $progress = $progressMap->get($training->id);
             $exemption = $exemptionMap->get($training->id);
+            $semana = TrainingAbsenceService::semanaDoConteudo($training);
+            $isentoAusencia = $semana
+                ? TrainingAbsenceService::coberturaCompleta($ausencias['dias'], $ausencias['programacoes'], $semana[0], $semana[1])
+                : false;
 
             return (object) [
                 'training' => $training,
@@ -37,6 +44,10 @@ class TrainingVacationExemptionController extends Controller
                 'status' => $progress ? ($progress->concluido ? 'concluido' : 'pendente') : 'nao_iniciado',
                 'tem_isencao' => $exemption !== null,
                 'isencao' => $exemption,
+                'isento_afastamento' => $isentoAusencia,
+                'rotulo_afastamento' => $isentoAusencia && $semana
+                    ? TrainingAbsenceService::rotuloCobertura($ausencias['dias'], $ausencias['programacoes'], $semana[0], $semana[1])
+                    : null,
             ];
         })->filter(function ($item) {
             return $item->pode_acessar;

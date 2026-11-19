@@ -7,6 +7,7 @@ use App\Models\Training;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\RelatorioAuditoriaService;
+use App\Support\PdfTableWidths;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use TCPDF;
@@ -99,6 +100,9 @@ class RelatorioAuditoriaController extends Controller
             'hashRecorte' => $service->hashRecorte(),
         ])->render();
 
+        // Alinha as colunas do corpo com as larguras do cabeçalho (TCPDF).
+        $html = PdfTableWidths::align($html);
+
         $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator(plataforma_nome());
         $pdf->SetTitle('Relatório de Auditoria Gerencial');
@@ -139,7 +143,7 @@ class RelatorioAuditoriaController extends Controller
             'Treinamento', 'Tipo conteudo', 'Tipo treinamento', 'Obrigatorio',
             'Liberacao', 'Prazo', 'Inicio', 'Conclusao', 'Situacao',
             'Tempo assistido', '% assistida', 'Nota', 'Aprovado', 'Tentativas',
-            'Prorrogado ate', 'Motivo prorrogacao', 'Afastamento no periodo', 'Isento',
+            'Prorrogado ate', 'Motivo prorrogacao', 'Afastamento no periodo', 'Afastamento semana', 'Isento',
             'Certificado', 'Emissao certificado', 'Validade certificado', 'Status validade',
         ], ';');
 
@@ -172,6 +176,7 @@ class RelatorioAuditoriaController extends Controller
                 optional($linha->prazo_estendido_ate)->format('d/m/Y H:i'),
                 $linha->prazo_estendido_motivo ?? '',
                 $linha->afastamento_periodo ?? '',
+                $linha->afastamento_semana ?? '',
                 $linha->isencao ?? '',
                 $certificado?->codigo_certificado ?? '',
                 optional($certificado?->data_emissao)->format('d/m/Y H:i'),

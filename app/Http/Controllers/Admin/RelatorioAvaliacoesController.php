@@ -9,6 +9,7 @@ use App\Models\TrainingLog;
 use App\Models\User;
 use App\Models\UserProgress;
 use App\Services\AuditLogger;
+use App\Support\PdfTableWidths;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -103,6 +104,9 @@ class RelatorioAvaliacoesController extends Controller
             'geradoPor' => $viewer->nome,
             'hashRecorte' => $this->hashRecorte($request, $viewer),
         ])->render();
+
+        // Alinha as colunas do corpo com as larguras do cabeçalho (TCPDF).
+        $html = PdfTableWidths::align($html);
 
         $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator(plataforma_nome());
