@@ -6,6 +6,35 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 A versão exibida no rodapé do sistema vem de `config/version.php` — mantenha os
 dois arquivos em sincronia a cada release (ver `docs/operacao/VERSIONAMENTO.md`).
 
+## [2.0.83] - 2026-11-19
+
+### Adicionado
+- **Folgas/atestados/licenças passam a isentar treinamentos quando cobrem a
+  semana completa** (segunda a domingo) da liberação do conteúdo:
+  - afastamento parcial não altera a pendência;
+  - a isenção vale para lançamentos diários (`folga_dias`) e para programações
+    ativas (`folga_programacoes`) que cubram os 7 dias;
+  - o conteúdo sai do dashboard, do player, das listas de pendentes/vencidos,
+    dos lembretes de WhatsApp e das contagens de certificados;
+  - lembretes já enfileirados são cancelados antes do envio;
+  - o Relatório de Auditoria ganhou o contador **"Afastados semana"**, a coluna
+    **"Afastamento semana"** no CSV detalhado e a situação **"afastado na semana"**;
+  - a tela de treinamentos do usuário exibe o selo **"Afastado na semana"**.
+- Data de corte configurável em `config/folgas.php`
+  (`FOLGA_ISENCAO_TREINAMENTO_DESDE`, padrão `2026-11-19`) para não alterar o
+  histórico anterior.
+- Documentação em `docs/modulos/FOLGAS.md`.
+- Testes em `tests/Feature/TrainingAbsenceExemptionTest.php`.
+
+### Alterado
+- `User::eligibleForContent()`/`isEligibleForContent()` agora consideram
+  afastamentos de semana completa.
+- A tela `/admin/prazos-treinamentos` passou a reutilizar a elegibilidade
+  completa também para quem já iniciou o conteúdo (isenções manuais e
+  afastamentos deixam de aparecer como pendentes).
+- API de treinamentos (`/api/v1/trainings`) passa a ocultar/bloquear conteúdos
+  isentos (férias ou afastamento de semana completa).
+
 ## [2.0.82] - 2026-11-13
 
 ### Adicionado

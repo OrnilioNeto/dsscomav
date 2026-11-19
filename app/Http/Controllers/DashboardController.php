@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\UserProgress;
 use App\Modules\Frota\Services\DriverPresenceService;
 use App\Services\RankingRuleResolverService;
+use App\Services\TrainingAbsenceService;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -151,6 +152,15 @@ class DashboardController extends Controller
             ->pluck('training_id')
             ->toArray();
 
+        // Afastamentos de semana completa (folga/atestado/licença) também isentam
+        // conteúdos daquela semana. Carregamos uma vez e reaproveitamos.
+        $ausencias = TrainingAbsenceService::dadosAusencia($user);
+        $isentoPorAusencia = fn (Training $training) => TrainingAbsenceService::isentoComDados(
+            $ausencias['dias'],
+            $ausencias['programacoes'],
+            $training
+        );
+
         $progresso = UserProgress::where('user_id', $user->id)->get();
         $progressoPorTraining = $progresso->keyBy('training_id');
 
@@ -161,6 +171,7 @@ class DashboardController extends Controller
             ->get()
             ->filter(fn ($t) => $user->canAccessTraining($t))
             ->filter(fn ($t) => ! in_array($t->id, $exemptTrainingIds))
+            ->filter(fn ($t) => ! $isentoPorAusencia($t))
             ->sortByDesc(fn ($t) => $t->releaseDate()?->getTimestamp() ?? 0)
             ->values();
 
@@ -182,6 +193,7 @@ class DashboardController extends Controller
             ->get()
             ->filter(fn ($t) => $t->isReleased())
             ->filter(fn ($t) => ! in_array($t->id, $exemptTrainingIds))
+            ->filter(fn ($t) => ! $isentoPorAusencia($t))
             ->sortByDesc(fn ($t) => $t->releaseDate()?->getTimestamp() ?? 0)
             ->values();
 

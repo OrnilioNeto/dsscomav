@@ -119,6 +119,16 @@ class ProcessReminders extends Command
                 continue;
             }
 
+            if ($reminder->user && $reminder->training && $reminder->user->isExemptFromTraining($reminder->training)) {
+                $reminder->update([
+                    'status' => TrainingReminder::STATUS_CANCELADO,
+                    'erro' => 'Treinamento isento por afastamento de semana completa.',
+                ]);
+                $processados++;
+
+                continue;
+            }
+
             $this->enviar($client, $reminder);
             $processados++;
             $this->reagendarProximo($reminder);

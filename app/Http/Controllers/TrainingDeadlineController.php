@@ -66,8 +66,8 @@ class TrainingDeadlineController extends Controller
             $progressos = UserProgress::with('user')
                 ->where('training_id', $training->id)
                 ->where('concluido', false)
-                ->whereHas('user', function ($query) use ($usuarioNome) {
-                    $query->kpiEligible();
+                ->whereHas('user', function ($query) use ($training, $usuarioNome) {
+                    $query->kpiEligible()->eligibleForContent($training);
                     if ($usuarioNome !== '') {
                         $query->where('nome', 'like', '%'.$usuarioNome.'%');
                     }

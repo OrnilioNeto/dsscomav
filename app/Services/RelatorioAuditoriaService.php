@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AuditLog;
 use App\Models\Certificate;
 use App\Models\FolgaDia;
+use App\Models\FolgaProgramacao;
 use App\Models\Training;
 use App\Models\TrainingVacationExemption;
 use App\Models\User;
@@ -257,6 +258,7 @@ class RelatorioAuditoriaService
             ->count();
 
         $afastadosLiberacao = $this->contarAfastadosNaLiberacao($training);
+        $afastadosSemana = $this->contarAfastadosSemana($training);
 
         $stats = [
             'elegiveis' => $elegiveis,
@@ -268,6 +270,7 @@ class RelatorioAuditoriaService
             'vencidos' => $vencidos,
             'isentos' => $isentos,
             'afastados_liberacao' => $afastadosLiberacao,
+            'afastados_semana' => $afastadosSemana,
             'conformidade' => $elegiveis > 0 ? ($emDia / $elegiveis) * 100 : 0.0,
         ];
 
@@ -275,18 +278,11 @@ class RelatorioAuditoriaService
     }
 
     /**
-     * Usuários que seriam elegíveis ao conteúdo mas estavam de férias na
-     * data de liberação (mesmas regras de eligibleForContent, sem o corte
-     * por férias, para evidenciar a justificativa).
+     * Base de quem seria elegível ao conteúdo pelas regras de cadastro,
+     * público-alvo/atribuição e isenção manual, sem aplicar férias/afastamento.
      */
-    private function contarAfastadosNaLiberacao(Training $training): int
+    private function baseParaJustificativa(Training $training): Builder
     {
-        $dataLiberacao = $training->releaseDate();
-
-        if (! $dataLiberacao) {
-            return 0;
-        }
-
         $base = $this->usuariosQuery()->eligibleForTrainingKpi($training);
 
         if ($training->tipo === 'treinamento') {
@@ -305,14 +301,46 @@ class RelatorioAuditoriaService
 
         $base->whereDoesntHave('trainingExemptions', fn ($q) => $q->where('training_id', $training->id));
 
+        return $base;
+    }
+
+    /**
+     * Usuários que seriam elegíveis ao conteúdo mas estavam de férias na
+     * data de liberação (mesmas regras de eligibleForContent, sem o corte
+     * por férias, para evidenciar a justificativa).
+     */
+    private function contarAfastadosNaLiberacao(Training $training): int
+    {
+        $dataLiberacao = $training->releaseDate();
+
+        if (! $dataLiberacao) {
+            return 0;
+        }
+
+        $base = $this->baseParaJustificativa($training);
+        TrainingAbsenceService::aplicarEscopoAusencia($base, $training);
+
         $data = $dataLiberacao->toDateString();
 
-        return (clone $base)
+        return $base
             ->whereHas('vacations', function ($q) use ($data) {
                 $q->whereDate('data_inicio', '<=', $data)
                     ->whereDate('data_fim', '>=', $data);
             })
             ->count();
+    }
+
+    /**
+     * Usuários que seriam elegíveis ao conteúdo mas tiveram folga/atestado/
+     * licença cobrindo a semana inteira da liberação.
+     */
+    private function contarAfastadosSemana(Training $training): int
+    {
+        $base = $this->baseParaJustificativa($training);
+
+        TrainingAbsenceService::aplicarEscopoApenasAusencia($base, $training);
+
+        return $base->count();
     }
 
     // =========================================================================
@@ -331,7 +359,7 @@ class RelatorioAuditoriaService
         $treinamentos = $this->treinamentosQuery()->get();
 
         $paresElegiveis = $concluidosEmDia = $concluidosAtraso = $andamento = 0;
-        $naoIniciados = $vencidos = $isentos = $afastadosLiberacao = 0;
+        $naoIniciados = $vencidos = $isentos = $afastadosLiberacao = $afastadosSemana = 0;
 
         foreach ($treinamentos as $training) {
             $stats = $this->statsConteudo($training);
@@ -343,11 +371,12 @@ class RelatorioAuditoriaService
             $vencidos += $stats['vencidos'];
             $isentos += $stats['isentos'];
             $afastadosLiberacao += $stats['afastados_liberacao'];
+            $afastadosSemana += $stats['afastados_semana'];
         }
 
         $denominador = $paresElegiveis;
         if ($this->incluirAfastadosNoDenominador()) {
-            $denominador += $isentos + $afastadosLiberacao;
+            $denominador += $isentos + $afastadosLiberacao + $afastadosSemana;
         }
 
         [$inicio, $fim] = $this->periodo();
@@ -378,6 +407,7 @@ class RelatorioAuditoriaService
             'vencidos' => $vencidos,
             'isentos' => $isentos,
             'afastados_liberacao' => $afastadosLiberacao,
+            'afastados_semana' => $afastadosSemana,
             'indice_conformidade' => $denominador > 0 ? ($concluidosEmDia / $denominador) * 100 : 0.0,
             'participacoes' => $participacoes,
             'tempo_total_segundos' => $tempoTotal,
@@ -449,6 +479,8 @@ class RelatorioAuditoriaService
             'assignedTrainings:id',
             'trainingExemptions:id,user_id,training_id',
             'vacations:id,user_id,data_inicio,data_fim',
+            'folgaDias',
+            'folgaProgramacoes',
         ]);
 
         $treinos = $this->treinamentosParaConformidade();
@@ -483,7 +515,7 @@ class RelatorioAuditoriaService
             $counters = [
                 'elegiveis' => 0, 'concluidos' => 0, 'em_dia' => 0, 'atraso' => 0,
                 'andamento' => 0, 'nao_iniciados' => 0, 'vencidos' => 0,
-                'isentos' => 0, 'fora' => 0,
+                'isentos' => 0, 'afastados_semana' => 0, 'fora' => 0,
             ];
             $ultimaAtividade = null;
             $progressoUsuario = $progressos->get($usuario->id) ?? collect();
@@ -494,6 +526,8 @@ class RelatorioAuditoriaService
                 if (! $this->elegivelEmMemoria($usuario, $training)) {
                     if ($usuario->trainingExemptions->contains('training_id', $training->id)) {
                         $counters['isentos']++;
+                    } elseif ($this->ausenciaSemanaCompleta($usuario, $training)) {
+                        $counters['afastados_semana']++;
                     } else {
                         $counters['fora']++;
                     }
@@ -659,6 +693,10 @@ class RelatorioAuditoriaService
             return false;
         }
 
+        if ($this->ausenciaSemanaCompleta($usuario, $training)) {
+            return false;
+        }
+
         if ($dataLiberacao) {
             $data = Carbon::parse($dataLiberacao)->toDateString();
 
@@ -668,6 +706,18 @@ class RelatorioAuditoriaService
         }
 
         return true;
+    }
+
+    /**
+     * Ausência de semana completa usando as coleções já carregadas.
+     */
+    private function ausenciaSemanaCompleta(User $usuario, Training $training): bool
+    {
+        return TrainingAbsenceService::isentoComDados(
+            $usuario->folgaDias ?? collect(),
+            $usuario->folgaProgramacoes ?? collect(),
+            $training
+        );
     }
 
     // =========================================================================
@@ -1083,6 +1133,17 @@ class RelatorioAuditoriaService
             ->get()
             ->groupBy('user_id');
 
+        $diasAusencia = FolgaDia::query()
+            ->whereIn('user_id', $userIds)
+            ->get(['user_id', 'data', 'tipo', 'lancado_em', 'created_at'])
+            ->groupBy('user_id');
+
+        $programacoesAusencia = FolgaProgramacao::query()
+            ->whereIn('user_id', $userIds)
+            ->whereIn('tipo', TrainingAbsenceService::TIPOS)
+            ->get(['user_id', 'data_inicio', 'data_fim', 'tipo', 'status', 'cancelada_em', 'created_at'])
+            ->groupBy('user_id');
+
         $linhas->pluck('user')->filter()->unique('id')->each(fn (User $usuario) => $usuario->loadMissing('vacations:id,user_id,data_inicio,data_fim'));
 
         [$inicio, $fim] = $this->periodo();
@@ -1096,11 +1157,30 @@ class RelatorioAuditoriaService
             $linha->certificado = $certificados->get($linha->user_id.'-'.$linha->training_id);
             $linha->isencao = isset($isencoes[$linha->user_id.'-'.$linha->training_id]) ? 'Sim' : '';
             $linha->afastamento_periodo = $this->rotuloAfastamento($linha->user, $folgas->get($linha->user_id) ?? collect(), $inicio, $fim);
+            $linha->afastamento_semana = '';
+
+            $semana = $training ? TrainingAbsenceService::semanaDoConteudo($training) : null;
+
+            if ($semana) {
+                $diasUsuario = $diasAusencia->get($linha->user_id) ?? collect();
+                $programacoesUsuario = $programacoesAusencia->get($linha->user_id) ?? collect();
+
+                if (TrainingAbsenceService::coberturaCompleta($diasUsuario, $programacoesUsuario, $semana[0], $semana[1])) {
+                    $linha->afastamento_semana = TrainingAbsenceService::rotuloCobertura(
+                        $diasUsuario,
+                        $programacoesUsuario,
+                        $semana[0],
+                        $semana[1]
+                    ) ?? 'Semana completa';
+                }
+            }
 
             if ($linha->concluido) {
                 $linha->situacao_detalhada = ($prazo && $linha->data_conclusao && $linha->data_conclusao->gt($prazo))
                     ? 'concluído em atraso'
                     : 'concluído em dia';
+            } elseif ($linha->afastamento_semana !== '') {
+                $linha->situacao_detalhada = 'afastado na semana';
             } elseif ($prazo && $agora->gt($prazo)) {
                 $linha->situacao_detalhada = 'prazo expirado';
             } elseif ($linha->data_inicio) {

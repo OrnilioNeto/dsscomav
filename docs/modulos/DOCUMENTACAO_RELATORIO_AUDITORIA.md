@@ -22,7 +22,8 @@ Detalhamento de notas por usuário × treinamento: resultado (aprovado/reprovado
   - corte por data de cadastro (usuários cadastrados após o fim da semana da liberação não são elegíveis);
   - público-alvo (DSS) ou atribuição direta (Treinamento);
   - isenção de férias por conteúdo (`training_vacation_exemptions`);
-  - férias cobrindo a data de liberação do conteúdo.
+  - férias cobrindo a data de liberação do conteúdo;
+  - afastamento de semana completa (`folga_dias`/`folga_programacoes` de folga, atestado ou licença cobrindo segunda a domingo da semana do prazo).
 - **Prazo efetivo:** prazo estendido concedido pelo gestor (`user_progress.prazo_estendido_ate`) quando existir; senão, **23:00 do domingo subsequente à liberação**.
 
 ## Metodologia de conformidade
@@ -38,9 +39,10 @@ Status por par usuário × conteúdo:
 | Prazo expirado | não concluído e prazo efetivo já passou |
 | Isento | isenção de conteúdo por férias registrada |
 | Afastado na liberação | elegível pelas demais regras, mas de férias na data de liberação |
+| Afastado na semana | elegível pelas demais regras, mas com folga/atestado/licença cobrindo a semana completa do prazo |
 
 - **Índice de conformidade** = concluídos em dia ÷ pares elegíveis.
-  - Por padrão, **afastados justificados (isentos + afastados na liberação) ficam fora do denominador**.
+  - Por padrão, **afastados justificados (isentos + afastados na liberação + afastados na semana) ficam fora do denominador**.
   - O filtro "Incluir afastados/isentos no denominador" aplica o cenário mais rígido.
 - A matriz de conformidade reflete o **estado atual** dos conteúdos filtrados; as métricas de atividade (participações, tempo, certificados, ausências) respeitam o **período** selecionado.
 

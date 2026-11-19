@@ -62,7 +62,7 @@
     <div class="box-note">
         <strong>Base de cálculo e transparência:</strong> exclusão apenas de <strong>super_admin</strong> e <strong>usuários de teste</strong>
         ({{ (int) ($metricasExclusao['total'] ?? 0) }} cadastro(s) fora da base). Admins, inativos e afastados permanecem visíveis e filtráveis.
-        <strong>Elegibilidade</strong>: corte por cadastro, público-alvo/atribuição, isenção de férias e férias na liberação.
+        <strong>Elegibilidade</strong>: corte por cadastro, público-alvo/atribuição, isenção de férias, férias na liberação e afastamento de semana completa (folga/atestado/licença).
         <strong>Prazo efetivo</strong>: extensão concedida quando existir; senão 23:00 do domingo subsequente à liberação.
         <strong>Conformidade</strong>: concluídos dentro do prazo ÷ pares elegíveis (afastados justificados fora do denominador por padrão).
     </div>
@@ -91,6 +91,13 @@
         </tr>
     </table>
 
+    <div class="filters">
+        <strong>Afastados justificados:</strong>
+        {{ number_format($resumo['isentos'], 0, ',', '.') }} isento(s) por férias ·
+        {{ number_format($resumo['afastados_liberacao'], 0, ',', '.') }} na liberação ·
+        {{ number_format($resumo['afastados_semana'] ?? 0, 0, ',', '.') }} por semana completa.
+    </div>
+
     <div class="section-title">Ausências justificadas no período</div>
     <table class="kpi">
         <tr>
@@ -116,6 +123,7 @@
                 <th>Não in.</th>
                 <th>Vencidos</th>
                 <th>Isentos</th>
+                <th>Afast. semana</th>
                 <th>Afast. liberação</th>
                 <th>Conformidade</th>
             </tr>
@@ -134,11 +142,12 @@
                     <td class="center">{{ number_format($linha['stats']['nao_iniciados'], 0, ',', '.') }}</td>
                     <td class="center bad">{{ number_format($linha['stats']['vencidos'], 0, ',', '.') }}</td>
                     <td class="center">{{ number_format($linha['stats']['isentos'], 0, ',', '.') }}</td>
+                    <td class="center">{{ number_format($linha['stats']['afastados_semana'] ?? 0, 0, ',', '.') }}</td>
                     <td class="center">{{ number_format($linha['stats']['afastados_liberacao'], 0, ',', '.') }}</td>
                     <td class="center {{ $linha['stats']['conformidade'] >= 80 ? 'ok' : ($linha['stats']['conformidade'] >= 50 ? 'warn' : 'bad') }}">{{ number_format($linha['stats']['conformidade'], 1, ',', '.') }}%</td>
                 </tr>
             @empty
-                <tr><td colspan="10" class="center">Nenhum conteúdo no filtro atual.</td></tr>
+                <tr><td colspan="11" class="center">Nenhum conteúdo no filtro atual.</td></tr>
             @endforelse
         </tbody>
     </table>

@@ -64,7 +64,7 @@
             <li><strong>Prazo efetivo:</strong> extensão concedida pelo gestor quando existir; senão, 23:00 do domingo subsequente à liberação.</li>
             <li><strong>Índice de conformidade:</strong> concluídos dentro do prazo ÷ pares elegíveis.
                 @if(($resumo['ausencias']['ferias_pessoas'] ?? 0) > 0)
-                    Afastados justificados ficam fora do denominador por padrão ({{ number_format((int) ($resumo['isentos'] ?? 0), 0, ',', '.') }} isento(s) e {{ number_format((int) ($resumo['afastados_liberacao'] ?? 0), 0, ',', '.') }} afastado(s) na liberação) — use o filtro "Incluir afastados no denominador" para o cenário mais rígido.
+                    Afastados justificados ficam fora do denominador por padrão ({{ number_format((int) ($resumo['isentos'] ?? 0), 0, ',', '.') }} isento(s), {{ number_format((int) ($resumo['afastados_liberacao'] ?? 0), 0, ',', '.') }} afastado(s) na liberação e {{ number_format((int) ($resumo['afastados_semana'] ?? 0), 0, ',', '.') }} afastado(s) por semana completa) — use o filtro "Incluir afastados no denominador" para o cenário mais rígido.
                 @endif</li>
             <li><strong>Período:</strong> aplica-se às participações (data de início), certificados (emissão) e às listas de ausências. A matriz de conformidade reflete o estado atual dos conteúdos filtrados.</li>
             <li><strong>Tempo:</strong> sempre em HH:MM:SS, mesmo padrão do certificado oficial.</li>
@@ -143,9 +143,10 @@
             </p>
         </div>
         <div class="rounded-2xl bg-rose-50 p-5 ring-1 ring-rose-100">
-            <p class="text-xs font-semibold uppercase tracking-wide text-rose-700">Afastados na liberação</p>
+            <p class="text-xs font-semibold uppercase tracking-wide text-rose-700">Afastados justificados</p>
             <p class="mt-2 text-2xl font-black text-slate-900">{{ number_format($resumo['afastados_liberacao'] ?? 0, 0, ',', '.') }}</p>
             <p class="mt-1 text-xs text-slate-600">Elegíveis ao conteúdo, mas de férias na data de liberação (justificados)</p>
+            <p class="mt-1 text-xs text-slate-600"><strong>{{ number_format($resumo['afastados_semana'] ?? 0, 0, ',', '.') }}</strong> por semana completa (folga/atestado/licença)</p>
         </div>
     </div>
 
@@ -354,6 +355,7 @@
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Não in.</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Vencidos</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Isentos</th>
+                        <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Afastados semana</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Afastados liberação</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Conformidade</th>
                     </tr>
@@ -381,6 +383,7 @@
                             <td class="px-3 py-3 text-center text-slate-600">{{ number_format($stats['nao_iniciados'], 0, ',', '.') }}</td>
                             <td class="px-3 py-3 text-center font-semibold text-rose-700">{{ number_format($stats['vencidos'], 0, ',', '.') }}</td>
                             <td class="px-3 py-3 text-center text-slate-600">{{ number_format($stats['isentos'], 0, ',', '.') }}</td>
+                            <td class="px-3 py-3 text-center text-slate-600">{{ number_format($stats['afastados_semana'], 0, ',', '.') }}</td>
                             <td class="px-3 py-3 text-center text-slate-600">{{ number_format($stats['afastados_liberacao'], 0, ',', '.') }}</td>
                             <td class="px-3 py-3 text-center">
                                 <span class="rounded-full px-3 py-1 text-sm font-bold {{ $stats['conformidade'] >= 80 ? 'bg-emerald-100 text-emerald-800' : ($stats['conformidade'] >= 50 ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800') }}">
@@ -389,7 +392,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="10" class="px-3 py-10 text-center text-sm text-slate-500">Nenhum conteúdo encontrado para os filtros atuais.</td></tr>
+                        <tr><td colspan="11" class="px-3 py-10 text-center text-sm text-slate-500">Nenhum conteúdo encontrado para os filtros atuais.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -419,6 +422,7 @@
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Não in.</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Vencidos</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Isentos</th>
+                        <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Afast. semana</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Certificados</th>
                         <th class="px-3 py-3 text-center text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Última atividade</th>
                     </tr>
@@ -443,11 +447,12 @@
                             <td class="px-3 py-3 text-center text-slate-600">{{ $c['nao_iniciados'] }}</td>
                             <td class="px-3 py-3 text-center font-semibold {{ $c['vencidos'] > 0 ? 'text-rose-700' : 'text-slate-500' }}">{{ $c['vencidos'] }}</td>
                             <td class="px-3 py-3 text-center text-slate-600">{{ $c['isentos'] }}</td>
+                            <td class="px-3 py-3 text-center text-slate-600">{{ $c['afastados_semana'] }}</td>
                             <td class="px-3 py-3 text-center text-slate-700">{{ $usuario->certificados_total }}</td>
                             <td class="px-3 py-3 text-center text-xs text-slate-600">{{ optional($usuario->ultima_atividade)->format('d/m/Y H:i') ?? '—' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="11" class="px-3 py-10 text-center text-sm text-slate-500">Nenhum usuário encontrado para os filtros atuais.</td></tr>
+                        <tr><td colspan="12" class="px-3 py-10 text-center text-sm text-slate-500">Nenhum usuário encontrado para os filtros atuais.</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -1,6 +1,6 @@
 @extends('layout')
 
-@section('title', 'Isenções de Treinamento por Férias')
+@section('title', 'Isenções de Treinamento')
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4 py-8">
@@ -35,9 +35,10 @@
     <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
         <p class="text-sm text-indigo-900">
             <i class="fas fa-info-circle mr-2"></i>
-            <strong>Como funciona:</strong> Ao isentar um treinamento por férias, ele não aparecerá nas listas de
+            <strong>Como funciona:</strong> ao isentar um treinamento, ele não aparecerá nas listas de
             "pendentes" e "não iniciados" nos relatórios, mesmo que o usuário tenha iniciado o conteúdo mas não tenha
-            concluído.
+            concluído. Afastamentos de <strong>semana completa</strong> (folga, atestado ou licença de segunda a domingo)
+            também isentam automaticamente o conteúdo daquela semana.
         </p>
     </div>
 
@@ -97,6 +98,13 @@
                                     @if($item->isencao->motivo)
                                         <div class="text-xs text-gray-500 mt-0.5 italic">{{ $item->isencao->motivo }}</div>
                                     @endif
+                                @elseif($item->isento_afastamento)
+                                    <span class="bg-amber-100 text-amber-900 px-3 py-1 rounded-full text-sm font-semibold">
+                                        <i class="fas fa-calendar-times mr-1"></i>Afastado na semana
+                                    </span>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        Semana completa: {{ $item->rotulo_afastamento ?? 'folga/atestado/licença' }}
+                                    </div>
                                 @else
                                     <span class="text-gray-400 text-sm">—</span>
                                 @endif
@@ -110,6 +118,8 @@
                                             <i class="fas fa-trash mr-1"></i>Remover
                                         </button>
                                     </form>
+                                @elseif($item->isento_afastamento)
+                                    <span class="text-xs text-gray-500">Isenção automática pelo afastamento</span>
                                 @else
                                     <button onclick="abrirModalIsencao({{ $item->training->id }}, '{{ addslashes($item->training->titulo) }}')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition text-sm font-semibold">
                                         <i class="fas fa-calendar-minus mr-1"></i>Isentar

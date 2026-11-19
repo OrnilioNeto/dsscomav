@@ -8,6 +8,7 @@ use App\Models\Certificate;
 use App\Models\Training;
 use App\Models\UserProgress;
 use App\Modules\Frota\Services\DriverPresenceService;
+use App\Services\TrainingAbsenceService;
 use App\Services\YoutubeStreamResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -86,11 +87,20 @@ class TrainingController extends Controller
     {
         $user = $request->user();
 
+        $exemptTrainingIds = $user->trainingExemptions()->pluck('training_id')->all();
+        $ausencias = TrainingAbsenceService::dadosAusencia($user);
+
         $trainings = Training::with('materials')
             ->where('status', 'ativo')
             ->orderByReleaseDate('desc')
             ->get()
-            ->filter(fn ($t) => $user->canAccessTraining($t));
+            ->filter(fn ($t) => $user->canAccessTraining($t))
+            ->filter(fn ($t) => ! in_array($t->id, $exemptTrainingIds))
+            ->filter(fn ($t) => ! TrainingAbsenceService::isentoComDados(
+                $ausencias['dias'],
+                $ausencias['programacoes'],
+                $t
+            ));
 
         $progressList = UserProgress::where('user_id', $user->id)->get()->keyBy('training_id');
 
@@ -149,6 +159,13 @@ class TrainingController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Acesso negado a este treinamento.',
+            ], 403);
+        }
+
+        if ($user->isExemptFromTraining($training)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Este treinamento está isento para este colaborador.',
             ], 403);
         }
 
@@ -220,6 +237,10 @@ class TrainingController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Acesso negado'], 403);
         }
 
+        if ($user->isExemptFromTraining($training)) {
+            return response()->json(['status' => 'error', 'message' => 'Treinamento isento para este colaborador.'], 403);
+        }
+
         return response()->json([
             'status' => 'success',
             'stream_url' => $this->resolveStreamUrl($training),
@@ -256,6 +277,10 @@ class TrainingController extends Controller
 
         if (! $user->canAccessTraining($training)) {
             return response()->json(['status' => 'error', 'message' => 'Acesso negado'], 403);
+        }
+
+        if ($user->isExemptFromTraining($training)) {
+            return response()->json(['status' => 'error', 'message' => 'Treinamento isento para este colaborador.'], 403);
         }
 
         // Mesmo portão dos demais endpoints de treinamento: o motorista precisa
@@ -391,6 +416,10 @@ class TrainingController extends Controller
 
         if (! $user->canAccessTraining($training)) {
             return response()->json(['status' => 'error', 'message' => 'Acesso negado'], 403);
+        }
+
+        if ($user->isExemptFromTraining($training)) {
+            return response()->json(['status' => 'error', 'message' => 'Treinamento isento para este colaborador.'], 403);
         }
 
         $tempoCliente = $request->input('tempo_assistido');
@@ -536,6 +565,10 @@ class TrainingController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Acesso negado'], 403);
         }
 
+        if ($user->isExemptFromTraining($training)) {
+            return response()->json(['status' => 'error', 'message' => 'Treinamento isento para este colaborador.'], 403);
+        }
+
         if (! $training->hasAssessment()) {
             return response()->json(['status' => 'error', 'message' => 'Treinamento sem avaliação cadastrada'], 422);
         }
@@ -657,6 +690,10 @@ class TrainingController extends Controller
     {
         $training = Training::findOrFail($id);
         $user = request()->user();
+
+        if ($user->isExemptFromTraining($training)) {
+            return response()->json(['status' => 'error', 'message' => 'Treinamento isento para este colaborador.'], 403);
+        }
 
         $progress = UserProgress::where('user_id', $user->id)
             ->where('training_id', $training->id)

@@ -143,7 +143,7 @@ class RelatorioAuditoriaController extends Controller
             'Treinamento', 'Tipo conteudo', 'Tipo treinamento', 'Obrigatorio',
             'Liberacao', 'Prazo', 'Inicio', 'Conclusao', 'Situacao',
             'Tempo assistido', '% assistida', 'Nota', 'Aprovado', 'Tentativas',
-            'Prorrogado ate', 'Motivo prorrogacao', 'Afastamento no periodo', 'Isento',
+            'Prorrogado ate', 'Motivo prorrogacao', 'Afastamento no periodo', 'Afastamento semana', 'Isento',
             'Certificado', 'Emissao certificado', 'Validade certificado', 'Status validade',
         ], ';');
 
@@ -176,6 +176,7 @@ class RelatorioAuditoriaController extends Controller
                 optional($linha->prazo_estendido_ate)->format('d/m/Y H:i'),
                 $linha->prazo_estendido_motivo ?? '',
                 $linha->afastamento_periodo ?? '',
+                $linha->afastamento_semana ?? '',
                 $linha->isencao ?? '',
                 $certificado?->codigo_certificado ?? '',
                 optional($certificado?->data_emissao)->format('d/m/Y H:i'),

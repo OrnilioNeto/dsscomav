@@ -341,6 +341,27 @@ class Training extends Model
     }
 
     /**
+     * Primeiro dia (segunda-feira) da semana em que o conteúdo vence.
+     * É a semana usada na regra de isenção por afastamento completo.
+     */
+    public function prazoSemanaInicio(): ?Carbon
+    {
+        $prazo = $this->prazoBaseConclusao();
+
+        return $prazo ? $prazo->copy()->startOfWeek(Carbon::MONDAY)->startOfDay() : null;
+    }
+
+    /**
+     * Último dia (domingo) da semana em que o conteúdo vence.
+     */
+    public function prazoSemanaFim(): ?Carbon
+    {
+        $inicio = $this->prazoSemanaInicio();
+
+        return $inicio ? $inicio->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay() : null;
+    }
+
+    /**
      * Período do prazo para exibição (ex.: "05/10 08:00 a 11/10 23:00"),
      * da data de liberação cadastrada até o prazo efetivo de conclusão.
      */

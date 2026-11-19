@@ -7,6 +7,7 @@ use App\Models\TrainingLog;
 use App\Models\TrainingQuestion;
 use App\Models\TrainingVacationExemption;
 use App\Models\UserProgress;
+use App\Services\TrainingAbsenceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +31,10 @@ class TrainingPlayerController extends Controller
             ->exists();
         if ($isExempt) {
             abort(403, 'Este treinamento está isento no período de férias.');
+        }
+
+        if (TrainingAbsenceService::isento($user, $training)) {
+            abort(403, 'Este treinamento está isento por afastamento de semana completa.');
         }
 
         // Verificar se o treinamento já está liberado pela data/hora configurada
